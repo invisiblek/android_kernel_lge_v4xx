@@ -64,6 +64,7 @@ static irqreturn_t mmc_cd_gpio_irqt(int irq, void *dev_id)
 				(host->caps2 & MMC_CAP2_CD_ACTIVE_HIGH) ?
 				"HIGH" : "LOW");
 		cd->status = status;
+		host->failures = 0;
 
 #ifdef CONFIG_MACH_LGE
 		if(!status )   //active high & active low  status value is low when sdcard ejected . 
