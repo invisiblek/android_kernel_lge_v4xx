@@ -98,6 +98,11 @@ static void mxt_stop(struct mxt_data *data);
 static int mxt_read_config_crc(struct mxt_data *data, u32 *crc);
 static int mxt_command_backup(struct mxt_data *data, u8 value);
 
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_T641_TWRP
+static int mxt_fb_suspend(struct mxt_data *data);
+static int mxt_fb_resume(struct mxt_data *data);
+#endif
+
 char *knockon_event[2] = { "TOUCH_GESTURE_WAKEUP=WAKEUP", NULL };
 char *lpwg_event[2] = { "TOUCH_GESTURE_WAKEUP=PASSWORD", NULL };
 
@@ -4606,6 +4611,10 @@ static ssize_t mxt_power_control_show(struct mxt_data *data, char *buf)
 	ret += sprintf(buf+ret, "  1 : power on \n");
 	ret += sprintf(buf+ret, "  2 : reset by I2C \n");
 	ret += sprintf(buf+ret, "  3 : reset by reset_gpio \n");
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_T641_TWRP
+	ret += sprintf(buf+ret, "  4 : suspend \n");
+	ret += sprintf(buf+ret, "  5 : resume \n");
+#endif
 
 	return ret;
 }
@@ -4632,12 +4641,24 @@ static ssize_t mxt_power_control_store(struct mxt_data *data, const char *buf, s
 		case 3:
 			mxt_hw_reset(data);
 			break;
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_T641_TWRP
+		case 4:
+			mxt_fb_suspend(data);
+			break;
+		case 5:
+			mxt_fb_resume(data);
+			break;
+#endif
 		default:
 			TOUCH_INFO_MSG("usage: echo [0|1|2|3] > power_control \n");
 			TOUCH_INFO_MSG("  0 : power off \n");
 			TOUCH_INFO_MSG("  1 : power on \n");
 			TOUCH_INFO_MSG("  2 : reset by I2C \n");
 			TOUCH_INFO_MSG("  3 : reset by reset_gpio \n");
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_T641_TWRP
+			TOUCH_INFO_MSG("  4 : suspend \n");
+			TOUCH_INFO_MSG("  5 : resume \n");
+#endif
 			break;
 	}
 	return count;
@@ -7338,6 +7359,10 @@ static int __devinit mxt_probe(struct i2c_client *client, const struct i2c_devic
 		TOUCH_INFO_MSG("%s global_mxt_data is NULL \n", __func__);
 	}
 	data->is_probing = false;
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_T641_TWRP
+	mxt_fb_resume(data);
+#endif
 
 	return 0;
 
