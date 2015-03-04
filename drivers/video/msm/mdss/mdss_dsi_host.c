@@ -27,6 +27,10 @@
 #include "mdss_dsi.h"
 #include "mdss_panel.h"
 
+#ifdef CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL
+#include "mdss_debug.h"
+#endif
+
 #define VSYNC_PERIOD 17
 
 static struct mdss_dsi_ctrl_pdata *left_ctrl_pdata;
@@ -991,8 +995,11 @@ end:
 	return rp->len;
 }
 
+#ifdef CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL
+#define DMA_TX_TIMEOUT 20000
+#else
 #define DMA_TX_TIMEOUT 200
-
+#endif
 static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 					struct dsi_buf *tp)
 {

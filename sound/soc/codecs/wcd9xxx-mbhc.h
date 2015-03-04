@@ -14,6 +14,10 @@
 
 #include "wcd9xxx-resmgr.h"
 
+#ifdef CONFIG_MACH_LGE // hj74.kim : add switch dev
+#include <linux/switch.h>
+#endif
+
 #define WCD9XXX_CFILT_FAST_MODE 0x00
 #define WCD9XXX_CFILT_SLOW_MODE 0x40
 #define WCD9XXX_CFILT_EXT_PRCHG_EN 0x30
@@ -266,7 +270,7 @@ struct wcd9xxx_mbhc_cb {
 			   enum mbhc_impedance_detect_stages stage);
 	void (*compute_impedance) (s16 *, s16 *, uint32_t *, uint32_t *);
 	void (*enable_mbhc_txfe) (struct snd_soc_codec *, bool);
-	int (*enable_mb_source) (struct snd_soc_codec *, bool);
+	int (*enable_mb_source) (struct snd_soc_codec *, bool, bool);
 	void (*setup_int_rbias) (struct snd_soc_codec *, bool);
 	void (*pull_mb_to_vddio) (struct snd_soc_codec *, bool);
 };
@@ -294,6 +298,10 @@ struct wcd9xxx_mbhc {
 	const struct firmware *mbhc_fw;
 
 	struct delayed_work mbhc_insert_dwork;
+
+#if defined(CONFIG_LGE_MBHC_FAST_IRQ_HANDLER)
+	struct work_struct mbhc_mech_plug_detect_irq_work;
+#endif
 
 	u8 current_plug;
 	struct work_struct correct_plug_swch;
@@ -342,11 +350,17 @@ struct wcd9xxx_mbhc {
 	bool update_z;
 	/* Holds codec specific interrupt mapping */
 	const struct wcd9xxx_mbhc_intr *intr_ids;
+	
+#ifdef CONFIG_MACH_LGE // hj74.kim : add switch dev
+	struct switch_dev sdev;
+#endif
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_poke;
 	struct dentry *debugfs_mbhc;
 #endif
+	/* QCT case 01448950 polling noise fix [2014/02/28] */
+	struct mutex mbhc_lock;
 };
 
 #define WCD9XXX_MBHC_CAL_SIZE(buttons, rload) ( \

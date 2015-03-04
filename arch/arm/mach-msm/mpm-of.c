@@ -584,19 +584,44 @@ static void msm_mpm_sys_low_power_modes(bool allow)
 	}
 }
 
+#if 1 // 2014-01-29 QCT CR596765 apply start
+static bool in_suspend;
+#endif // 2014-01-29 QCT CR596765 apply end
 void msm_mpm_suspend_prepare(void)
 {
+#if 1 // 2014-01-29 QCT CR596765 apply start
+	bool allow;
+	unsigned long flags;
+	spin_lock_irqsave(&msm_mpm_lock, flags);
+	in_suspend = true;
+	allow = msm_mpm_irqs_detectable(false) &&
+		msm_mpm_gpio_irqs_detectable(false);
+	spin_unlock_irqrestore(&msm_mpm_lock, flags);
+	msm_mpm_sys_low_power_modes(allow);
+#else
 	bool allow = msm_mpm_irqs_detectable(false) &&
 		msm_mpm_gpio_irqs_detectable(false);
 	msm_mpm_sys_low_power_modes(allow);
+#endif // 2014-01-29 QCT CR596765 apply end
 }
 EXPORT_SYMBOL(msm_mpm_suspend_prepare);
 
 void msm_mpm_suspend_wake(void)
 {
+#if 1 // 2014-01-29 QCT CR596765 apply start
+	bool allow;
+	unsigned long flags;
+	spin_lock_irqsave(&msm_mpm_lock, flags);
+	allow = msm_mpm_irqs_detectable(true) &&
+		msm_mpm_gpio_irqs_detectable(true);
+	in_suspend = false;
+	spin_unlock_irqrestore(&msm_mpm_lock, flags);
+	msm_mpm_sys_low_power_modes(allow);
+#else
 	bool allow = msm_mpm_irqs_detectable(true) &&
 		msm_mpm_gpio_irqs_detectable(true);
 	msm_mpm_sys_low_power_modes(allow);
+#endif // 2014-01-29 QCT CR596765 apply end
 }
 EXPORT_SYMBOL(msm_mpm_suspend_wake);
 
@@ -607,6 +632,12 @@ static void msm_mpm_work_fn(struct work_struct *work)
 		bool allow;
 		wait_for_completion(&wake_wq);
 		spin_lock_irqsave(&msm_mpm_lock, flags);
+#if 1 // 2014-01-29 QCT CR596765 apply start
+		if (in_suspend) {
+			spin_unlock_irqrestore(&msm_mpm_lock, flags);
+			continue;
+		}
+#endif // 2014-01-29 QCT CR596765 apply end
 		allow = msm_mpm_irqs_detectable(true) &&
 				msm_mpm_gpio_irqs_detectable(true);
 		spin_unlock_irqrestore(&msm_mpm_lock, flags);
@@ -672,8 +703,16 @@ static int __devinit msm_mpm_dev_probe(struct platform_device *pdev)
 		pr_info("%s(): Cannot find IRQ resource\n", __func__);
 		return -ENXIO;
 	}
-	ret = devm_request_irq(&pdev->dev, dev->mpm_ipc_irq, msm_mpm_irq,
-			IRQF_TRIGGER_RISING, pdev->name, msm_mpm_irq);
+
+#if defined(CONFIG_MACH_MSM8926_B2L_ATT)|| defined(CONFIG_MACH_MSM8926_JAGNM_ATT)
+    ret = devm_request_irq(&pdev->dev, dev->mpm_ipc_irq, msm_mpm_irq,
+		IRQF_TRIGGER_RISING | IRQF_NO_SUSPEND, pdev->name, msm_mpm_irq);
+#else
+    ret = devm_request_irq(&pdev->dev, dev->mpm_ipc_irq, msm_mpm_irq,
+		IRQF_TRIGGER_RISING, pdev->name, msm_mpm_irq);
+#endif
+
+
 
 	if (ret) {
 		pr_info("%s(): request_irq failed errno: %d\n", __func__, ret);

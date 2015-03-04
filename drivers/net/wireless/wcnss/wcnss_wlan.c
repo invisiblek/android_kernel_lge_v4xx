@@ -729,7 +729,7 @@ void wcnss_pronto_log_debug_regs(void)
 				__func__);
 		return;
 	}
-
+    msleep(50);
 	reg = readl_relaxed(penv->wlan_tx_phy_aborts);
 	pr_info_ratelimited("%s: WLAN_TX_PHY_ABORTS %08x\n", __func__, reg);
 
@@ -750,8 +750,32 @@ EXPORT_SYMBOL(wcnss_pronto_log_debug_regs);
 #ifdef CONFIG_WCNSS_REGISTER_DUMP_ON_BITE
 void wcnss_log_debug_regs_on_bite(void)
 {
-	if (wcnss_hardware_type() == WCNSS_PRONTO_HW)
-		wcnss_pronto_log_debug_regs();
+//	if (wcnss_hardware_type() == WCNSS_PRONTO_HW)
+//		wcnss_pronto_log_debug_regs();
+// QCT_PATCH enable debug log when watchdog happens
+	struct platform_device *pdev = wcnss_get_platform_device();
+	struct clk *measure;
+	struct clk *wcnss_debug_mux;
+	unsigned long clk_rate;
+
+	if (wcnss_hardware_type() != WCNSS_PRONTO_HW)
+		return;
+
+	measure = clk_get(&pdev->dev, "measure");
+	wcnss_debug_mux = clk_get(&pdev->dev, "wcnss_debug");
+
+	if (!IS_ERR(measure) && !IS_ERR(wcnss_debug_mux)) {
+		if (clk_set_parent(measure, wcnss_debug_mux))
+			return;
+
+		clk_rate = clk_get_rate(measure);
+		pr_debug("wcnss: clock frequency is: %luHz\n", clk_rate);
+
+		if (clk_rate)
+			wcnss_pronto_log_debug_regs();
+		else
+			pr_err("clock frequency is zero, cannot access PMU or other registers\n");
+	}
 }
 #endif
 

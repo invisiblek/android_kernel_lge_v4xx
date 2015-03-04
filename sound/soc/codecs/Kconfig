@@ -442,6 +442,10 @@ config SND_SOC_WM9712
 config SND_SOC_WM9713
 	tristate
 
+# Boost
+config SND_SPK_BOOST
+	tristate "spk boost"
+
 # Amp
 config SND_SOC_LM4857
 	tristate
@@ -452,6 +456,14 @@ config SND_SOC_MAX9877
 config SND_SOC_TPA6130A2
 	tristate
 
+config SND_SOC_TPA2028D_STEREO
+	bool "Audio subsystem TPA2028D STEREO SPEAKER"
+	default n
+
+config SND_SOC_TPA2028D_E10WIFI
+        bool "Audio subsystem TPA2028D STEREO SPEAKER for E10WIFI"
+        default n
+
 config SND_SOC_MSM_STUB
 	tristate
 
@@ -461,3 +473,7 @@ config SND_SOC_MSM_HDMI_CODEC_RX
 	help
 	HDMI audio drivers should be built only if the platform
         supports hdmi panel.
+
+config LGE_MBHC_FAST_IRQ_HANDLER
+	bool "put irq handler body into work queue to improve headset detection fail rate"
+	default n

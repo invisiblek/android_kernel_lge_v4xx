@@ -721,11 +721,14 @@ static void wcd9xxx_resmgr_cond_trigger_cond(struct wcd9xxx_resmgr *resmgr,
 	      !!test_bit(cond, &resmgr->cond_flags);
 	list_for_each(l, &resmgr->update_bit_cond_h) {
 		e = list_entry(l, struct wcd9xxx_resmgr_cond_entry, list);
-		if (e->cond == cond)
+		pr_debug("%s: e->cond %d\n",__func__, e->cond);
+		if (e->cond == cond) {
 			snd_soc_update_bits(resmgr->codec, e->reg,
 					    1 << e->shift,
 					    (set ? !e->invert : e->invert)
 					    << e->shift);
+		pr_debug("%s: e->reg %x, value %x\n",__func__, e->reg, (set ? !e->invert : e->invert) << e->shift);
+		}
 	}
 	pr_debug("%s: leave\n", __func__);
 }

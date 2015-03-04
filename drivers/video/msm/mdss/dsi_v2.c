@@ -22,6 +22,10 @@
 
 static struct dsi_interface dsi_intf;
 
+#if defined(CONFIG_MACH_MSM8X10_W5) || defined(CONFIG_MACH_MSM8X10_W65)
+extern int lge_lcd_id;
+#endif
+
 static int dsi_off(struct mdss_panel_data *pdata)
 {
 	int rc = 0;
@@ -64,16 +68,47 @@ static int dsi_panel_handler(struct mdss_panel_data *pdata, int enable)
 				panel_data);
 
 	if (enable) {
+#if !(defined (CONFIG_MACH_MSM8X10_W6) || defined(CONFIG_MACH_MSM8X10_W55))
+#if defined (CONFIG_MACH_MSM8X10_W5)
+		if(lge_lcd_id == 1){				// W5 Tovis LCD
+#endif
 		dsi_ctrl_gpio_request(ctrl_pdata);
 		mdss_dsi_panel_reset(pdata, 1);
+#if defined (CONFIG_MACH_MSM8X10_W5)
+		}
+#endif
+#endif
+#if defined (CONFIG_MACH_MSM8X10_W65)
+		dsi_ctrl_gpio_request(ctrl_pdata);
+		mdss_dsi_panel_reset(pdata, 1);
+#endif
 		rc = ctrl_pdata->on(pdata);
 		if (rc)
 			pr_err("dsi_panel_handler panel on failed %d\n", rc);
 	} else {
 		if (dsi_intf.op_mode_config)
 			dsi_intf.op_mode_config(DSI_CMD_MODE, pdata);
+#if defined (CONFIG_MACH_MSM8X10_W5)
+#if !defined(CONFIG_MACH_MSM8X10_W55)		
+		if(lge_lcd_id == 0){
+			mdss_dsi_panel_reset(pdata, 0);			// L70 LG Display LG4577 LCD
+			rc = ctrl_pdata->off(pdata);
+		}
+		else{										// L70 TOVIS ILI9806E LCD
+			rc = ctrl_pdata->off(pdata);
+			mdss_dsi_panel_reset(pdata, 0);
+		}
+#else											// L65 LG Display LG4573B LCD
+		mdss_dsi_panel_reset(pdata, 0);			
+		rc = ctrl_pdata->off(pdata);
+#endif
+#elif defined(CONFIG_MACH_MSM8X10_W6)			// L80 LG Display LG4573B LCD
+		mdss_dsi_panel_reset(pdata, 0);			
+		rc = ctrl_pdata->off(pdata);
+#else											//original QCT code
 		rc = ctrl_pdata->off(pdata);
 		mdss_dsi_panel_reset(pdata, 0);
+#endif
 		dsi_ctrl_gpio_free(ctrl_pdata);
 	}
 	return rc;
@@ -117,6 +152,7 @@ static int dsi_event_handler(struct mdss_panel_data *pdata,
 		return -ENODEV;
 	}
 
+	pr_info("%s+:event=%d\n", __func__, event);
 	switch (event) {
 	case MDSS_EVENT_UNBLANK:
 		rc = dsi_on(pdata);
@@ -140,6 +176,7 @@ static int dsi_event_handler(struct mdss_panel_data *pdata,
 		pr_debug("%s: unhandled event=%d\n", __func__, event);
 		break;
 	}
+	pr_info("%s-:event=%d, rc=%d\n", __func__, event, rc);
 	return rc;
 }
 
@@ -572,7 +609,7 @@ int dsi_panel_device_register_v2(struct platform_device *dev,
 		return rc;
 	}
 
-	pr_debug("%s: Panal data initialized\n", __func__);
+	pr_info("%s: Panal data initialized\n", __func__);
 	return 0;
 }
 

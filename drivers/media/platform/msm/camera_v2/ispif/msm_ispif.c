@@ -96,14 +96,23 @@ static int msm_ispif_reset_hw(struct ispif_device *ispif)
 {
 	int rc = 0;
 	long timeout = 0;
+
 	struct clk *reset_clk[ARRAY_SIZE(ispif_8974_reset_clk_info)];
 
+/*                                                                                                  */
+#if defined(CONFIG_HI351)
+	if(ispif->hw_num_isps > 1){
+#else
+	{
+#endif
+/*                                                                                                  */
 	rc = msm_cam_clk_enable(&ispif->pdev->dev,
 		ispif_8974_reset_clk_info, reset_clk,
 		ARRAY_SIZE(ispif_8974_reset_clk_info), 1);
-	if (rc < 0) {
-		pr_err("%s: cannot enable clock, error = %d",
-			__func__, rc);
+		if (rc < 0) {
+			pr_err("%s: cannot enable clock, error = %d",
+				__func__, rc);
+		}
 	}
 
 	init_completion(&ispif->reset_complete[VFE0]);
@@ -122,6 +131,7 @@ static int msm_ispif_reset_hw(struct ispif_device *ispif)
 	CDBG("%s: VFE0 done\n", __func__);
 	if (timeout <= 0) {
 		pr_err("%s: VFE0 reset wait timeout\n", __func__);
+	if (ispif->hw_num_isps > 1)
 		msm_cam_clk_enable(&ispif->pdev->dev,
 			ispif_8974_reset_clk_info, reset_clk,
 			ARRAY_SIZE(ispif_8974_reset_clk_info), 0);
@@ -142,12 +152,20 @@ static int msm_ispif_reset_hw(struct ispif_device *ispif)
 		}
 	}
 
+/*                                                                                                  */
+#if defined(CONFIG_HI351)
+	if(ispif->hw_num_isps > 1){
+#else
+	{
+#endif
+/*                                                                                                  */
 	rc = msm_cam_clk_enable(&ispif->pdev->dev,
 		ispif_8974_reset_clk_info, reset_clk,
 		ARRAY_SIZE(ispif_8974_reset_clk_info), 0);
 	if (rc < 0) {
 		pr_err("%s: cannot disable clock, error = %d",
 			__func__, rc);
+	}
 	}
 	return rc;
 }
@@ -205,12 +223,22 @@ static int msm_ispif_reset(struct ispif_device *ispif)
 			ISPIF_VFE_m_PIX_INTF_n_CID_MASK(i, 0));
 		msm_camera_io_w(0, ispif->base +
 			ISPIF_VFE_m_PIX_INTF_n_CID_MASK(i, 1));
+#if 1 //                                                                                                    
 		msm_camera_io_w(0, ispif->base +
 			ISPIF_VFE_m_RDI_INTF_n_CID_MASK(i, 0));
 		msm_camera_io_w(0, ispif->base +
 			ISPIF_VFE_m_RDI_INTF_n_CID_MASK(i, 1));
 		msm_camera_io_w(0, ispif->base +
 			ISPIF_VFE_m_RDI_INTF_n_CID_MASK(i, 2));
+#else // QCT original
+		msm_camera_io_w(0, ispif->base +
+			ISPIF_VFE_m_RDI_INTF_n_CID_MASK(i, 0));
+		msm_camera_io_w(0, ispif->base +
+			ISPIF_VFE_m_RDI_INTF_n_CID_MASK(i, 1));
+		msm_camera_io_w(0, ispif->base +
+			ISPIF_VFE_m_PIX_INTF_n_CID_MASK(i, 2));
+#endif
+/*                                                                                     */
 
 		msm_camera_io_w(0, ispif->base +
 			ISPIF_VFE_m_PIX_INTF_n_CROP(i, 0));
@@ -881,8 +909,12 @@ static int msm_ispif_set_vfe_info(struct ispif_device *ispif,
 	return 0;
 }
 
+/*                                               */
+/* uint32_t session_id variable has been added due to the shutter lag patch. */
+/* if we do not distinguish Front and Rear Camera with that id,                     */
+/*  then kernel crash comes out in case of switching camera to the front       */
 static int msm_ispif_init(struct ispif_device *ispif,
-	uint32_t csid_version)
+	uint32_t csid_version, uint32_t session_id) /*                                                                                     */
 {
 	int rc = 0;
 
@@ -940,11 +972,22 @@ static int msm_ispif_init(struct ispif_device *ispif,
 		goto error_ahb;
 	}
 
+/*                                               */
+/* uint32_t session_id variable has been added due to the shutter lag patch. */
+/* if we do not distinguish Front and Rear Camera with that id,                     */
+/*  then kernel crash comes out in case of switching camera to the front       */
+/*                                                                                                  */
+#if defined(CONFIG_HI351)
+	if(session_id == 1)  /*                                                                                                                */
+		msm_ispif_reset_hw(ispif);
+#else
 	if (of_device_is_compatible(ispif->pdev->dev.of_node,
 				    "qcom,ispif-v3.0")) {
 		/* currently HW reset is implemented for 8974 only */
 		msm_ispif_reset_hw(ispif);
 	}
+#endif
+/*                                                                                                  */
 
 	rc = msm_ispif_reset(ispif);
 	if (rc == 0) {
@@ -1002,7 +1045,12 @@ static long msm_ispif_cmd(struct v4l2_subdev *sd, void *arg)
 		ispif->enb_dump_reg = pcdata->reg_dump; /* save dump config */
 		break;
 	case ISPIF_INIT:
-		rc = msm_ispif_init(ispif, pcdata->csid_version);
+/*                                               */
+/* uint32_t session_id variable has been added due to the shutter lag patch. */
+/* if we do not distinguish Front and Rear Camera with that id,                     */
+/*  then kernel crash comes out in case of switching camera to the front       */
+//		rc = msm_ispif_init(ispif, pcdata->csid_version);
+		rc = msm_ispif_init(ispif, pcdata->csid_version, pcdata->session_id); /*                                                                                     */
 		msm_ispif_io_dump_reg(ispif);
 		break;
 	case ISPIF_CFG:

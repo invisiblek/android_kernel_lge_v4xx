@@ -346,10 +346,27 @@ static void msm_vfe40_init_hardware_reg(struct vfe_device *vfe_dev)
 	msm_camera_io_w(0xC001FF7F, vfe_dev->vfe_base + 0x974);
 	/* BUS_CFG */
 	msm_camera_io_w(0x10000001, vfe_dev->vfe_base + 0x50);
+
+/*                                                                                          */
+#ifdef CONFIG_LG_PROXY /*                      */
+	msm_camera_io_w(0xF80000F3, vfe_dev->vfe_base + 0x28);
+#else // original
 	msm_camera_io_w(0xE00000F3, vfe_dev->vfe_base + 0x28);
+#endif
+/*                                                                                          */
+
 	msm_camera_io_w_mb(0xFEFFFFFF, vfe_dev->vfe_base + 0x2C);
 	msm_camera_io_w(0xFFFFFFFF, vfe_dev->vfe_base + 0x30);
 	msm_camera_io_w_mb(0xFEFFFFFF, vfe_dev->vfe_base + 0x34);
+
+#ifdef CONFIG_LG_PROXY /*                      */
+/*                                                                                     */
+	msm_camera_io_w(1, vfe_dev->vfe_base + 0x24);
+	msm_camera_io_w(0, vfe_dev->vfe_base + 0x30);
+	msm_camera_io_w_mb(0, vfe_dev->vfe_base + 0x34);
+	msm_camera_io_w(1, vfe_dev->vfe_base + 0x24);
+/*                                                                                     */
+#endif
 }
 
 static void msm_vfe40_process_reset_irq(struct vfe_device *vfe_dev,
@@ -600,7 +617,7 @@ static long msm_vfe40_reset_hardware(struct vfe_device *vfe_dev ,
 	init_completion(&vfe_dev->reset_complete);
 	msm_camera_io_w_mb(rst_val, vfe_dev->vfe_base + 0xC);
 	return wait_for_completion_interruptible_timeout(
-		&vfe_dev->reset_complete, msecs_to_jiffies(50));
+		&vfe_dev->reset_complete, msecs_to_jiffies(100)); /*                                                                                                                           */
 }
 
 static void msm_vfe40_axi_reload_wm(
@@ -642,6 +659,21 @@ static void msm_vfe40_axi_cfg_comp_mask(struct vfe_device *vfe_dev,
 	 * For dual VFE, composite 2/3 interrupt is used to trigger
 	 * microcontroller to update certain VFE registers
 	 */
+
+/*                                                                                          */
+#ifdef CONFIG_LG_PROXY /*                      */
+	if (stream_info->stream_src == PIX_VIEWFINDER) {
+		comp_mask |= (axi_data->composite_info[comp_mask_index].
+		stream_composite_mask << 16);
+		irq_mask |= BIT(27);
+	}
+
+	if (stream_info->stream_src == PIX_ENCODER) {
+		comp_mask |= (axi_data->composite_info[comp_mask_index].
+		stream_composite_mask << 24);
+		irq_mask |= BIT(28);
+	}
+#else // original
 	if (stream_info->plane_cfg[0].plane_addr_offset &&
 		stream_info->stream_src == PIX_VIEWFINDER) {
 		comp_mask |= (axi_data->composite_info[comp_mask_index].
@@ -655,6 +687,9 @@ static void msm_vfe40_axi_cfg_comp_mask(struct vfe_device *vfe_dev,
 		stream_composite_mask << 24);
 		irq_mask |= BIT(28);
 	}
+#endif
+/*                                                                                          */
+
 
 	msm_camera_io_w(comp_mask, vfe_dev->vfe_base + 0x40);
 	msm_camera_io_w(irq_mask, vfe_dev->vfe_base + 0x28);
@@ -673,6 +708,20 @@ static void msm_vfe40_axi_clear_comp_mask(struct vfe_device *vfe_dev,
 	irq_mask = msm_camera_io_r(vfe_dev->vfe_base + 0x28);
 	irq_mask &= ~(1 << (comp_mask_index + 25));
 
+/*                                                                                          */
+#ifdef CONFIG_LG_PROXY /*                      */
+	if (stream_info->stream_src == PIX_VIEWFINDER) {
+		comp_mask &= ~(axi_data->composite_info[comp_mask_index].
+		stream_composite_mask << 16);
+		irq_mask &= ~BIT(27);
+	}
+
+	if (stream_info->stream_src == PIX_ENCODER) {
+		comp_mask &= ~(axi_data->composite_info[comp_mask_index].
+		stream_composite_mask << 24);
+		irq_mask &= ~BIT(28);
+	}
+#else // original
 	if (stream_info->plane_cfg[0].plane_addr_offset &&
 		stream_info->stream_src == PIX_VIEWFINDER) {
 		comp_mask &= ~(axi_data->composite_info[comp_mask_index].
@@ -686,6 +735,8 @@ static void msm_vfe40_axi_clear_comp_mask(struct vfe_device *vfe_dev,
 		stream_composite_mask << 24);
 		irq_mask &= ~BIT(28);
 	}
+#endif
+	/*                                                                                          */
 
 	msm_camera_io_w(comp_mask, vfe_dev->vfe_base + 0x40);
 	msm_camera_io_w(irq_mask, vfe_dev->vfe_base + 0x28);
@@ -900,6 +951,13 @@ static void msm_vfe40_update_camif_state(struct vfe_device *vfe_dev,
 		vfe_dev->axi_data.src_info[VFE_PIX_0].active = 0;
 	} else if (update_state == DISABLE_CAMIF_IMMEDIATELY) {
 		msm_camera_io_w_mb(0x6, vfe_dev->vfe_base + 0x2F4);
+/*                                                                               */
+#if defined(CONFIG_HI351)
+		vfe_dev->hw_info->vfe_ops.axi_ops.halt(vfe_dev);
+		vfe_dev->hw_info->vfe_ops.core_ops.reset_hw(vfe_dev,ISP_RST_SOFT);
+		vfe_dev->hw_info->vfe_ops.core_ops.init_hw_reg(vfe_dev);
+#endif
+/*                                                                               */
 		vfe_dev->axi_data.src_info[VFE_PIX_0].active = 0;
 	}
 }

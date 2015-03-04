@@ -42,6 +42,8 @@
 #define SMEM_IMAGE_VERSION_OEM_OFFSET 96
 #define SMEM_IMAGE_VERSION_PARTITION_APPS 10
 
+extern int g_speed_bin;
+
 enum {
 	HW_PLATFORM_UNKNOWN = 0,
 	HW_PLATFORM_SURF    = 1,
@@ -73,6 +75,38 @@ const char *hw_platform[] = {
 	[HW_PLATFORM_HRD] = "HRD",
 	[HW_PLATFORM_DTV] = "DTV",
 };
+
+#ifdef CONFIG_MACH_LGE
+/*                 */
+enum {
+		HW_PLATFORM_LGE_START  = 100,
+		HW_PLATFORM_LGPS14     = 100,
+        HW_PLATFORM_LGPS15     = 100,
+        HW_PLATFORM_LG_W7      = 101,
+        HW_PLATFORM_LG_X5      = 102,
+        HW_PLATFORM_LG_X3      = 103,
+        HW_PLATFORM_LG_W3      = 121,
+        HW_PLATFORM_LG_E7WIFI  = 161,
+        HW_PLATFORM_LG_E7LTE   = 162,
+        HW_PLATFORM_LG_E8WIFI   = 165,
+        HW_PLATFORM_LG_E8LTE   = 166,
+        HW_PLATFORM_LG_E9      = 171,
+		HW_PLATFORM_LGE_INVALID= 200
+};
+
+const char *hw_platform_lge[] = {
+	[HW_PLATFORM_LGPS14 - HW_PLATFORM_LGE_START] 	= "LGPS14",
+        [HW_PLATFORM_LG_W7 - HW_PLATFORM_LGE_START]    = "W7",
+        [HW_PLATFORM_LG_X5 - HW_PLATFORM_LGE_START]    = "X5",
+        [HW_PLATFORM_LG_X3 - HW_PLATFORM_LGE_START]    = "X3",
+        [HW_PLATFORM_LG_W3 - HW_PLATFORM_LGE_START]    = "W3",
+        [HW_PLATFORM_LG_E7WIFI - HW_PLATFORM_LGE_START] = "E7WIFI",
+        [HW_PLATFORM_LG_E7LTE - HW_PLATFORM_LGE_START] = "E7LTE",
+        [HW_PLATFORM_LG_E8WIFI - HW_PLATFORM_LGE_START] = "E8WIFI",
+        [HW_PLATFORM_LG_E8LTE - HW_PLATFORM_LGE_START] = "E8LTE",
+        [HW_PLATFORM_LG_E9 - HW_PLATFORM_LGE_START]    = "E9",
+};
+#endif
 
 enum {
 	ACCESSORY_CHIP_UNKNOWN = 0,
@@ -437,6 +471,18 @@ static struct socinfo_v1 dummy_socinfo = {
 	.version = 1,
 };
 
+#ifdef CONFIG_LGE_PM_SMPL_COUNT
+u16 *poweron_st = 0;
+uint16_t power_on_status_info_get(void)
+{
+    poweron_st = smem_alloc(SMEM_POWER_ON_STATUS_INFO, sizeof(poweron_st));
+
+    if( poweron_st == NULL ) return 0 ;
+    return *poweron_st;
+}
+EXPORT_SYMBOL(power_on_status_info_get);
+#endif
+
 uint32_t socinfo_get_id(void)
 {
 	return (socinfo) ? socinfo->v1.id : 0;
@@ -511,6 +557,11 @@ uint32_t socinfo_get_pmic_die_revision(void)
 	return socinfo ?
 		(socinfo->v1.format >= 7 ? socinfo->v7.pmic_die_revision : 0)
 		: 0;
+}
+
+int socinfo_get_speed_bin(void)
+{
+	return g_speed_bin;
 }
 
 static char *socinfo_get_image_version_base_address(void)
@@ -625,6 +676,15 @@ socinfo_show_platform_type(struct sys_device *dev,
 
 	hw_type = socinfo_get_platform_type();
 	if (hw_type >= HW_PLATFORM_INVALID) {
+#ifdef CONFIG_MACH_LGE
+		/* For lcd density settings */
+		if ((hw_type >= HW_PLATFORM_LGE_START)
+				&& (hw_type < HW_PLATFORM_LGE_INVALID)) {
+			if (hw_platform_lge[hw_type - HW_PLATFORM_LGE_START] != NULL)
+				return snprintf(buf, PAGE_SIZE, "%-.32s\n",
+						hw_platform_lge[hw_type - HW_PLATFORM_LGE_START]);
+		}
+#endif
 		pr_err("%s: Invalid hardware platform type found\n",
 								   __func__);
 		hw_type = HW_PLATFORM_UNKNOWN;
@@ -944,10 +1004,20 @@ msm_get_image_crm_version(struct device *dev,
 			string_address);
 }
 
+static ssize_t
+socinfo_show_speed_bin(struct sys_device *dev,
+		struct sysdev_attribute *attr,
+		char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+			socinfo_get_speed_bin());
+}
+
 static struct sysdev_attribute socinfo_v1_files[] = {
 	_SYSDEV_ATTR(id, 0444, socinfo_show_id, NULL),
 	_SYSDEV_ATTR(version, 0444, socinfo_show_version, NULL),
 	_SYSDEV_ATTR(build_id, 0444, socinfo_show_build_id, NULL),
+	_SYSDEV_ATTR(speed_bin, 0444, socinfo_show_speed_bin, NULL),
 };
 
 static struct sysdev_attribute socinfo_v2_files[] = {
@@ -1078,7 +1148,7 @@ static struct device_attribute image_crm_version =
 			msm_get_image_crm_version, msm_set_image_crm_version);
 
 static struct device_attribute select_image =
-	__ATTR(select_image, S_IRUGO | S_IWUSR,
+	__ATTR(select_image, S_IRUGO | S_IRUSR,
 			msm_get_image_number, msm_select_image);
 
 static struct sysdev_class soc_sysdev_class = {

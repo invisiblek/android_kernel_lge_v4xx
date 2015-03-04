@@ -1,6 +1,13 @@
 menu "Core Netfilter Configuration"
 	depends on NET && INET && NETFILTER
 
+config LG_VPN
+    tristate "LG VPN Support"
+    default n
+    ---help---
+    This feature is for LG VPN support. It includes interceptor netfilter.
+
+
 config NETFILTER_NETLINK
 	tristate
 
@@ -1187,6 +1194,12 @@ config NETFILTER_XT_MATCH_U32
 	  Details and examples are in the kernel module source.
 
 endif # NETFILTER_XTABLES
+
+config LG_VPN
+	tristate "LG VPN Support"
+	default n
+	---help---
+	  This feature is for LG VPN support. It includes interceptor netfilter.
 
 endmenu
 

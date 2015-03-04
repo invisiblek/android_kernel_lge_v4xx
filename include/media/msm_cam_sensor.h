@@ -70,6 +70,9 @@ enum msm_camera_i2c_data_type {
 	MSM_CAMERA_I2C_SET_WORD_MASK,
 	MSM_CAMERA_I2C_UNSET_WORD_MASK,
 	MSM_CAMERA_I2C_SET_BYTE_WRITE_MASK_DATA,
+//                                                                                             
+        MSM_CAMERA_I2C_BURST_DATA,
+//                                                                                             
 	MSM_CAMERA_I2C_DATA_TYPE_MAX,
 };
 
@@ -94,6 +97,7 @@ enum msm_sensor_power_seq_gpio_t {
 	SENSOR_GPIO_VANA,
 	SENSOR_GPIO_VDIG,
 	SENSOR_GPIO_VAF,
+	SENSOR_GPIO_LDAF_EN, /*                                                                              */
 	SENSOR_GPIO_MAX,
 };
 
@@ -247,7 +251,15 @@ struct msm_camera_i2c_reg_setting {
 	enum msm_camera_i2c_reg_addr_type addr_type;
 	enum msm_camera_i2c_data_type data_type;
 	uint16_t delay;
+	uint16_t *value;	/*                                                            */
 };
+
+/*                                                                                                                   */
+struct msm_fps_range_setting{
+   int32_t min_fps;
+   int32_t max_fps;
+};
+/*                                                                                                                    */
 
 struct msm_camera_i2c_seq_reg_array {
 	uint16_t reg_addr;
@@ -324,6 +336,20 @@ struct msm_sensor_info_t {
 	int32_t     subdev_id[SUB_MODULE_MAX];
 };
 
+#if 1 /*                   */
+/*                                                            */
+struct msm_sensor_proxy_info_t{
+	uint16_t proxy_val;
+	uint32_t proxy_conv;
+	uint32_t proxy_sig;
+	uint32_t proxy_amb;
+	uint32_t proxy_raw;
+	uint32_t cal_count;
+	uint32_t cal_done;
+};
+/*                                                            */
+#endif
+
 struct camera_vreg_t {
 	const char *reg_name;
 	enum camera_vreg_type type;
@@ -350,6 +376,8 @@ struct msm_sensor_init_params {
 	enum camb_position_t position;
 	/* sensor mount angle */
 	uint32_t            sensor_mount_angle;
+	int 				maker_gpio;/*                                                                                 */
+	int					product_kor;
 };
 
 struct sensorb_cfg_data {
@@ -357,6 +385,10 @@ struct sensorb_cfg_data {
 	union {
 		struct msm_sensor_info_t      sensor_info;
 		struct msm_sensor_init_params sensor_init_params;
+#if 1  /*                   */
+		uint16_t proxy_data;	/*                                                               */
+		struct msm_sensor_proxy_info_t	proxy_info;	/*                                                          */
+#endif
 		void                         *setting;
 	} cfg;
 };
@@ -413,6 +445,7 @@ enum msm_sensor_cfg_type_t {
 	CFG_SET_SLAVE_INFO,
 	CFG_SLAVE_READ_I2C,
 	CFG_WRITE_I2C_ARRAY,
+    CFG_READ_I2C_ARRAY_LG,	  /*                                                                                */
 	CFG_SLAVE_WRITE_I2C_ARRAY,
 	CFG_WRITE_I2C_SEQ_ARRAY,
 	CFG_POWER_UP,
@@ -435,6 +468,25 @@ enum msm_sensor_cfg_type_t {
 	CFG_SET_WHITE_BALANCE,
 	CFG_SET_AUTOFOCUS,
 	CFG_CANCEL_AUTOFOCUS,
+	CFG_PAGE_MODE_READ_I2C_ARRAY,	/*                                                            */
+	CFG_SET_FRAMERATE_FOR_SOC,		/*                                                                     */
+/*                                                                              */
+	CFG_SET_AEC_ROI,
+	CFG_SET_AWB_LOCK,
+	CFG_SET_AEC_LOCK,
+	CFG_SET_INIT_SETTING_VT,
+/*                                                                              */
+	CFG_SET_REGISTER_UPDATE,		/*                                                                    */
+#if 1  /*                   */
+	CFG_PROXY_ON,				/*                                                               */
+	CFG_PROXY_OFF,				/*                                                               */
+	CFG_GET_PROXY,				/*                                                               */
+	CFG_PROXY_THREAD_ON,				/*                                                               */
+	CFG_PROXY_THREAD_PAUSE,			/*                                                               */
+	CFG_PROXY_THREAD_RESTART,			/*                                                               */
+	CFG_PROXY_THREAD_OFF,				/*                                                               */
+	CFG_PROXY_CAL,
+#endif
 };
 
 enum msm_actuator_cfg_type_t {

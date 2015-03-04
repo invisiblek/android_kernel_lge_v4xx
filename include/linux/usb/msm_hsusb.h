@@ -27,6 +27,10 @@
 #include <linux/hrtimer.h>
 #include <linux/power_supply.h>
 #include <linux/cdev.h>
+#ifdef CONFIG_LGE_PM_USB_ID
+#include <linux/qpnp/qpnp-adc.h>
+#endif
+
 /*
  * The following are bit fields describing the usb_request.udc_priv word.
  * These bit fields are set by function drivers that wish to queue
@@ -103,6 +107,8 @@ enum msm_usb_phy_type {
 };
 
 #define IDEV_CHG_MAX	1500
+#define IDEV_CHG_CDP	900
+#define IDEV_CHG_DCP	800
 #define IDEV_CHG_MIN	500
 #define IUNIT		100
 
@@ -190,10 +196,17 @@ enum usb_vdd_value {
 	VDD_VAL_MAX,
 };
 
+enum msm_otg_id_state {
+        MSM_OTG_ID_GROUND = 0,
+        MSM_OTG_ID_FLOAT,
+};
+
 /**
  * struct msm_otg_platform_data - platform device data
  *              for msm_otg driver.
  * @phy_init_seq: PHY configuration sequence. val, reg pairs
+ *              terminated by -1.
+ * @phy_init_host_seq :PHY configuration sequence for Host mode. val, reg pairs
  *              terminated by -1.
  * @vbus_power: VBUS power on/off routine.It should return result
  *		as success(zero value) or failure(non-zero value).
@@ -237,6 +250,7 @@ enum usb_vdd_value {
  */
 struct msm_otg_platform_data {
 	int *phy_init_seq;
+	int *phy_init_host_seq;
 	int (*vbus_power)(bool on);
 	unsigned power_budget;
 	enum usb_mode_type mode;
@@ -264,6 +278,7 @@ struct msm_otg_platform_data {
 	bool dpdm_pulldown_added;
 	bool enable_ahb2ahb_bypass;
 	bool disable_retention_with_vdd_min;
+	bool factory_cable_reset;
 };
 
 /* phy related flags */
@@ -345,6 +360,7 @@ struct msm_otg_platform_data {
  * @host_bus_suspend: indicates host bus suspend or not.
  * @chg_check_timer: The timer used to implement the workaround to detect
  *               very slow plug in of wall charger.
+ * @pm_done: Indicates whether USB is PM resumed.
  * @ui_enabled: USB Intterupt is enabled or disabled.
  */
 struct msm_otg {
@@ -461,7 +477,21 @@ struct msm_otg {
 	bool ext_chg_opened;
 	bool ext_chg_active;
 	struct completion ext_chg_wait;
-	int ui_enabled;
+	bool pm_done;
+        int ui_enabled;
+
+#ifdef CONFIG_LGE_PM_USB_ID
+	struct qpnp_vadc_chip *vadc_dev;
+	struct qpnp_adc_tm_btm_param adc_param;
+	struct delayed_work init_adc_work;
+	enum msm_otg_id_state id_state;
+	struct qpnp_adc_tm_chip *adc_tm_dev;
+	bool id_adc_detect;
+#endif
+#ifdef CONFIG_LGE_PM_VZW_FAST_CHG
+	int chg_det_count;
+#endif
+
 };
 
 struct ci13xxx_platform_data {

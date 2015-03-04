@@ -52,11 +52,46 @@
 #include <mach/msm_memtypes.h>
 
 #include "mdss_fb.h"
+#include "mdss_dsi.h"
+
+#if defined(CONFIG_MACH_MSM8926_JAGC_SPR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGDSNM_CN) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
+#include "mdss_debug.h"
+#endif
+
+#ifdef CONFIG_MACH_LGE
+#include "mdss_mdp.h"
+#include <mach/board_lge.h>
+#if defined(CONFIG_LGE_MIPI_TOVIS_VIDEO_540P_PANEL) || defined(CONFIG_FB_MSM_MIPI_TIANMA_VIDEO_QHD_PT_PANEL)
+extern int is_dsv_cont_splash_screening_f;
+#endif
+static int force_set_bl_f;
+unsigned long msm_fb_phys_addr_backup;
+#endif
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
 #else
 #define MDSS_FB_NUM 2
+#endif
+
+#if defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR) || defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70_GLOBAL_COM) || \
+	defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGC_SPR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGDSNM_CN) || \
+	defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
+#define UI_BL_OFF		0
+#define UI_0_BL			10
+#define UI_20_BL		60
+#define UI_40_BL		110
+#define UI_60_BL		157
+#define UI_80_BL		207
+#define UI_MAX_BL		255
+
+#define LGE_BL_OFF		0
+#define LGE_0_BL		100
+#define LGE_20_BL		230
+#define LGE_40_BL		630
+#define LGE_60_BL		1280
+#define LGE_80_BL		2480
+#define LGE_MAX_BL		4095
 #endif
 
 #define MAX_FBI_LIST 32
@@ -69,6 +104,11 @@ static u32 mdss_fb_pseudo_palette[16] = {
 	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,
 	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff
 };
+
+#if defined(CONFIG_LGE_BROADCAST_TDMB)
+extern struct mdp_csc_cfg dmb_csc_convert;
+extern int pp_set_dmb_status(int flag);
+#endif /*               */
 
 static struct msm_mdp_interface *mdp_instance;
 
@@ -150,49 +190,69 @@ static int mdss_fb_notify_update(struct msm_fb_data_type *mfd,
 	return ret;
 }
 
-static int mdss_fb_splash_thread(void *data)
-{
-	struct msm_fb_data_type *mfd = data;
-	int ret = -EINVAL;
-	struct fb_info *fbi = NULL;
-	int ov_index[2];
-
-	if (!mfd || !mfd->fbi || !mfd->mdp.splash_fnc) {
-		pr_err("Invalid input parameter\n");
-		goto end;
-	}
-
-	fbi = mfd->fbi;
-
-	ret = mdss_fb_open(fbi, current->tgid);
-	if (ret) {
-		pr_err("fb_open failed\n");
-		goto end;
-	}
-
-	mfd->bl_updated = true;
-	mdss_fb_set_backlight(mfd, mfd->panel_info->bl_max >> 1);
-
-	ret = mfd->mdp.splash_fnc(mfd, ov_index, MDP_CREATE_SPLASH_OV);
-	if (ret) {
-		pr_err("Splash image failed\n");
-		goto splash_err;
-	}
-
-	do {
-		schedule_timeout_interruptible(SPLASH_THREAD_WAIT_TIMEOUT * HZ);
-	} while (!kthread_should_stop());
-
-	mfd->mdp.splash_fnc(mfd, ov_index, MDP_REMOVE_SPLASH_OV);
-
-splash_err:
-	mdss_fb_release(fbi, current->tgid);
-end:
-	return ret;
-}
-
 static int lcd_backlight_registered;
 
+#if defined(CONFIG_FB_MSM_MIPI_TIANMA_VIDEO_QHD_PT_PANEL) || defined(CONFIG_MACH_MSM8926_X5_VZW)
+static int cal_value;
+static const char mapped_value[256] = {
+	0,  4,  4,  4,  4,  4,  4,  4,  4,  4, //9
+	4,  4,  4,  4,  4,  4,  4,  4,  4,  4, //19
+	4,  4,  4,  4,  4,  4,  4,  5,  5,  5, //29
+	5,  5,  5,  5,  5,  5,  5,  6,  6,  6, //39
+	6,  7,  7,  7,  7,  7,  8,  8,  8,  8, //49
+	8,  9,  9,  9,  9,  9,  10, 10, 10, 11, //59
+	11, 12, 12, 12, 12, 12, 13, 13, 14, 14, //69
+	14, 15, 15, 16, 16, 16, 17, 17, 18, 18, //79
+	18, 19, 19, 20, 21, 21, 22, 22, 23, 23, //89
+	24, 25, 25, 26, 26, 27, 27, 28, 29, 29, //99
+	30, 30, 30, 31, 31, 32, 32, 32, 34, 34, //109
+	36, 36, 38, 38, 38, 41, 41, 42, 43, 44, //119
+	45, 45, 46, 47, 48, 49, 49, 50, 51, 52, //129
+	53, 53, 55, 55, 55, 56, 57, 59, 59, 60, //139
+	61, 62, 64, 64, 65, 66, 67, 69, 69, 69, //149
+	71, 71, 71, 71, 75, 75, 75, 78, 78, 82, //159
+	83, 84, 85, 86, 88, 89, 90, 91, 92, 94, //169
+	95, 96, 97, 98,100,101,102,104,105,107, //179
+	107,107,107,110,110,113,113,116,116,116, //189
+	120,120,123,123,127,127,127,130,130,130, //199
+	134,134,138,138,142,142,146,146,146,150, //209
+	150,150,154,154,154,158,158,162,162,162, //219
+	166,166,171,171,175,175,175,179,179,184, //229
+	184,188,188,193,193,193,198,198,202,202, //239
+	202,207,207,207,214,214,217,217,222,222, //249
+	222,228,228,233,233,239 //255
+};
+#elif defined(CONFIG_LGE_MIPI_TOVIS_VIDEO_540P_PANEL)
+static int cal_value;
+static const char mapped_value[256] = {
+	0,  3,  3,  3,  3,  4,  4,  4,  4,  5,   //9
+	5,  5,  5,  5,  5,  5,  5,  5,  5,  5,   //19
+	5,  5,  5,  5,  5,  5,  5,  6,  6,  6,   //29
+	6,  6,  6,  6,  6,  6,  6,  6,  6,  7,   //39
+	7,  7,  7,  7,  7,  7,  7,  8,  8,  8,   //49
+	9,  9,  9,  9,  9,  10, 10, 10, 10, 10,  //59
+	11, 11, 11, 11, 12, 12, 12, 12, 13, 13,  //69
+	13, 14, 14, 14, 15, 15, 15, 16, 16, 16,  //79
+	17, 17, 17, 18, 18, 19, 20, 20, 21, 21,  //89
+	21, 22, 22, 23, 23, 23, 24, 24, 24, 25,  //99
+	25, 25, 27, 27, 28, 28, 29, 29, 31, 31,  //109
+	31, 32, 32, 32, 33, 33, 35, 35, 37, 37,  //119
+	37, 38, 38, 40, 40, 42, 42, 42, 42, 43,  //129
+	43, 45, 47, 47, 49, 49, 51, 51, 51, 53,  //139
+	53, 55, 55, 55, 57, 57, 57, 59, 59, 59,  //149
+	61, 61, 64, 64, 66, 66, 66, 68, 68, 71,  //159
+	71, 71, 73, 73, 73, 76, 76, 76, 78, 78,  //169
+	81, 81, 84, 84, 86, 86, 86, 86, 89, 89,  //179
+	92, 92, 95, 95, 95, 98, 98, 98,101,104,  //189
+	104,104,107,107,110,110,112,114,114,114, //199
+	117,117,120,120,124,124,124,128,128,132, //209
+	132,132,135,135,135,139,143,143,145,147, //219
+	147,147,151,151,159,159,159,159,161,163, //229
+	163,163,167,172,172,174,176,176,180,180, //239
+	185,185,185,187,189,189,189,194,198,200, //249
+	201,203,205,208,210,213                  //255
+};
+#endif
 static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 				      enum led_brightness value)
 {
@@ -204,8 +264,36 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 
 	/* This maps android backlight level 0 to 255 into
 	   driver backlight level 0 to bl_max with rounding */
+#if defined(CONFIG_LGE_MIPI_TOVIS_VIDEO_540P_PANEL) || defined(CONFIG_FB_MSM_MIPI_TIANMA_VIDEO_QHD_PT_PANEL)
+	cal_value = mapped_value[value];
+	MDSS_BRIGHT_TO_BL(bl_lvl, cal_value, mfd->panel_info->bl_max,
+			MDSS_MAX_BL_BRIGHTNESS);
+	pr_info("value=%d, cal_value=%d\n", value, cal_value);
+#else
+
+#if defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR) || defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70_GLOBAL_COM) || \
+	defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGC_SPR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGDSNM_CN) || \
+	defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) ||  defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
+	if(value >= UI_BL_OFF && value <= UI_0_BL)
+		bl_lvl = (value - UI_BL_OFF) * (LGE_0_BL - LGE_BL_OFF) / (UI_0_BL - UI_BL_OFF) + LGE_BL_OFF;
+	else if(value >= UI_0_BL && value <= UI_20_BL)
+		bl_lvl = (value - UI_0_BL) * (LGE_20_BL - LGE_0_BL) / (UI_20_BL - UI_0_BL) + LGE_0_BL;
+	else if(value >UI_20_BL && value <= UI_40_BL)
+		bl_lvl = (value - UI_20_BL) * (LGE_40_BL - LGE_20_BL) / (UI_40_BL - UI_20_BL) + LGE_20_BL;
+	else if(value >UI_40_BL && value <= UI_60_BL)
+		bl_lvl = (value - UI_40_BL) * (LGE_60_BL - LGE_40_BL) / (UI_60_BL - UI_40_BL) + LGE_40_BL;
+	else if(value >UI_60_BL && value <= UI_80_BL)
+		bl_lvl = (value - UI_60_BL) * (LGE_80_BL - LGE_60_BL) / (UI_80_BL - UI_60_BL) + LGE_60_BL;
+	else if(value >UI_80_BL && value <= UI_MAX_BL)
+		bl_lvl = (value - UI_80_BL) * (LGE_MAX_BL - LGE_80_BL) / (UI_MAX_BL - UI_80_BL) + LGE_80_BL;
+
+	pr_debug("value=%d, bl_lvl=%d\n", value, bl_lvl);
+#else
 	MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_max,
-				mfd->panel_info->brightness_max);
+                                mfd->panel_info->brightness_max);
+#endif
+
+#endif
 
 	if (!bl_lvl && value)
 		bl_lvl = 1;
@@ -260,6 +348,8 @@ static ssize_t mdss_fb_get_type(struct device *dev,
 		ret = snprintf(buf, PAGE_SIZE, "unknown panel\n");
 		break;
 	}
+	/* Notify listeners */
+	sysfs_notify(&mfd->fbi->dev->kobj, NULL, "show_blank_event");
 
 	return ret;
 }
@@ -385,7 +475,11 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	mfd->bl_level = 0;
 	mfd->bl_scale = 1024;
 	mfd->bl_min_lvl = 30;
+#if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT)
+	mfd->fb_imgType = MDP_RGB_565;
+#else
 	mfd->fb_imgType = MDP_RGBA_8888;
+#endif
 
 	mfd->pdev = pdev;
 	if (pdata->next)
@@ -445,21 +539,15 @@ static int mdss_fb_probe(struct platform_device *pdev)
 		mfd->mdp_sync_pt_data.notifier.notifier_call =
 			__mdss_fb_sync_buf_done_callback;
 	}
+#ifdef CONFIG_ARCH_MSM8610
+	if (mfd->panel.type == WRITEBACK_PANEL)
+#else
 	if ((mfd->panel.type == WRITEBACK_PANEL) ||
 			(mfd->panel.type == MIPI_CMD_PANEL))
+#endif
 		mfd->mdp_sync_pt_data.threshold = 1;
 	else
 		mfd->mdp_sync_pt_data.threshold = 2;
-
-	if (mfd->index == 0) {
-		mfd->splash_thread = kthread_run(mdss_fb_splash_thread, mfd,
-				"mdss_fb_splash");
-		if (IS_ERR(mfd->splash_thread)) {
-			pr_err("unable to start splash thread %d\n",
-				mfd->index);
-			mfd->splash_thread = NULL;
-		}
-	}
 
 	return rc;
 }
@@ -695,6 +783,21 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 	int (*update_ad_input)(struct msm_fb_data_type *mfd);
 	u32 temp = bkl_lvl;
 
+  #ifdef CONFIG_MACH_LGE
+  if( force_set_bl_f || lge_get_boot_mode()== LGE_BOOT_MODE_QEM_130K
+  	/*                                                     
+                                                      */ ) {
+    pdata = dev_get_platdata(&mfd->pdev->dev);
+    if ((pdata) && (pdata->set_backlight)) {
+      mdss_fb_scale_bl(mfd, &temp);
+      pdata->set_backlight(pdata, temp);
+      pr_info("regardless bl_updated, force to set bl. level=%d, laf_mode=%d\n",/*cont_sp=%d",*/
+                temp, lge_get_laf_mode()/*, is_dsv_cont_splash_screening_f */);
+    }
+    return;
+  }
+  #endif
+
 	if (((!mfd->panel_power_on && mfd->dcm_state != DCM_ENTER)
 		|| !mfd->bl_updated) && !IS_CALIB_MODE_BL(mfd)) {
 		mfd->unset_bl_level = bkl_lvl;
@@ -706,6 +809,7 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 	pdata = dev_get_platdata(&mfd->pdev->dev);
 
 	if ((pdata) && (pdata->set_backlight)) {
+#if !defined(CONFIG_MACH_MSM8X10_W5)
 		if (!IS_CALIB_MODE_BL(mfd))
 			mdss_fb_scale_bl(mfd, &temp);
 		/*
@@ -720,6 +824,7 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 			mfd->bl_level = bkl_lvl;
 			return;
 		}
+#endif
 		pdata->set_backlight(pdata, temp);
 		mfd->bl_level = bkl_lvl;
 		mfd->bl_level_old = temp;
@@ -742,7 +847,8 @@ void mdss_fb_update_backlight(struct msm_fb_data_type *mfd)
 		pdata = dev_get_platdata(&mfd->pdev->dev);
 		if ((pdata) && (pdata->set_backlight)) {
 			mutex_lock(&mfd->bl_lock);
-			mfd->bl_level = mfd->unset_bl_level;
+                        mfd->bl_level = mfd->unset_bl_level;
+			pr_info("backlight on.bl_level=%d \n",mfd->bl_level); /*lge_changed*/
 			pdata->set_backlight(pdata, mfd->bl_level);
 			mfd->bl_level_old = mfd->unset_bl_level;
 			mutex_unlock(&mfd->bl_lock);
@@ -755,11 +861,15 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 			     int op_enable)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
+#if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT) || defined(CONFIG_LGE_MIPI_DSI_LGD_LVDS_WXGA) || defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL)
+	struct mdss_panel_data *pdata = dev_get_platdata(&mfd->pdev->dev);
+#endif
 	int ret = 0;
 
 	if (!op_enable)
 		return -EPERM;
 
+  pr_info("%s: blank_mode=%d\n", __func__, blank_mode);
 	if (mfd->dcm_state == DCM_ENTER)
 		return -EPERM;
 
@@ -785,6 +895,13 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 		if (mfd->panel_power_on && mfd->mdp.off_fnc) {
 			int curr_pwr_state;
 
+#if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT) || defined(CONFIG_LGE_MIPI_DSI_LGD_LVDS_WXGA) || defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL)
+			if (mfd->index==0) {
+					mfd->bl_updated = 1;
+					pdata->set_backlight(pdata, 0);
+					mfd->unset_bl_level = mfd->bl_level_old;
+			}
+#endif
 			mutex_lock(&mfd->update.lock);
 			mfd->update.type = NOTIFY_TYPE_SUSPEND;
 			mutex_unlock(&mfd->update.lock);
@@ -807,6 +924,8 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 		}
 		break;
 	}
+	/* Notify listeners */
+	sysfs_notify(&mfd->fbi->dev->kobj, NULL, "show_blank_event");
 
 	return ret;
 }
@@ -943,6 +1062,10 @@ static int mdss_fb_alloc_fbmem_iommu(struct msm_fb_data_type *mfd, int dom)
 	mfd->fbi->screen_base = virt;
 	mfd->fbi->fix.smem_start = phys;
 	mfd->fbi->fix.smem_len = size;
+#ifdef CONFIG_MACH_LGE
+	msm_fb_phys_addr_backup = phys;
+	memset(virt,0,size);
+#endif
 
 	return 0;
 }
@@ -987,16 +1110,16 @@ static int mdss_fb_register(struct msm_fb_data_type *mfd)
 	fix->mmio_len = 0;	/* No MMIO Address */
 	fix->accel = FB_ACCEL_NONE;/* FB_ACCEL_MSM needes to be added in fb.h */
 
-	var->xoffset = 0,	/* Offset from virtual to visible */
-	var->yoffset = 0,	/* resolution */
-	var->grayscale = 0,	/* No graylevels */
-	var->nonstd = 0,	/* standard pixel format */
-	var->activate = FB_ACTIVATE_VBL,	/* activate it at vsync */
-	var->height = -1,	/* height of picture in mm */
-	var->width = -1,	/* width of picture in mm */
-	var->accel_flags = 0,	/* acceleration flags */
-	var->sync = 0,	/* see FB_SYNC_* */
-	var->rotate = 0,	/* angle we rotate counter clockwise */
+	var->xoffset = 0;	/* Offset from virtual to visible */
+	var->yoffset = 0;	/* resolution */
+	var->grayscale = 0;	/* No graylevels */
+	var->nonstd = 0;	/* standard pixel format */
+	var->activate = FB_ACTIVATE_VBL;	/* activate it at vsync */
+	var->height = -1;	/* height of picture in mm */
+	var->width = -1;	/* width of picture in mm */
+	var->accel_flags = 0;	/* acceleration flags */
+	var->sync = 0;	/* see FB_SYNC_* */
+	var->rotate = 0;	/* angle we rotate counter clockwise */
 	mfd->op_enable = false;
 
 	switch (mfd->fb_imgType) {
@@ -1195,7 +1318,8 @@ static int mdss_fb_open(struct fb_info *info, int user)
 	int pid = current->tgid;
 
 	if (mfd->shutdown_pending) {
-		pr_err("Shutdown pending. Aborting operation\n");
+/* Temporaily fix , It will be activated after QMC case complete */
+//		pr_err("Shutdown pending. Aborting operation\n");
 		return -EPERM;
 	}
 
@@ -1245,12 +1369,6 @@ static int mdss_fb_open(struct fb_info *info, int user)
 
 	pinfo->ref_cnt++;
 	mfd->ref_cnt++;
-
-	/* Stop the splash thread once userspace open the fb node */
-	if (mfd->splash_thread && mfd->ref_cnt > 1) {
-		kthread_stop(mfd->splash_thread);
-		mfd->splash_thread = NULL;
-	}
 
 	return 0;
 
@@ -1629,7 +1747,7 @@ static int mdss_fb_pan_display_sub(struct fb_var_screeninfo *var,
 		(var->yoffset / info->fix.ypanstep) * info->fix.ypanstep;
 
 	if (mfd->mdp.dma_fnc)
-		mfd->mdp.dma_fnc(mfd, NULL, 0, NULL);
+		mfd->mdp.dma_fnc(mfd);
 	else
 		pr_warn("dma function not set for panel type=%d\n",
 				mfd->panel.type);
@@ -1843,6 +1961,12 @@ static int mdss_fb_set_par(struct fb_info *info)
 	int old_imgType;
 	int ret = 0;
 
+#if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT)
+    struct mdss_panel_data *pdata;
+
+    pdata = dev_get_platdata(&mfd->pdev->dev);
+#endif
+
 	ret = mdss_fb_pan_idle(mfd);
 	if (ret) {
 		pr_err("Shutdown pending. Aborting operation\n");
@@ -1889,10 +2013,19 @@ static int mdss_fb_set_par(struct fb_info *info)
 
 
 	if (mfd->panel_reconfig || (mfd->fb_imgType != old_imgType)) {
+		force_set_bl_f = 1;
+#if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT)
+        if ((pdata) && (pdata->set_backlight)) {
+            pdata->set_backlight(pdata,0);
+        }
+#endif
 		mdss_fb_blank_sub(FB_BLANK_POWERDOWN, info, mfd->op_enable);
 		mdss_fb_var_to_panelinfo(var, mfd->panel_info);
 		mdss_fb_blank_sub(FB_BLANK_UNBLANK, info, mfd->op_enable);
 		mfd->panel_reconfig = false;
+		pr_info("blank/unblank reconfing =%d, mfd->fb_imgType =%d, old_imgType =%d",
+								mfd->panel_reconfig,mfd->fb_imgType,old_imgType);
+		force_set_bl_f = 0;
 	}
 
 	return ret;
@@ -2140,6 +2273,16 @@ static int mdss_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	int ret = -ENOSYS;
 	struct mdp_buf_sync buf_sync;
 	struct msm_sync_pt_data *sync_pt_data = NULL;
+
+#ifdef CONFIG_MACH_LGE
+	u32 dsi_panel_invert = 0;
+#endif
+
+#if defined(CONFIG_LGE_BROADCAST_TDMB)
+	int dmb_flag = 0;
+	struct mdp_csc_cfg dmb_csc_cfg;
+#endif /*               */
+
 	if (!info || !info->par)
 		return -EINVAL;
 	mfd = (struct msm_fb_data_type *)info->par;
@@ -2197,6 +2340,34 @@ static int mdss_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	case MSMFB_DISPLAY_COMMIT:
 		ret = mdss_fb_display_commit(info, argp);
 		break;
+
+#ifdef CONFIG_MACH_LGE
+	case MSMFB_INVERT_PANEL:
+		ret = copy_from_user(&dsi_panel_invert, argp, sizeof(int));
+		if(ret)
+			return ret;
+		ret = mdss_dsi_panel_invert(dsi_panel_invert);
+	break;
+#endif
+
+#if defined(CONFIG_LGE_BROADCAST_TDMB)
+	case MSMFB_DMB_SET_FLAG:
+
+		ret = copy_from_user(&dmb_flag, argp, sizeof(int));
+		if (ret)
+			return ret;
+		ret = pp_set_dmb_status(dmb_flag);
+
+		break;
+	case MSMFB_DMB_SET_CSC_MATRIX:
+
+		ret = copy_from_user(&dmb_csc_cfg, argp, sizeof(dmb_csc_cfg));
+		if (ret)
+			return ret;
+		memcpy(dmb_csc_convert.csc_mv, dmb_csc_cfg.csc_mv, sizeof(dmb_csc_cfg.csc_mv));
+
+		break;
+#endif
 
 	default:
 		if (mfd->mdp.ioctl_handler)

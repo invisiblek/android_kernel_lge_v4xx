@@ -107,6 +107,9 @@ static struct wcd9xxx_mbhc_config mbhc_cfg = {
 	.do_recalibration = false,
 	.use_vddio_meas = false,
 };
+#if defined(CONFIG_MACH_LGE) && defined(CONFIG_SWITCH_MAX1462X) //                                               
+extern bool maxim_enabled;
+#endif
 
 /*
  * There is limitation for the clock root selection from
@@ -608,22 +611,50 @@ static void *def_msm8x10_wcd_mbhc_cal(void)
 	btn_low = wcd9xxx_mbhc_cal_btn_det_mp(btn_cfg, MBHC_BTN_DET_V_BTN_LOW);
 	btn_high = wcd9xxx_mbhc_cal_btn_det_mp(btn_cfg,
 					       MBHC_BTN_DET_V_BTN_HIGH);
+#if 0	/* Qualcomm ORG. Button range */
 	btn_low[0] = -50;
-	btn_high[0] = 20;
-	btn_low[1] = 21;
-	btn_high[1] = 61;
-	btn_low[2] = 62;
-	btn_high[2] = 104;
-	btn_low[3] = 105;
-	btn_high[3] = 148;
-	btn_low[4] = 149;
-	btn_high[4] = 189;
-	btn_low[5] = 190;
-	btn_high[5] = 228;
-	btn_low[6] = 229;
-	btn_high[6] = 269;
-	btn_low[7] = 270;
-	btn_high[7] = 500;
+        btn_high[0] = 20;
+        btn_low[1] = 21;
+        btn_high[1] = 61;
+        btn_low[2] = 62;
+        btn_high[2] = 104;
+        btn_low[3] = 105;
+        btn_high[3] = 148;
+        btn_low[4] = 149;
+        btn_high[4] = 189;
+        btn_low[5] = 190;
+        btn_high[5] = 228;
+        btn_low[6] = 229;
+        btn_high[6] = 269;
+        btn_low[7] = 270;
+        btn_high[7] = 500;
+#else	/*                                */
+	btn_low[0] = -50;
+	btn_high[0] = 150;	/* Hook Key */
+	btn_low[1] = 151;
+	btn_high[1] = 200;
+	btn_low[2] = 201;
+#ifdef CONFIG_MACH_MSM8X10_W6	
+	btn_high[2] = 350;	/* Volume Up */
+	btn_low[3] = 351;
+	btn_high[3] = 360;
+	btn_low[4] = 361;
+	btn_high[4] = 370;
+	btn_low[5] = 371;
+#else // lge original
+	btn_high[2] = 300;	/* Volume Up */
+	btn_low[3] = 301;
+	btn_high[3] = 340;
+	btn_low[4] = 341;
+	btn_high[4] = 350;
+	btn_low[5] = 351;
+#endif
+	btn_high[5] = 380;
+	btn_low[6] = 381;
+	btn_high[6] = 400;
+	btn_low[7] = 401;
+	btn_high[7] = 660;  /* Volume Down */
+#endif
 	n_ready = wcd9xxx_mbhc_cal_btn_det_mp(btn_cfg, MBHC_BTN_DET_N_READY);
 	n_ready[0] = 80;
 	n_ready[1] = 68;
@@ -1095,6 +1126,12 @@ static __devinit int msm8x10_asoc_machine_probe(struct platform_device *pdev)
 			ret);
 		goto err1;
 	}
+#if defined(CONFIG_MACH_LGE) && defined(CONFIG_SWITCH_MAX1462X) //                                               
+	if(maxim_enabled) {
+		mbhc_cfg.insert_detect = false;
+		pr_info("%s: mbhc disable\n", __func__);
+	}
+#endif
 	return 0;
 err1:
 	mutex_destroy(&cdc_mclk_mutex);

@@ -574,15 +574,7 @@ int msm_vdec_release_buf(struct msm_vidc_inst *inst,
 				core);
 		goto exit;
 	}
-	if (!inst->in_reconfig) {
-		rc = msm_comm_try_state(inst, MSM_VIDC_RELEASE_RESOURCES_DONE);
-		if (rc) {
-			dprintk(VIDC_ERR,
-				"Failed to move inst: %p to relase res done\n",
-				inst);
-			goto exit;
-		}
-	}
+
 	switch (b->type) {
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		break;
@@ -685,7 +677,7 @@ int msm_vdec_reqbufs(struct msm_vidc_inst *inst, struct v4l2_requestbuffers *b)
 	rc = vb2_reqbufs(&q->vb2_bufq, b);
 	mutex_unlock(&q->lock);
 	if (rc)
-		dprintk(VIDC_ERR, "Failed to get reqbufs, %d\n", rc);
+		dprintk(VIDC_DBG, "Failed to get reqbufs, %d\n", rc);
 	return rc;
 }
 

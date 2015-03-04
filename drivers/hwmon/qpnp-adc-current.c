@@ -129,6 +129,14 @@
 #define QPNP_BIT_SHIFT_8				8
 #define QPNP_RSENSE_MSB_SIGN_CHECK			0x80
 #define QPNP_ADC_COMPLETION_TIMEOUT			HZ
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+#define SMBB_BAT_IF_TRIM_CNST_RDS_MASK			0x7
+#define SMBB_BAT_IF_TRIM_CNST_RDS_MASK_CONST		2
+#define QPNP_IADC1_USR_TRIM2_ADC_FULLSCALE1_CONST	127
+#define QPNP_IADC_RSENSE_DEFAULT_VALUE			7800000
+#define QPNP_IADC_RSENSE_DEFAULT_TYPEB_GF		9000000
+#define QPNP_IADC_RSENSE_DEFAULT_TYPEB_SMIC		9700000
+#endif
 
 struct qpnp_iadc_comp {
 	bool	ext_rsense;
@@ -143,6 +151,9 @@ struct qpnp_iadc_chip {
 	struct qpnp_adc_drv			*adc;
 	int32_t					rsense;
 	bool					external_rsense;
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+	bool					default_internal_rsense;
+#endif
 	struct device				*iadc_hwmon;
 	struct list_head			list;
 	int64_t					die_temp;
@@ -153,11 +164,22 @@ struct qpnp_iadc_chip {
 	struct work_struct			trigger_completion_work;
 	bool					skip_auto_calibrations;
 	bool					iadc_poll_eoc;
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+	u16					batt_id_trim_cnst_rds;
+	int					rds_trim_default_type;
+	bool					rds_trim_default_check;
+	int32_t					rsense_workaround_value;
+#endif
 	struct sensor_device_attribute		sens_attr[0];
 };
 
 LIST_HEAD(qpnp_iadc_device_list);
-
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+enum qpnp_iadc_rsense_rds_workaround {
+	QPNP_IADC_RDS_DEFAULT_TYPEA,
+	QPNP_IADC_RDS_DEFAULT_TYPEB,
+};
+#endif
 static int32_t qpnp_iadc_read_reg(struct qpnp_iadc_chip *iadc,
 						uint32_t reg, u8 *data)
 {
@@ -323,7 +345,12 @@ static int32_t qpnp_iadc_read_conversion_result(struct qpnp_iadc_chip *iadc,
 
 	return 0;
 }
-
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+#define QPNP_IADC_PM8026_2_REV2	4
+#define QPNP_IADC_PM8026_2_REV3	2
+#else
 #define QPNP_IADC_PM8941_3_1_REV2	3
 #define QPNP_IADC_PM8941_3_1_REV3	2
 #define QPNP_IADC_PM8026_1_REV2		1
@@ -366,6 +393,7 @@ static void qpnp_temp_comp_version_check(struct qpnp_iadc_chip *iadc,
 
 	return;
 }
+#endif
 
 #define QPNP_COEFF_1					969000
 #define QPNP_COEFF_2					32
@@ -392,15 +420,28 @@ static void qpnp_temp_comp_version_check(struct qpnp_iadc_chip *iadc,
 #define QPNP_COEFF_22					5000000
 #define QPNP_COEFF_23					3722500
 #define QPNP_COEFF_24					84
-
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+#define QPNP_COEFF_25					33
+#define QPNP_COEFF_26					22
+#define QPNP_COEFF_27					53
+#define QPNP_COEFF_28					48
+#endif
 static int32_t qpnp_iadc_comp(int64_t *result, struct qpnp_iadc_chip *iadc,
 							int64_t die_temp)
 {
 	int64_t temp_var = 0, sys_gain_coeff = 0, old;
 	int32_t coeff_a = 0, coeff_b = 0;
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	int version = 0;
+	version = qpnp_adc_get_revid_version(iadc->dev);
+#else
 	int32_t version;
-
 	qpnp_temp_comp_version_check(iadc, &version);
+#endif
 	if (version == -EINVAL)
 		return 0;
 
@@ -415,7 +456,13 @@ static int32_t qpnp_iadc_comp(int64_t *result, struct qpnp_iadc_chip *iadc,
 				iadc->iadc_comp.sys_gain;
 
 	switch (version) {
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	case QPNP_REV_ID_8941_3_1:
+#else
 	case QPNP_IADC_REV_ID_8941_3_1:
+#endif
 		switch (iadc->iadc_comp.id) {
 		case COMP_ID_GF:
 			if (!iadc->iadc_comp.ext_rsense) {
@@ -454,7 +501,68 @@ static int32_t qpnp_iadc_comp(int64_t *result, struct qpnp_iadc_chip *iadc,
 			break;
 		}
 		break;
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	case QPNP_REV_ID_8026_2_1:
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+	case QPNP_REV_ID_8026_2_2:
+	/* pm8026 rev 2.1 and 2.2 */
+#endif
+		switch (iadc->iadc_comp.id) {
+		case COMP_ID_GF:
+			if (!iadc->iadc_comp.ext_rsense) {
+				/* internal rsense */
+				if (*result < 0) {
+					/* charge */
+					coeff_a = 0;
+					coeff_b = 0;
+				} else {
+					coeff_a = QPNP_COEFF_25;
+					coeff_b = 0;
+				}
+			} else {
+				if (*result < 0) {
+					/* charge */
+					coeff_a = 0;
+					coeff_b = 0;
+				} else {
+					/* discharge */
+					coeff_a = 0;
+					coeff_b = 0;
+				}
+			}
+			break;
+		case COMP_ID_TSMC:
+		default:
+			if (!iadc->iadc_comp.ext_rsense) {
+				/* internal rsense */
+				if (*result < 0) {
+					/* charge */
+					coeff_a = 0;
+					coeff_b = 0;
+				} else {
+					coeff_a = QPNP_COEFF_26;
+					coeff_b = 0;
+				}
+			} else {
+				if (*result < 0) {
+					/* charge */
+					coeff_a = 0;
+					coeff_b = 0;
+				} else {
+					/* discharge */
+					coeff_a = 0;
+					coeff_b = 0;
+				}
+			}
+			break;
+		}
+		break;
+	case QPNP_REV_ID_8026_1_0:
+#else
 	case QPNP_IADC_REV_ID_8026_1_0:
+#endif
 		/* pm8026 rev 1.0 */
 		switch (iadc->iadc_comp.id) {
 		case COMP_ID_GF:
@@ -506,7 +614,13 @@ static int32_t qpnp_iadc_comp(int64_t *result, struct qpnp_iadc_chip *iadc,
 			break;
 		}
 		break;
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	case QPNP_REV_ID_8110_1_0:
+#else
 	case QPNP_IADC_REV_ID_8110_1_0:
+#endif
 		/* pm8110 rev 1.0 */
 		switch (iadc->iadc_comp.id) {
 		case COMP_ID_GF:
@@ -538,8 +652,48 @@ static int32_t qpnp_iadc_comp(int64_t *result, struct qpnp_iadc_chip *iadc,
 			break;
 		}
 		break;
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+		case QPNP_REV_ID_8110_2_0:
+			die_temp -= 25000;
+			/* pm8110 rev 2.0 */
+			switch (iadc->iadc_comp.id) {
+			case COMP_ID_GF:
+				if (!iadc->iadc_comp.ext_rsense) {
+					/* internal rsense */
+					if (*result < 0) {
+						/* charge */
+						coeff_a = 0;
+						coeff_b = 0;
+					} else {
+						coeff_a = QPNP_COEFF_27;
+						coeff_b = 0;
+					}
+				}
+				break;
+			case COMP_ID_SMIC:
+			default:
+				if (!iadc->iadc_comp.ext_rsense) {
+					/* internal rsense */
+					if (*result < 0) {
+						/* charge */
+						coeff_a = 0;
+						coeff_b = 0;
+					} else {
+						coeff_a = QPNP_COEFF_28;
+						coeff_b = 0;
+					}
+				}
+				break;
+			}
+			break;
+	default:
+	case QPNP_REV_ID_8026_2_0:
+#else
 	default:
 	case QPNP_IADC_REV_ID_8026_2_0:
+#endif
 		/* pm8026 rev 1.0 */
 		coeff_a = 0;
 		coeff_b = 0;
@@ -572,7 +726,68 @@ int32_t qpnp_iadc_comp_result(struct qpnp_iadc_chip *iadc, int64_t *result)
 	return qpnp_iadc_comp(result, iadc, iadc->die_temp);
 }
 EXPORT_SYMBOL(qpnp_iadc_comp_result);
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+static int qpnp_iadc_rds_trim_update_check(struct qpnp_iadc_chip *iadc)
+{
+	int rc = 0;
+	u8 trim2_val = 0, smbb_batt_trm_data = 0;
 
+	if (!iadc->rds_trim_default_check) {
+		pr_debug("No internal rds trim check needed\n");
+		return 0;
+	}
+
+	rc = qpnp_iadc_read_reg(iadc, QPNP_IADC_NOMINAL_RSENSE, &trim2_val);
+	if (rc < 0) {
+		pr_err("qpnp adc trim2_fullscale1 reg read failed %d\n", rc);
+		return rc;
+	}
+
+	rc = spmi_ext_register_readl(iadc->adc->spmi->ctrl, iadc->adc->slave,
+		iadc->batt_id_trim_cnst_rds, &smbb_batt_trm_data, 1);
+	if (rc < 0) {
+		pr_err("batt_id trim_cnst rds reg read failed %d\n", rc);
+		return rc;
+	}
+
+	pr_debug("n_trim:0x%x smb_trm:0x%x\n", trim2_val, smbb_batt_trm_data);
+
+	if (iadc->rds_trim_default_type == QPNP_IADC_RDS_DEFAULT_TYPEA) {
+		if (((smbb_batt_trm_data & SMBB_BAT_IF_TRIM_CNST_RDS_MASK) ==
+					SMBB_BAT_IF_TRIM_CNST_RDS_MASK_CONST) &&
+			(trim2_val == QPNP_IADC1_USR_TRIM2_ADC_FULLSCALE1_CONST)) {
+				iadc->rsense_workaround_value =
+						QPNP_IADC_RSENSE_DEFAULT_VALUE;
+				iadc->default_internal_rsense = true;
+			}
+	} else if (iadc->rds_trim_default_type ==
+		QPNP_IADC_RDS_DEFAULT_TYPEB) {
+			if (((smbb_batt_trm_data & SMBB_BAT_IF_TRIM_CNST_RDS_MASK) >=
+				SMBB_BAT_IF_TRIM_CNST_RDS_MASK_CONST) &&
+				(trim2_val == QPNP_IADC1_USR_TRIM2_ADC_FULLSCALE1_CONST)) {
+					iadc->rsense_workaround_value =
+						QPNP_IADC_RSENSE_DEFAULT_VALUE;
+					iadc->default_internal_rsense = true;
+			} else if (((smbb_batt_trm_data &
+				SMBB_BAT_IF_TRIM_CNST_RDS_MASK)
+				< SMBB_BAT_IF_TRIM_CNST_RDS_MASK_CONST) &&
+				(trim2_val ==
+				QPNP_IADC1_USR_TRIM2_ADC_FULLSCALE1_CONST)) {
+					if (iadc->iadc_comp.id == COMP_ID_GF) {
+						iadc->rsense_workaround_value =
+							QPNP_IADC_RSENSE_DEFAULT_TYPEB_GF;
+						iadc->default_internal_rsense = true;
+					} else if (iadc->iadc_comp.id == COMP_ID_SMIC) {
+						iadc->rsense_workaround_value =
+							QPNP_IADC_RSENSE_DEFAULT_TYPEB_SMIC;
+						iadc->default_internal_rsense = true;
+					}
+			}
+	}
+
+	return 0;
+}
+#endif
 static int32_t qpnp_iadc_comp_info(struct qpnp_iadc_chip *iadc)
 {
 	int rc = 0;
@@ -768,6 +983,10 @@ int32_t qpnp_iadc_calibrate_for_trim(struct qpnp_iadc_chip *iadc,
 {
 	uint8_t rslt_lsb, rslt_msb;
 	int32_t rc = 0;
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+	int32_t version = 0;
+	bool iadc_offset_ch_batfet_check;
+#endif
 	uint16_t raw_data;
 	uint32_t mode_sel = 0;
 
@@ -791,13 +1010,26 @@ int32_t qpnp_iadc_calibrate_for_trim(struct qpnp_iadc_chip *iadc,
 	iadc->adc->calib.gain_raw = raw_data;
 
 	/*
-	 * there is a features in the BMS where if the batfet is opened
-	 * the BMS reads from INTERNAL_RSENSE (channel 0) actually go to
+	 * there is a features on PM8941 in the BMS where if the batfet is
+	 * opened the BMS reads from INTERNAL_RSENSE (channel 0) actually go to
 	 * OFFSET_CALIBRATION_CSP_CSN (channel 5). Hence if batfet is opened
 	 * we have to calibrate based on OFFSET_CALIBRATION_CSP_CSN even for
 	 * internal rsense.
 	 */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+	version = qpnp_adc_get_revid_version(iadc->dev);
+	if ((version == QPNP_REV_ID_8941_3_1) ||
+			(version == QPNP_REV_ID_8941_3_0) ||
+			(version == QPNP_REV_ID_8941_2_0))
+		iadc_offset_ch_batfet_check = true;
+	else
+		iadc_offset_ch_batfet_check = false;
+
+	if ((iadc_offset_ch_batfet_check && !batfet_closed) ||
+			(iadc->external_rsense)) {
+#else
 	if (!batfet_closed || iadc->external_rsense) {
+#endif
 		/* external offset calculation */
 		rc = qpnp_iadc_configure(iadc, OFFSET_CALIBRATION_CSP_CSN,
 						&raw_data, mode_sel);
@@ -937,7 +1169,7 @@ EXPORT_SYMBOL(qpnp_get_iadc);
 
 int32_t qpnp_iadc_get_rsense(struct qpnp_iadc_chip *iadc, int32_t *rsense)
 {
-	uint8_t	rslt_rsense;
+	uint8_t	rslt_rsense = 0;
 	int32_t	rc = 0, sign_bit = 0;
 
 	if (qpnp_iadc_is_valid(iadc) < 0)
@@ -945,29 +1177,41 @@ int32_t qpnp_iadc_get_rsense(struct qpnp_iadc_chip *iadc, int32_t *rsense)
 
 	if (iadc->external_rsense) {
 		*rsense = iadc->rsense;
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+	} else if (iadc->default_internal_rsense) {
+		*rsense = iadc->rsense_workaround_value;
+	} else {
+#else
 		return rc;
 	}
+#endif
+		rc = qpnp_iadc_read_reg(iadc, QPNP_IADC_NOMINAL_RSENSE,
+			&rslt_rsense);
+		if (rc < 0) {
+			pr_err("qpnp adc rsense read failed with %d\n", rc);
+			return rc;
+		}
+		pr_debug("rsense:0%x\n", rslt_rsense);
 
-	rc = qpnp_iadc_read_reg(iadc, QPNP_IADC_NOMINAL_RSENSE, &rslt_rsense);
-	if (rc < 0) {
-		pr_err("qpnp adc rsense read failed with %d\n", rc);
-		return rc;
+		if (rslt_rsense & QPNP_RSENSE_MSB_SIGN_CHECK)
+			sign_bit = 1;
+
+		rslt_rsense &= ~QPNP_RSENSE_MSB_SIGN_CHECK;
+
+		if (sign_bit)
+			*rsense = QPNP_IADC_INTERNAL_RSENSE_N_OHMS_FACTOR -
+			(rslt_rsense * QPNP_IADC_RSENSE_LSB_N_OHMS_PER_BIT);
+		else
+			*rsense = QPNP_IADC_INTERNAL_RSENSE_N_OHMS_FACTOR +
+			(rslt_rsense * QPNP_IADC_RSENSE_LSB_N_OHMS_PER_BIT);
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
 	}
+	pr_debug("rsense value is %d\n", *rsense);
 
-	pr_debug("rsense:0%x\n", rslt_rsense);
-
-	if (rslt_rsense & QPNP_RSENSE_MSB_SIGN_CHECK)
-		sign_bit = 1;
-
-	rslt_rsense &= ~QPNP_RSENSE_MSB_SIGN_CHECK;
-
-	if (sign_bit)
-		*rsense = QPNP_IADC_INTERNAL_RSENSE_N_OHMS_FACTOR -
-			(rslt_rsense * QPNP_IADC_RSENSE_LSB_N_OHMS_PER_BIT);
-	else
-		*rsense = QPNP_IADC_INTERNAL_RSENSE_N_OHMS_FACTOR +
-			(rslt_rsense * QPNP_IADC_RSENSE_LSB_N_OHMS_PER_BIT);
-
+	if (*rsense == 0)
+		pr_err("incorrect rsens value:%d rslt_rsense:%d\n",
+			*rsense, rslt_rsense);
+#endif
 	return rc;
 }
 EXPORT_SYMBOL(qpnp_iadc_get_rsense);
@@ -1130,7 +1374,12 @@ int32_t qpnp_iadc_vadc_sync_read(struct qpnp_iadc_chip *iadc,
 
 	if (qpnp_iadc_is_valid(iadc) < 0)
 		return -EPROBE_DEFER;
-
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+	if ((iadc->adc->calib.gain_raw - iadc->adc->calib.offset_raw) == 0) {
+		pr_err("raw offset errors! run iadc calibration again\n");
+		return -EINVAL;
+	}
+#endif
 	mutex_lock(&iadc->adc->adc_lock);
 
 	if (iadc->iadc_poll_eoc) {
@@ -1167,6 +1416,12 @@ int32_t qpnp_iadc_vadc_sync_read(struct qpnp_iadc_chip *iadc,
 	result_current = i_result->result_uv;
 	result_current *= QPNP_IADC_NANO_VOLTS_FACTOR;
 	/* Intentional fall through. Process the result w/o comp */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+	if (!rsense_u_ohms) {
+		pr_err("rsense error=%d\n", rsense_u_ohms);
+		goto fail_release_vadc;
+	}
+#endif
 	do_div(result_current, rsense_u_ohms);
 
 	if (sign) {
@@ -1258,6 +1513,9 @@ static int __devinit qpnp_iadc_probe(struct spmi_device *spmi)
 	struct qpnp_adc_drv *adc_qpnp;
 	struct device_node *node = spmi->dev.of_node;
 	struct device_node *child;
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+	struct resource *res;
+#endif
 	int rc, count_adc_channel_list = 0, i = 0;
 
 	for_each_child_of_node(node, child)
@@ -1291,7 +1549,23 @@ static int __devinit qpnp_iadc_probe(struct spmi_device *spmi)
 		dev_err(&spmi->dev, "failed to read device tree\n");
 		return rc;
 	}
-
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+	res = spmi_get_resource_byname(spmi, NULL, IORESOURCE_MEM,
+			"batt-id-trim-cnst-rds");
+	if (!res) {
+		dev_err(&spmi->dev, "failed to read batt_id trim register\n");
+		return -EINVAL;
+	}
+	iadc->batt_id_trim_cnst_rds = res->start;
+	rc = of_property_read_u32(node, "qcom,use-default-rds-trim",
+		&iadc->rds_trim_default_type);
+	if (rc)
+		pr_debug("No trim workaround needed\n");
+	else {
+		pr_debug("Use internal RDS trim workaround\n");
+		iadc->rds_trim_default_check = true;
+	}
+#endif
 	iadc->vadc_dev = qpnp_get_vadc(&spmi->dev, "iadc");
 	if (IS_ERR(iadc->vadc_dev)) {
 		rc = PTR_ERR(iadc->vadc_dev);
@@ -1344,6 +1618,13 @@ static int __devinit qpnp_iadc_probe(struct spmi_device *spmi)
 		dev_err(&spmi->dev, "abstracting IADC comp info failed!\n");
 		goto fail;
 	}
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+	rc = qpnp_iadc_rds_trim_update_check(iadc);
+	if (rc) {
+		dev_err(&spmi->dev, "Rds trim update failed!\n");
+		goto fail;
+	}
+#endif
 
 	dev_set_drvdata(&spmi->dev, iadc);
 	list_add(&iadc->list, &qpnp_iadc_device_list);

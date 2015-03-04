@@ -79,6 +79,12 @@
 #define MSMFB_WRITEBACK_SET_MIRRORING_HINT _IOW(MSMFB_IOCTL_MAGIC, 167, \
 						unsigned int)
 #define MSMFB_ASYNC_BLIT              _IOW(MSMFB_IOCTL_MAGIC, 168, unsigned int)
+#define MSMFB_INVERT_PANEL  _IOW(MSMFB_IOCTL_MAGIC, 169, unsigned int)
+
+#if defined(CONFIG_LGE_BROADCAST_TDMB)
+#define MSMFB_DMB_SET_FLAG        _IOW(MSMFB_IOCTL_MAGIC, 170, int)
+#define MSMFB_DMB_SET_CSC_MATRIX  _IOW(MSMFB_IOCTL_MAGIC, 171, struct mdp_csc_cfg)
+#endif /*               */
 
 #define FB_TYPE_3D_PANEL 0x10101010
 #define MDP_IMGTYPE2_START 0x10000

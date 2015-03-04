@@ -461,7 +461,7 @@ done:
  * Disables iommu clocks
  * Return - void
  */
-static void kgsl_iommu_disable_clk(struct kgsl_mmu *mmu)
+static void kgsl_iommu_disable_clk(struct kgsl_mmu *mmu, int ctx_id)
 {
 	struct kgsl_iommu *iommu = mmu->priv;
 	struct msm_iommu_drvdata *iommu_drvdata;
@@ -470,8 +470,15 @@ static void kgsl_iommu_disable_clk(struct kgsl_mmu *mmu)
 	for (i = 0; i < iommu->unit_count; i++) {
 		struct kgsl_iommu_unit *iommu_unit = &iommu->iommu_units[i];
 		for (j = 0; j < iommu_unit->dev_count; j++) {
-			if (!iommu_unit->dev[j].clk_enabled)
+			if (ctx_id != iommu_unit->dev[j].ctx_id)
 				continue;
+			atomic_dec(&iommu_unit->dev[j].clk_enable_count);
+			BUG_ON(
+			atomic_read(&iommu_unit->dev[j].clk_enable_count) < 0);
+			/*
+			 * the clock calls have a refcount so call them on every
+			 * enable/disable call
+			 */
 			iommu_drvdata = dev_get_drvdata(
 					iommu_unit->dev[j].dev->parent);
 			if (iommu_drvdata->aclk)
@@ -479,7 +486,6 @@ static void kgsl_iommu_disable_clk(struct kgsl_mmu *mmu)
 			if (iommu_drvdata->clk)
 				clk_disable_unprepare(iommu_drvdata->clk);
 			clk_disable_unprepare(iommu_drvdata->pclk);
-			iommu_unit->dev[j].clk_enabled = false;
 		}
 	}
 }
@@ -500,32 +506,17 @@ static void kgsl_iommu_clk_disable_event(struct kgsl_device *device, void *data,
 					unsigned int id, unsigned int ts,
 					u32 type)
 {
-	struct kgsl_mmu *mmu = data;
-	struct kgsl_iommu *iommu = mmu->priv;
+	struct kgsl_iommu_disable_clk_param *param = data;
 
-	if (!iommu->clk_event_queued) {
-		if (0 > timestamp_cmp(ts, iommu->iommu_last_cmd_ts))
-			KGSL_DRV_ERR(device,
-			"IOMMU disable clock event being cancelled, "
-			"iommu_last_cmd_ts: %x, retired ts: %x\n",
-			iommu->iommu_last_cmd_ts, ts);
-		return;
-	}
+	if ((0 <= timestamp_cmp(ts, param->ts)) ||
+		(KGSL_EVENT_CANCELLED == type))
+		kgsl_iommu_disable_clk(param->mmu, param->ctx_id);
+	else
+		/* something went wrong with the event handling mechanism */
+		BUG_ON(1);
 
-	if (0 <= timestamp_cmp(ts, iommu->iommu_last_cmd_ts)) {
-		kgsl_iommu_disable_clk(mmu);
-		iommu->clk_event_queued = false;
-	} else {
-		/* add new event to fire when ts is reached, this can happen
-		 * if we queued an event and someone requested the clocks to
-		 * be disbaled on a later timestamp */
-		if (kgsl_add_event(device, id, iommu->iommu_last_cmd_ts,
-			kgsl_iommu_clk_disable_event, mmu, mmu)) {
-				KGSL_DRV_ERR(device,
-				"Failed to add IOMMU disable clk event\n");
-				iommu->clk_event_queued = false;
-		}
-	}
+	/* Free param we are done using it */
+	kfree(param);
 }
 
 /*
@@ -535,6 +526,8 @@ static void kgsl_iommu_clk_disable_event(struct kgsl_device *device, void *data,
  * @ts_valid - Indicates whether ts parameter is valid, if this parameter
  * is false then it means that the calling function wants to disable the
  * IOMMU clocks immediately without waiting for any timestamp
+ * @ctx_id: Context id of the IOMMU context for which clocks are to be
+ * turned off
  *
  * Creates an event to disable the IOMMU clocks on timestamp and if event
  * already exists then updates the timestamp of disabling the IOMMU clocks
@@ -543,28 +536,25 @@ static void kgsl_iommu_clk_disable_event(struct kgsl_device *device, void *data,
  * Return - void
  */
 static void
-kgsl_iommu_disable_clk_on_ts(struct kgsl_mmu *mmu, unsigned int ts,
-				bool ts_valid)
+	kgsl_iommu_disable_clk_on_ts(struct kgsl_mmu *mmu,
+				unsigned int ts, int ctx_id)
 {
-	struct kgsl_iommu *iommu = mmu->priv;
+	struct kgsl_iommu_disable_clk_param *param;
 
-	if (iommu->clk_event_queued) {
-		if (ts_valid && (0 <
-			timestamp_cmp(ts, iommu->iommu_last_cmd_ts)))
-			iommu->iommu_last_cmd_ts = ts;
-	} else {
-		if (ts_valid) {
-			iommu->iommu_last_cmd_ts = ts;
-			iommu->clk_event_queued = true;
-			if (kgsl_add_event(mmu->device, KGSL_MEMSTORE_GLOBAL,
-				ts, kgsl_iommu_clk_disable_event, mmu, mmu)) {
-				KGSL_DRV_ERR(mmu->device,
-				"Failed to add IOMMU disable clk event\n");
-				iommu->clk_event_queued = false;
-			}
-		} else {
-			kgsl_iommu_disable_clk(mmu);
-		}
+	param = kzalloc(sizeof(*param), GFP_KERNEL);
+	if (!param) {
+		KGSL_CORE_ERR("kzalloc(%d) failed\n", sizeof(*param));
+		return;
+	}
+	param->mmu = mmu;
+	param->ctx_id = ctx_id;
+	param->ts = ts;
+
+	if (kgsl_add_event(mmu->device, KGSL_MEMSTORE_GLOBAL,
+			ts, kgsl_iommu_clk_disable_event, param, mmu)) {
+		KGSL_DRV_ERR(mmu->device,
+			"Failed to add IOMMU disable clk event\n");
+		kfree(param);
 	}
 }
 
@@ -587,8 +577,7 @@ static int kgsl_iommu_enable_clk(struct kgsl_mmu *mmu,
 	for (i = 0; i < iommu->unit_count; i++) {
 		struct kgsl_iommu_unit *iommu_unit = &iommu->iommu_units[i];
 		for (j = 0; j < iommu_unit->dev_count; j++) {
-			if (iommu_unit->dev[j].clk_enabled ||
-				ctx_id != iommu_unit->dev[j].ctx_id)
+			if (ctx_id != iommu_unit->dev[j].ctx_id)
 				continue;
 			iommu_drvdata =
 			dev_get_drvdata(iommu_unit->dev[j].dev->parent);
@@ -614,12 +603,25 @@ static int kgsl_iommu_enable_clk(struct kgsl_mmu *mmu,
 					goto done;
 				}
 			}
-			iommu_unit->dev[j].clk_enabled = true;
+			atomic_inc(&iommu_unit->dev[j].clk_enable_count);
 		}
 	}
 done:
-	if (ret)
-		kgsl_iommu_disable_clk(mmu);
+	if (ret) {
+		struct kgsl_iommu_unit *iommu_unit;
+		if (iommu->unit_count == i)
+			i--;
+		iommu_unit = &iommu->iommu_units[i];
+		do {
+			for (j--; j >= 0; j--)
+				kgsl_iommu_disable_clk(mmu, ctx_id);
+			i--;
+			if (i >= 0) {
+				iommu_unit = &iommu->iommu_units[i];
+				j = iommu_unit->dev_count;
+			}
+		} while (i >= 0);
+	}
 	return ret;
 }
 
@@ -848,6 +850,9 @@ static int _get_iommu_ctxs(struct kgsl_mmu *mmu,
 			ret = -EINVAL;
 			goto done;
 		}
+		atomic_set(
+		&(iommu_unit->dev[iommu_unit->dev_count].clk_enable_count),
+		0);
 
 		iommu_unit->dev[iommu_unit->dev_count].dev =
 			msm_iommu_get_ctx(data->iommu_ctxs[i].iommu_ctx_name);
@@ -1674,6 +1679,7 @@ static int kgsl_iommu_start(struct kgsl_mmu *mmu)
 	}
 	status = kgsl_iommu_enable_clk(mmu, KGSL_IOMMU_CONTEXT_PRIV);
 	if (status) {
+		kgsl_iommu_disable_clk(mmu, KGSL_IOMMU_CONTEXT_USER);
 		KGSL_CORE_ERR("clk enable failed\n");
 		goto done;
 	}
@@ -1728,15 +1734,40 @@ static int kgsl_iommu_start(struct kgsl_mmu *mmu)
 				KGSL_IOMMU_SETSTATE_NOP_OFFSET,
 				cp_nop_packet(1), sizeof(unsigned int));
 
-	kgsl_iommu_disable_clk_on_ts(mmu, 0, false);
+	kgsl_iommu_disable_clk(mmu, KGSL_IOMMU_CONTEXT_USER);
+	kgsl_iommu_disable_clk(mmu, KGSL_IOMMU_CONTEXT_PRIV);
 	mmu->flags |= KGSL_FLAGS_STARTED;
 
 done:
-	if (status) {
-		kgsl_iommu_disable_clk_on_ts(mmu, 0, false);
-		kgsl_detach_pagetable_iommu_domain(mmu);
-	}
 	return status;
+}
+
+static void kgsl_iommu_flush_tlb_pt_current(struct kgsl_pagetable *pt)
+{
+	int lock_taken = 0;
+	struct kgsl_device *device = pt->mmu->device;
+	struct kgsl_iommu *iommu = pt->mmu->priv;
+
+	/*
+	 * Check to see if the current thread already holds the device mutex.
+	 * If it does not, then take the device mutex which is required for
+	 * flushing the tlb
+	 */
+	if (!kgsl_mutex_lock(&device->mutex, &device->mutex_owner))
+		lock_taken = 1;
+
+	/*
+	 * Flush the tlb only if the iommu device is attached and the pagetable
+	 * hasn't been switched yet
+	 */
+	if (kgsl_mmu_is_perprocess(pt->mmu) &&
+		iommu->iommu_units[0].dev[KGSL_IOMMU_CONTEXT_USER].attached &&
+		kgsl_iommu_pt_equal(pt->mmu, pt,
+		kgsl_iommu_get_current_ptbase(pt->mmu)))
+		kgsl_iommu_default_setstate(pt->mmu, KGSL_MMUFLAGS_TLBFLUSH);
+
+	if (lock_taken)
+		kgsl_mutex_unlock(&device->mutex, &device->mutex_owner);
 }
 
 static int
@@ -1744,11 +1775,9 @@ kgsl_iommu_unmap(struct kgsl_pagetable *pt,
 		struct kgsl_memdesc *memdesc,
 		unsigned int *tlb_flags)
 {
-	int ret = 0, lock_taken = 0;
+	int ret = 0;
 	unsigned int range = memdesc->size;
 	struct kgsl_iommu_pt *iommu_pt = pt->priv;
-	struct kgsl_device *device = pt->mmu->device;
-	struct kgsl_iommu *iommu = pt->mmu->priv;
 
 	/* All GPU addresses as assigned are page aligned, but some
 	   functions purturb the gpuaddr with an offset, so apply the
@@ -1770,29 +1799,7 @@ kgsl_iommu_unmap(struct kgsl_pagetable *pt,
 		return ret;
 	}
 
-	/*
-	 * Check to see if the current thread already holds the device mutex.
-	 * If it does not, then take the device mutex which is required for
-	 * flushing the tlb
-	 */
-	if (!mutex_is_locked(&device->mutex) ||
-		device->mutex.owner != current) {
-		mutex_lock(&device->mutex);
-		lock_taken = 1;
-	}
-
-	/*
-	 * Flush the tlb only if the iommu device is attached and the pagetable
-	 * hasn't been switched yet
-	 */
-	if (kgsl_mmu_is_perprocess(pt->mmu) &&
-		iommu->iommu_units[0].dev[KGSL_IOMMU_CONTEXT_USER].attached &&
-		kgsl_iommu_pt_equal(pt->mmu, pt,
-		kgsl_iommu_get_current_ptbase(pt->mmu)))
-		kgsl_iommu_default_setstate(pt->mmu, KGSL_MMUFLAGS_TLBFLUSH);
-
-	if (lock_taken)
-		mutex_unlock(&device->mutex);
+	kgsl_iommu_flush_tlb_pt_current(pt);
 
 	return ret;
 }
@@ -1834,6 +1841,23 @@ kgsl_iommu_map(struct kgsl_pagetable *pt,
 					  size);
 		}
 	}
+
+	/*
+	 *  IOMMU V1 BFBs pre-fetch data beyond what is being used by the core.
+	 *  This can include both allocated pages and un-allocated pages.
+	 *  If an un-allocated page is cached, and later used (if it has been
+	 *  newly dynamically allocated by SW) the SMMU HW should automatically
+	 *  re-fetch the pages from memory (rather than using the cached
+	 *  un-allocated page). This logic is known as the re-fetch logic.
+	 *  In current chips we suspect this re-fetch logic is broken,
+	 *  it can result in bad translations which can either cause downstream
+	 *  bus errors, or upstream cores being hung (because of garbage data
+	 *  being read) -> causing TLB sync stuck issues. As a result SW must
+	 *  implement the invalidate+map.
+	 */
+	if (!msm_soc_version_supports_iommu_v0())
+		kgsl_iommu_flush_tlb_pt_current(pt);
+
 	return ret;
 }
 
@@ -1858,6 +1882,7 @@ void kgsl_iommu_pagefault_resume(struct kgsl_mmu *mmu)
 						iommu_unit,
 						iommu_unit->dev[j].ctx_id,
 						FSR, 0);
+					kgsl_iommu_disable_clk(mmu, j);
 					_iommu_unlock(iommu);
 					iommu_unit->dev[j].fault = 0;
 				}
@@ -1870,7 +1895,6 @@ void kgsl_iommu_pagefault_resume(struct kgsl_mmu *mmu)
 
 static void kgsl_iommu_stop(struct kgsl_mmu *mmu)
 {
-	struct kgsl_iommu *iommu = mmu->priv;
 	/*
 	 *  stop device mmu
 	 *
@@ -1886,9 +1910,7 @@ static void kgsl_iommu_stop(struct kgsl_mmu *mmu)
 		kgsl_iommu_pagefault_resume(mmu);
 	}
 	/* switch off MMU clocks and cancel any events it has queued */
-	iommu->clk_event_queued = false;
 	kgsl_cancel_events(mmu->device, mmu);
-	kgsl_iommu_disable_clk(mmu);
 }
 
 static int kgsl_iommu_close(struct kgsl_mmu *mmu)
@@ -1938,10 +1960,10 @@ kgsl_iommu_get_current_ptbase(struct kgsl_mmu *mmu)
 		return 0;
 	/* Return the current pt base by reading IOMMU pt_base register */
 	kgsl_iommu_enable_clk(mmu, KGSL_IOMMU_CONTEXT_USER);
-	pt_base = KGSL_IOMMU_GET_CTX_REG(iommu, (&iommu->iommu_units[0]),
-					KGSL_IOMMU_CONTEXT_USER,
-					TTBR0);
-	kgsl_iommu_disable_clk_on_ts(mmu, 0, false);
+	pt_base = KGSL_IOMMU_GET_CTX_REG(iommu,
+				(&iommu->iommu_units[0]),
+				KGSL_IOMMU_CONTEXT_USER, TTBR0);
+	kgsl_iommu_disable_clk(mmu, KGSL_IOMMU_CONTEXT_USER);
 	return pt_base & KGSL_IOMMU_CTX_TTBR0_ADDR_MASK;
 }
 
@@ -1969,7 +1991,6 @@ static int kgsl_iommu_default_setstate(struct kgsl_mmu *mmu,
 	phys_addr_t pt_val;
 
 	ret = kgsl_iommu_enable_clk(mmu, KGSL_IOMMU_CONTEXT_USER);
-
 	if (ret) {
 		KGSL_DRV_ERR(mmu->device, "Failed to enable iommu clocks\n");
 		return ret;
@@ -2056,7 +2077,7 @@ unlock:
 	_iommu_unlock(iommu);
 
 	/* Disable smmu clock */
-	kgsl_iommu_disable_clk_on_ts(mmu, 0, false);
+	kgsl_iommu_disable_clk(mmu, KGSL_IOMMU_CONTEXT_USER);
 	return ret;
 }
 

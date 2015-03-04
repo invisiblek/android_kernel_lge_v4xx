@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,6 +20,12 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+#include <linux/qpnp-revid.h>
+#endif
+
 /**
  * enum qpnp_vadc_channels - QPNP AMUX arbiter channels
  */
@@ -190,6 +196,7 @@ enum qpnp_adc_calib_type {
  * %CHAN_PATH_SCALING2: ratio of {1, 4}
  * %CHAN_PATH_SCALING3: ratio of {1, 6}
  * %CHAN_PATH_SCALING4: ratio of {1, 20}
+ * %CHAN_PATH_SCALING5: ratio of {1, 8}
  * %CHAN_PATH_NONE: Do not use this pre-scaling ratio type.
  *
  * The pre-scaling is applied for signals to be within the voltage range
@@ -201,6 +208,7 @@ enum qpnp_adc_channel_scaling_param {
 	PATH_SCALING2,
 	PATH_SCALING3,
 	PATH_SCALING4,
+	PATH_SCALING5,
 	PATH_SCALING_NONE,
 };
 
@@ -893,7 +901,8 @@ static const struct qpnp_vadc_scaling_ratio qpnp_vadc_amux_scaling_ratio[] = {
 	{1, 3},
 	{1, 4},
 	{1, 6},
-	{1, 20}
+	{1, 20},
+	{1, 8}
 };
 
 /**
@@ -1009,6 +1018,22 @@ struct qpnp_adc_amux_properties {
 	enum qpnp_vadc_trigger		trigger_channel;
 	struct qpnp_vadc_chan_properties	chan_prop[0];
 };
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+/* SW index's for PMIC type and version used by QPNP VADC and IADC */
+#define QPNP_REV_ID_8941_3_1	1
+#define QPNP_REV_ID_8026_1_0	2
+#define QPNP_REV_ID_8026_2_0	3
+#define QPNP_REV_ID_8110_1_0	4
+#define QPNP_REV_ID_8026_2_1	5
+#define QPNP_REV_ID_8110_2_0	6
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+#define QPNP_REV_ID_8026_2_2	7
+#define QPNP_REV_ID_8941_3_0	8
+#define QPNP_REV_ID_8941_2_0	9
+#endif
+#endif
 
 /* Public API */
 #if defined(CONFIG_SENSORS_QPNP_ADC_VOLTAGE)				\
@@ -1018,6 +1043,7 @@ struct qpnp_adc_amux_properties {
  * @dev:	Structure device for qpnp vadc
  * @channel:	Input channel to perform the ADC read.
  * @result:	Structure pointer of type adc_chan_result
+ * @is_pon_ocv: Whether the reading is from a power on OCV or not
  *		in which the ADC read results are stored.
  */
 int32_t qpnp_vadc_read(struct qpnp_vadc_chip *dev,
@@ -1367,7 +1393,21 @@ int32_t qpnp_vadc_iadc_sync_complete_request(struct qpnp_vadc_chip *dev,
  * @result:	Voltage in uV that needs compensation.
  */
 int32_t qpnp_vbat_sns_comp_result(struct qpnp_vadc_chip *dev,
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+						int64_t *result, bool is_pon_ocv);
+#else
 						int64_t *result);
+#endif
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+/**
+ * qpnp_adc_get_revid_version() - Obtain the PMIC number and revision.
+ * @dev:	Structure device node.
+ * returns internal mapped PMIC number and revision id.
+ */
+int qpnp_adc_get_revid_version(struct device *dev);
+#endif
 #else
 static inline int32_t qpnp_vadc_read(struct qpnp_vadc_chip *dev,
 				uint32_t channel,
@@ -1480,6 +1520,11 @@ static inline int32_t qpnp_vadc_iadc_sync_complete_request(
 { return -ENXIO; }
 static inline int32_t qpnp_vbat_sns_comp_result(struct qpnp_vadc_chip *dev,
 						int64_t *result)
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	static inline int qpnp_adc_get_revid_version(struct device *dev)
+#endif
 { return -ENXIO; }
 #endif
 

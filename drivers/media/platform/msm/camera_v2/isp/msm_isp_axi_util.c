@@ -1038,7 +1038,13 @@ void msm_camera_io_dump_2(void __iomem *addr, int size)
 
 /*Factor in Q2 format*/
 #define ISP_DEFAULT_FORMAT_FACTOR 6
+/*                                                                                      */
+#if defined(CONFIG_MACH_MSM8X10_W5) || defined(CONFIG_MACH_MSM8X10_W6)
+#define ISP_BUS_UTILIZATION_FACTOR 16
+#else
 #define ISP_BUS_UTILIZATION_FACTOR 6
+#endif
+/*                                                                                      */
 static int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev)
 {
 	int i, rc = 0;
@@ -1066,10 +1072,10 @@ static int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev)
 			axi_data->src_info[VFE_PIX_0].pixel_clock *
 			ISP_DEFAULT_FORMAT_FACTOR / ISP_Q2;
 	total_bandwidth = total_pix_bandwidth + total_rdi_bandwidth;
-
 	rc = msm_isp_update_bandwidth(ISP_VFE0 + vfe_dev->pdev->id,
 		total_bandwidth, total_bandwidth *
 		ISP_BUS_UTILIZATION_FACTOR / ISP_Q2);
+
 	if (rc < 0)
 		pr_err("%s: update failed\n", __func__);
 
@@ -1293,11 +1299,13 @@ static int msm_isp_stop_axi_stream(struct vfe_device *vfe_dev,
 	msm_isp_update_rdi_output_count(vfe_dev, stream_cfg_cmd);
 	cur_stream_cnt = msm_isp_get_curr_stream_cnt(vfe_dev);
 	if (cur_stream_cnt == 0) {
+		vfe_dev->ignore_error = 1;		/*                                                                  */
 		if (camif_update == DISABLE_CAMIF_IMMEDIATELY) {
 			vfe_dev->hw_info->vfe_ops.axi_ops.halt(vfe_dev);
 		}
 		vfe_dev->hw_info->vfe_ops.core_ops.reset_hw(vfe_dev, ISP_RST_SOFT);
 		vfe_dev->hw_info->vfe_ops.core_ops.init_hw_reg(vfe_dev);
+		vfe_dev->ignore_error = 0;		/*                                                                  */
 	}
 
 	for (i = 0; i < stream_cfg_cmd->num_streams; i++) {

@@ -512,7 +512,20 @@ static int32_t qpnp_vadc_version_check(struct qpnp_vadc_chip *dev)
 #define QPNP_VBAT_COEFF_13	102640000
 #define QPNP_VBAT_COEFF_14	22220000
 #define QPNP_VBAT_COEFF_15	83060000
-
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE)|| defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+#define QPNP_VBAT_COEFF_16	2810
+#define QPNP_VBAT_COEFF_17	5260
+#define QPNP_VBAT_COEFF_18	8027
+#define QPNP_VBAT_COEFF_19	2347
+#define QPNP_VBAT_COEFF_20	6043
+#define QPNP_VBAT_COEFF_21	1914
+#define QPNP_VBAT_OFFSET_SMIC	9446
+#define QPNP_VBAT_OFFSET_GF	9441
+#define QPNP_OCV_OFFSET_SMIC	4596
+#define QPNP_OCV_OFFSET_GF	5896
+#else
 #define QPNP_VADC_REV_ID_8941_3_1	1
 #define QPNP_VADC_REV_ID_8026_1_0	2
 #define QPNP_VADC_REV_ID_8026_2_0	3
@@ -534,26 +547,50 @@ static void qpnp_temp_comp_version_check(struct qpnp_vadc_chip *vadc,
 
 	return;
 }
-
+#endif
 static int32_t qpnp_ocv_comp(int64_t *result,
 			struct qpnp_vadc_chip *vadc, int64_t die_temp)
 {
 	int64_t temp_var = 0;
 	int64_t old = *result;
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	int version;
+	version = qpnp_adc_get_revid_version(vadc->dev);
+#else
 	int32_t version;
-
 	qpnp_temp_comp_version_check(vadc, &version);
+#endif
 	if (version == -EINVAL)
 		return 0;
-
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	if (version == QPNP_REV_ID_8110_2_0) {
+		if (die_temp < -20000)
+			die_temp = -20000;
+	} else {
+		if (die_temp < 25000)
+			return 0;
+		if (die_temp > 60000)
+			die_temp = 60000;
+	}
+#else
 	if (die_temp < 25000)
 		return 0;
 
 	if (die_temp > 60000)
 		die_temp = 60000;
-
+#endif
 	switch (version) {
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	case QPNP_REV_ID_8941_3_1:
+#else
 	case QPNP_VADC_REV_ID_8941_3_1:
+#endif
 		switch (vadc->id) {
 		case COMP_ID_TSMC:
 			temp_var = (((die_temp *
@@ -568,7 +605,13 @@ static int32_t qpnp_ocv_comp(int64_t *result,
 			break;
 		}
 		break;
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	case QPNP_REV_ID_8026_1_0:
+#else
 	case QPNP_VADC_REV_ID_8026_1_0:
+#endif
 		switch (vadc->id) {
 		case COMP_ID_TSMC:
 			temp_var = (((die_temp *
@@ -583,19 +626,62 @@ static int32_t qpnp_ocv_comp(int64_t *result,
 			break;
 		}
 		break;
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	case QPNP_REV_ID_8026_2_0:
+	case QPNP_REV_ID_8026_2_1:
+#else
 	case QPNP_VADC_REV_ID_8026_2_0:
+#endif
 		switch (vadc->id) {
 		case COMP_ID_TSMC:
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+			temp_var = ((die_temp - 25000) *
+#else
 			temp_var = ((die_temp - 2500) *
+#endif
 			(-QPNP_VBAT_COEFF_10));
 			break;
 		default:
 		case COMP_ID_GF:
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+			temp_var = ((die_temp - 25000) *
+#else
 			temp_var = ((die_temp - 2500) *
+#endif
 			(-QPNP_VBAT_COEFF_8));
 			break;
 		}
 		break;
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	case QPNP_REV_ID_8110_2_0:
+		switch (vadc->id) {
+		case COMP_ID_SMIC:
+			*result -= QPNP_OCV_OFFSET_SMIC;
+			if (die_temp < 25000)
+				temp_var = QPNP_VBAT_COEFF_18;
+			else
+				temp_var = QPNP_VBAT_COEFF_19;
+			temp_var = (die_temp - 25000) * temp_var;
+			break;
+		case COMP_ID_TSMC:
+			pr_debug("No TSMC Comp Info, exiting\n");
+			return 0;
+		default:
+		case COMP_ID_GF:
+			*result -= QPNP_OCV_OFFSET_GF;
+			if (die_temp < 25000)
+				temp_var = QPNP_VBAT_COEFF_20;
+			else
+				temp_var = QPNP_VBAT_COEFF_21;
+			temp_var = (die_temp - 25000) * temp_var;
+			break;
+		}
+		break;
+#endif
 	default:
 		temp_var = 0;
 		break;
@@ -618,21 +704,46 @@ static int32_t qpnp_vbat_sns_comp(int64_t *result,
 {
 	int64_t temp_var = 0;
 	int64_t old = *result;
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	int version;
+	version = qpnp_adc_get_revid_version(vadc->dev);
+#else
 	int32_t version;
-
 	qpnp_temp_comp_version_check(vadc, &version);
+#endif
 	if (version == -EINVAL)
 		return 0;
-
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+		if (version == QPNP_REV_ID_8110_2_0) {
+			if (die_temp < -20000)
+				die_temp = -20000;
+		} else {
+			if (die_temp < 25000)
+				return 0;
+			/* min(die_temp_c, 60_degC) */
+			if (die_temp > 60000)
+				die_temp = 60000;
+		}
+#else
 	if (die_temp < 25000)
 		return 0;
 
 	/* min(die_temp_c, 60_degC) */
 	if (die_temp > 60000)
 		die_temp = 60000;
-
+#endif
 	switch (version) {
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	case QPNP_REV_ID_8941_3_1:
+#else
 	case QPNP_VADC_REV_ID_8941_3_1:
+#endif
 		switch (vadc->id) {
 		case COMP_ID_TSMC:
 			temp_var = (die_temp *
@@ -646,7 +757,13 @@ static int32_t qpnp_vbat_sns_comp(int64_t *result,
 			break;
 		}
 		break;
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	case QPNP_REV_ID_8026_1_0:
+#else
 	case QPNP_VADC_REV_ID_8026_1_0:
+#endif
 		switch (vadc->id) {
 		case COMP_ID_TSMC:
 			temp_var = (((die_temp *
@@ -661,19 +778,56 @@ static int32_t qpnp_vbat_sns_comp(int64_t *result,
 			break;
 		}
 		break;
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	case QPNP_REV_ID_8026_2_0:
+	case QPNP_REV_ID_8026_2_1:
+#else
 	case QPNP_VADC_REV_ID_8026_2_0:
+#endif
 		switch (vadc->id) {
 		case COMP_ID_TSMC:
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+			temp_var = ((die_temp - 25000) *
+#else
 			temp_var = ((die_temp - 2500) *
+#endif
 			(-QPNP_VBAT_COEFF_11));
 			break;
 		default:
 		case COMP_ID_GF:
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+			temp_var = ((die_temp - 25000) *
+#else
 			temp_var = ((die_temp - 2500) *
+#endif
 			(-QPNP_VBAT_COEFF_9));
 			break;
 		}
 		break;
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	case QPNP_REV_ID_8110_2_0:
+		switch (vadc->id) {
+		case COMP_ID_SMIC:
+			*result -= QPNP_VBAT_OFFSET_SMIC;
+			temp_var = ((die_temp - 25000) *
+			(QPNP_VBAT_COEFF_17));
+			break;
+		case COMP_ID_TSMC:
+			pr_debug("No TSMC Comp Info, exiting\n");
+			return 0;
+		default:
+		case COMP_ID_GF:
+			*result -= QPNP_VBAT_OFFSET_GF;
+			temp_var = ((die_temp - 25000) *
+			(QPNP_VBAT_COEFF_16));
+			break;
+		}
+		break;
+#endif
 	default:
 		temp_var = 0;
 		break;
@@ -692,7 +846,13 @@ static int32_t qpnp_vbat_sns_comp(int64_t *result,
 }
 
 int32_t qpnp_vbat_sns_comp_result(struct qpnp_vadc_chip *vadc,
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+						int64_t *result, bool is_pon_ocv)
+#else
 						int64_t *result)
+#endif
 {
 	struct qpnp_vadc_result die_temp_result;
 	int rc = 0;
@@ -707,8 +867,18 @@ int32_t qpnp_vbat_sns_comp_result(struct qpnp_vadc_chip *vadc,
 		pr_err("Error reading die_temp\n");
 		return rc;
 	}
+/*                                             
+                                                   */
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+	if (is_pon_ocv)
+		rc = qpnp_ocv_comp(result, vadc, die_temp_result.physical);
+	else
+		rc = qpnp_vbat_sns_comp(result, vadc,
+				die_temp_result.physical);
 
+#else
 	rc = qpnp_ocv_comp(result, vadc, die_temp_result.physical);
+#endif
 	if (rc < 0)
 		pr_err("Error with vbat compensation\n");
 
