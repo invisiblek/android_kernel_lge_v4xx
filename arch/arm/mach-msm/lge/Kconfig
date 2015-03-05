@@ -714,6 +714,11 @@ config LGE_BOOTLOADER_LOG
 	help
 	  LGE bootloader log
 
+config DTS_TARGET
+        string "DTS target dir"
+        help
+          CONFIG_DTS_TARGET should be set to support appended dts.
+
 config LGE_HANDLE_PANIC
 	tristate "Support LGE Kernel Panic Handler"
 	default n
