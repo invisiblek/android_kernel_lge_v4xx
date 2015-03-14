@@ -11,6 +11,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/wakelock.h>
 
 #define MAX_NUM_STATUS_BITS (8)
 
@@ -64,9 +65,15 @@ struct sx86XX
  
 #ifdef CONFIG_HAS_WAKELOCK
     struct early_suspend early_suspend;  /* early suspend data  */
-#endif  
+#endif
+
+    /* Create a flag to track if we are in touch from a startup detection or not */
+    bool inStartupTouch;
+
+    struct wake_lock capsensor_wake_lock;
 };
 
+void sx86XX_process_interrupt(struct sx86XX *this,u8 nirqlow);
 void sx86XX_suspend(struct sx86XX *this);
 void sx86XX_resume(struct sx86XX *this);
 int sx86XX_init(struct sx86XX *this);

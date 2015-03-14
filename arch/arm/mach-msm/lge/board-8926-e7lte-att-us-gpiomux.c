@@ -218,6 +218,11 @@ static int gpio_reserved_pin_rev_B[] = {
 	MSM8x26_GPIO_END // This is included to notify the end of reserved GPIO configuration.
 	};
 // Rev B -3,-118
+static int gpio_reserved_pin_rev_10[] = {
+	0, 1, 2, 5, 12, 13, 20, 21, 22, 24, 32, 34, 35, 38, 45, 46, 49, 50, 51, 52, 53, 55, 66, 77, 78, 82, 90, 91, 92, 93, 95, 96, 97, 98, 104, 107, 109, 119, 120,
+	MSM8x26_GPIO_END // This is included to notify the end of reserved GPIO configuration.
+	};
+// Rev 1.0 +50,+107
 
 static struct gpiomux_setting reserved_pin_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
@@ -1394,13 +1399,18 @@ void __init msm8226_init_gpiomux(void)
 				}
 			break;
 		case HW_REV_C :
+			for ( gpio_index = 0 ; gpio_reserved_pin_rev_B[gpio_index] < MSM8x26_GPIO_END ; gpio_index++ ){
+				gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_B[gpio_index];
+				msm_gpiomux_install(&gpio_func_reserved_pin_config, 1);
+				}
+			break;
 		case HW_REV_D :
 		case HW_REV_E :
 		case HW_REV_1_0 :
 		case HW_REV_1_1 :
 		default :
-			for ( gpio_index = 0 ; gpio_reserved_pin_rev_B[gpio_index] < MSM8x26_GPIO_END ; gpio_index++ ){
-				gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_B[gpio_index];
+			for ( gpio_index = 0 ; gpio_reserved_pin_rev_10[gpio_index] < MSM8x26_GPIO_END ; gpio_index++ ){
+				gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_10[gpio_index];
 				msm_gpiomux_install(&gpio_func_reserved_pin_config, 1);
 				}
 			break;

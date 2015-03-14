@@ -27,6 +27,12 @@
 extern int has_dsv_f;
 int is_dsv_cont_splash_screening_f;
 #endif
+
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+extern int has_dsv_f;
+int is_dsv_cont_splash_screening_f;
+#endif
+
 /* wait for at least 2 vsyncs for lowest refresh rate (24hz) */
 #define VSYNC_TIMEOUT_US 100000
 
@@ -632,6 +638,12 @@ int mdss_mdp_video_reconfigure_splash_done(struct mdss_mdp_ctl *ctl,
 			is_dsv_cont_splash_screening_f = 1;
 		}
 #endif
+
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+		if (has_dsv_f) {
+			is_dsv_cont_splash_screening_f = 1;
+		}
+#endif
 		ret = mdss_mdp_ctl_intf_event(ctl, MDSS_EVENT_CONT_SPLASH_BEGIN,
 					      NULL);
 		if (ret) {
@@ -656,6 +668,13 @@ int mdss_mdp_video_reconfigure_splash_done(struct mdss_mdp_ctl *ctl,
 			is_dsv_cont_splash_screening_f = 0;
 		}
 #endif
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+
+		if (has_dsv_f) {
+			is_dsv_cont_splash_screening_f = 0;
+		}
+#endif
+
 	}
 
 error:

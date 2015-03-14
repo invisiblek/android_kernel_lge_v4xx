@@ -150,7 +150,7 @@ static int mxt_patch_write_event_cfg(struct mxt_data *data, struct event_cfg* pe
 		} else if(pecfg->obj_type == 255) {
 			t255_user[pecfg->offset] = pecfg->val;
 		} else {
-			mxt_write_object(data, pecfg->obj_type, pecfg->offset, pecfg->val);
+			return mxt_write_object(data, pecfg->obj_type, pecfg->offset, pecfg->val);
 		}
 	}
 	return 0;
@@ -819,6 +819,7 @@ int mxt_patch_parse_event(struct mxt_data *data, u8* ppatch, bool do_action)
 	struct user_event* pevent = NULL;
 	struct event_cfg* pecfg = NULL;
 	u32 i = 0, ulpos = 0;
+	int error = 0;
 
 	pevent = (struct user_event*)ppatch;
 
@@ -835,7 +836,10 @@ int mxt_patch_parse_event(struct mxt_data *data, u8* ppatch, bool do_action)
 			__mxt_patch_debug(data, "|- EVENT_CFG: OBJECT_TYPE:%d OFFSET:%d VAL:%d\n",
 				pecfg->obj_type, pecfg->offset, pecfg->val);
 		}
-		mxt_patch_write_event_cfg(data, pecfg, do_action);
+		error = mxt_patch_write_event_cfg(data, pecfg, do_action);
+		if (error)
+			i = pevent->cfg_cnt+1;
+
 		ulpos += sizeof(struct event_cfg);
 	}
 

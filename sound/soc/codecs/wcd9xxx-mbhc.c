@@ -642,6 +642,24 @@ static void wcd9xxx_codec_switch_cfilt_mode(struct wcd9xxx_mbhc *mbhc,
 	}
 }
 
+#if defined(CONFIG_LGE_MBHC_TWIST_HEADSET)
+static bool wcd9xxx_check_jack_report(struct wcd9xxx_mbhc *mbhc,
+				struct snd_soc_jack *jack, int old_jack, int new_jack, int status)
+{
+	if(((old_jack&SND_JACK_HEADSET) && (new_jack&SND_JACK_LINEOUT))||
+		((old_jack&SND_JACK_LINEOUT) && (new_jack&SND_JACK_HEADSET))){
+		wcd9xxx_resmgr_cond_update_cond(mbhc->resmgr,
+						WCD9XXX_COND_HPH_MIC,
+						status & SND_JACK_MICROPHONE);
+		wcd9xxx_resmgr_cond_update_cond(mbhc->resmgr,
+						WCD9XXX_COND_HPH,
+						status & SND_JACK_HEADPHONE);
+		return true;
+	}
+	return false;
+}
+#endif
+
 static void wcd9xxx_jack_report(struct wcd9xxx_mbhc *mbhc,
 				struct snd_soc_jack *jack, int status, int mask)
 {
@@ -922,13 +940,20 @@ static void wcd9xxx_insert_detect_setup(struct wcd9xxx_mbhc *mbhc, bool ins)
 static void wcd9xxx_report_plug(struct wcd9xxx_mbhc *mbhc, int insertion,
 				enum snd_jack_types jack_type)
 {
+#if defined(CONFIG_LGE_MBHC_TWIST_HEADSET)
+	bool lineout_flag=false;
+#endif
 	WCD9XXX_BCL_ASSERT_LOCKED(mbhc->resmgr);
 
 	pr_debug("%s: enter insertion %d hph_status %x\n",
 		 __func__, insertion, mbhc->hph_status);
 	if (!insertion) {
 		/* Report removal */
+#if defined(CONFIG_LGE_MBHC_TWIST_HEADSET)
+		mbhc->hph_status = 0;
+#else
 		mbhc->hph_status &= ~jack_type;
+#endif
 		/*
 		 * cancel possibly scheduled btn work and
 		 * report release if we reported button press
@@ -979,6 +1004,11 @@ static void wcd9xxx_report_plug(struct wcd9xxx_mbhc *mbhc, int insertion,
 			pr_debug("%s: Reporting removal (%x)\n",
 				 __func__, mbhc->hph_status);
 			mbhc->zl = mbhc->zr = 0;
+#if defined(CONFIG_LGE_MBHC_TWIST_HEADSET)
+			if(wcd9xxx_check_jack_report(mbhc,&mbhc->headset_jack,mbhc->hph_status,jack_type, 0))
+				lineout_flag = true;
+			else
+#endif
 			wcd9xxx_jack_report(mbhc, &mbhc->headset_jack,
 					    0, WCD9XXX_JACK_MASK);
 			mbhc->hph_status &= ~(SND_JACK_HEADSET |
@@ -1009,6 +1039,10 @@ static void wcd9xxx_report_plug(struct wcd9xxx_mbhc *mbhc, int insertion,
 
 		pr_debug("%s: Reporting insertion %d(%x)\n", __func__,
 			 jack_type, mbhc->hph_status);
+
+#if defined(CONFIG_LGE_MBHC_TWIST_HEADSET)
+		if (!((jack_type == SND_JACK_LINEOUT) && (lineout_flag == true)))
+#endif
 		wcd9xxx_jack_report(mbhc, &mbhc->headset_jack,
 				    mbhc->hph_status, WCD9XXX_JACK_MASK);
 		wcd9xxx_clr_and_turnon_hph_padac(mbhc);
@@ -1874,7 +1908,8 @@ void wcd9xxx_turn_onoff_current_source(struct wcd9xxx_mbhc *mbhc, bool on,
 				    0x60, plug_det->mic_current << 5);
 		if (!highhph) {
 			/* INS_DET_ISRC_EN__ENABLE to 0 */
-			snd_soc_update_bits(codec,
+			if (!mbhc->mbhc_micbias_switched)
+				snd_soc_update_bits(codec,
 					    mbhc->mbhc_bias_regs.mbhc_reg,
 					    0x80, 0x00);
 			/* MICB_2_MBHC__SCHT_TRIG_EN  to 0 */
@@ -3078,9 +3113,7 @@ static void wcd9xxx_swch_irq_handler(struct wcd9xxx_mbhc *mbhc)
 	if (wcd9xxx_cancel_btn_work(mbhc))
 		pr_debug("%s: button press is canceled\n", __func__);
 
-	/* cancel detect plug */
-	wcd9xxx_cancel_hs_detect_plug(mbhc,
-				      &mbhc->correct_plug_swch);
+
 
 	insert = !wcd9xxx_swch_level_remove(mbhc);
 	pr_debug("%s: Current plug type %d, insert %d\n", __func__,
@@ -3093,6 +3126,9 @@ static void wcd9xxx_swch_irq_handler(struct wcd9xxx_mbhc *mbhc)
 	if ((mbhc->current_plug == PLUG_TYPE_NONE) && insert) {
 		mbhc->lpi_enabled = false;
 		wmb();
+		/* cancel detect plug */
+		wcd9xxx_cancel_hs_detect_plug(mbhc,
+					&mbhc->correct_plug_swch);
 
 		if ((mbhc->current_plug != PLUG_TYPE_NONE) &&
 		    !(snd_soc_read(codec, WCD9XXX_A_MBHC_INSERT_DETECT) &
@@ -3107,6 +3143,9 @@ static void wcd9xxx_swch_irq_handler(struct wcd9xxx_mbhc *mbhc)
 	} else if ((mbhc->current_plug != PLUG_TYPE_NONE) && !insert) {
 		mbhc->lpi_enabled = false;
 		wmb();
+		/* cancel detect plug */
+		wcd9xxx_cancel_hs_detect_plug(mbhc,
+				      &mbhc->correct_plug_swch);
 
 		if (mbhc->current_plug == PLUG_TYPE_HEADPHONE) {
 			wcd9xxx_report_plug(mbhc, 0, SND_JACK_HEADPHONE);

@@ -64,6 +64,9 @@
 #if defined(CONFIG_LGE_MIPI_TOVIS_VIDEO_540P_PANEL) || defined(CONFIG_FB_MSM_MIPI_TIANMA_VIDEO_QHD_PT_PANEL)
 extern int is_dsv_cont_splash_screening_f;
 #endif
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+extern int is_dsv_cont_splash_screening_f;
+#endif
 static int force_set_bl_f;
 unsigned long msm_fb_phys_addr_backup;
 #endif
@@ -74,9 +77,9 @@ unsigned long msm_fb_phys_addr_backup;
 #define MDSS_FB_NUM 2
 #endif
 
-#if defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR) || defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70_GLOBAL_COM) || \
+#if defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR) || defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_AME) || defined(CONFIG_MACH_MSM8926_F70_GLOBAL_COM) || \
 	defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGC_SPR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGDSNM_CN) || \
-	defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
+	defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 #define UI_BL_OFF		0
 #define UI_0_BL			10
 #define UI_20_BL		60
@@ -252,6 +255,40 @@ static const char mapped_value[256] = {
 	185,185,185,187,189,189,189,194,198,200, //249
 	201,203,205,208,210,213                  //255
 };
+#elif defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+#if defined(CONFIG_MACH_MSM8X10_L70P)
+
+#else
+static int cal_value;
+static const char mapped_value[256] = {
+	0,  3,  3,  3,  3,  4,  4,  4,  4,  5,   //9
+	5,  5,  5,  5,  5,  5,  5,  5,  5,  5,   //19
+	5,  5,  5,  5,  5,  5,  5,  6,  6,  6,   //29
+	6,  6,  6,  6,  6,  6,  6,  6,  6,  7,   //39
+	7,  7,  7,  7,  7,  7,  7,  8,  8,  8,   //49
+	9,  9,  9,  9,  9,  10, 10, 10, 10, 10,  //59
+	11, 11, 11, 11, 12, 12, 12, 12, 13, 13,  //69
+	13, 14, 14, 14, 15, 15, 15, 16, 16, 16,  //79
+	17, 17, 17, 18, 18, 19, 20, 20, 21, 21,  //89
+	21, 22, 22, 23, 23, 23, 24, 24, 24, 25,  //99
+	25, 25, 27, 27, 28, 28, 29, 29, 31, 31,  //109
+	31, 32, 32, 32, 33, 33, 35, 35, 37, 37,  //119
+	37, 38, 38, 40, 40, 42, 42, 42, 42, 43,  //129
+	43, 45, 47, 47, 49, 49, 51, 51, 51, 53,  //139
+	53, 55, 55, 55, 57, 57, 57, 59, 59, 59,  //149
+	61, 61, 64, 64, 66, 66, 66, 68, 68, 71,  //159
+	71, 71, 73, 73, 73, 76, 76, 76, 78, 78,  //169
+	81, 81, 84, 84, 86, 86, 86, 86, 89, 89,  //179
+	92, 92, 95, 95, 95, 98, 98, 98,101,104,  //189
+	104,104,107,107,110,110,112,114,114,114, //199
+	117,117,120,120,124,124,124,128,128,132, //209
+	132,132,135,135,135,139,143,143,145,147, //219
+	147,147,151,151,159,159,159,159,161,163, //229
+	163,163,167,172,172,174,176,176,180,180, //239
+	185,185,185,187,189,189,189,194,198,200, //249
+	201,203,205,208,210,213                  //255
+};
+#endif
 #endif
 static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 				      enum led_brightness value)
@@ -269,11 +306,24 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 	MDSS_BRIGHT_TO_BL(bl_lvl, cal_value, mfd->panel_info->bl_max,
 			MDSS_MAX_BL_BRIGHTNESS);
 	pr_info("value=%d, cal_value=%d\n", value, cal_value);
+
+#elif defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+#if defined(CONFIG_MACH_MSM8X10_L70P)
+	MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_max,
+                                mfd->panel_info->brightness_max);
+	pr_info("value=%d, bl_lvl=%d\n", value, bl_lvl);
+#else
+	cal_value = mapped_value[value];
+	MDSS_BRIGHT_TO_BL(bl_lvl, cal_value, mfd->panel_info->bl_max,
+			MDSS_MAX_BL_BRIGHTNESS);
+	pr_info("value=%d, cal_value=%d\n", value, cal_value);
+#endif
+
 #else
 
-#if defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR) || defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70_GLOBAL_COM) || \
+#if defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR) || defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_AME) || defined(CONFIG_MACH_MSM8926_F70_GLOBAL_COM) || \
 	defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGC_SPR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGDSNM_CN) || \
-	defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) ||  defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
+	defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) ||  defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 	if(value >= UI_BL_OFF && value <= UI_0_BL)
 		bl_lvl = (value - UI_BL_OFF) * (LGE_0_BL - LGE_BL_OFF) / (UI_0_BL - UI_BL_OFF) + LGE_BL_OFF;
 	else if(value >= UI_0_BL && value <= UI_20_BL)
@@ -475,7 +525,7 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	mfd->bl_level = 0;
 	mfd->bl_scale = 1024;
 	mfd->bl_min_lvl = 30;
-#if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT)
+#if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT) && !defined (CONFIG_MACH_MSM8926_VFP_KR)
 	mfd->fb_imgType = MDP_RGB_565;
 #else
 	mfd->fb_imgType = MDP_RGBA_8888;
@@ -809,7 +859,7 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 	pdata = dev_get_platdata(&mfd->pdev->dev);
 
 	if ((pdata) && (pdata->set_backlight)) {
-#if !defined(CONFIG_MACH_MSM8X10_W5)
+#if !defined(CONFIG_MACH_MSM8X10_W5) && !defined(CONFIG_MACH_MSM8X10_L70P)
 		if (!IS_CALIB_MODE_BL(mfd))
 			mdss_fb_scale_bl(mfd, &temp);
 		/*
@@ -884,6 +934,10 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 			mutex_lock(&mfd->update.lock);
 			mfd->update.type = NOTIFY_TYPE_UPDATE;
 			mutex_unlock(&mfd->update.lock);
+#if defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL)
+			mdelay(50);
+			mdelay(70);
+#endif
 		}
 		break;
 
@@ -1961,7 +2015,8 @@ static int mdss_fb_set_par(struct fb_info *info)
 	int old_imgType;
 	int ret = 0;
 
-#if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT)
+#if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT) || defined(CONFIG_MACH_MSM8X10_L70P)
+
     struct mdss_panel_data *pdata;
 
     pdata = dev_get_platdata(&mfd->pdev->dev);
@@ -2014,7 +2069,8 @@ static int mdss_fb_set_par(struct fb_info *info)
 
 	if (mfd->panel_reconfig || (mfd->fb_imgType != old_imgType)) {
 		force_set_bl_f = 1;
-#if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT)
+#if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT) || defined(CONFIG_MACH_MSM8X10_L70P)
+
         if ((pdata) && (pdata->set_backlight)) {
             pdata->set_backlight(pdata,0);
         }

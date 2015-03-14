@@ -129,7 +129,7 @@ static int msm_csiphy_lane_config(struct csiphy_device *csiphy_dev,
 
 /*                                                                                                            */
 /*                                                                                                       */
-#if defined (CONFIG_HI351) || defined (CONFIG_HI543)
+#if defined (CONFIG_HI351) || defined (CONFIG_HI543) || defined (CONFIG_HI544)
 	pr_err("%s padding the offset\n", __func__);
 	if(csiphy_dev->pdev->id == 0){//main camera
 		if(csiphy_dev->hw_version < CSIPHY_VERSION_V30){	//8x10, hi351

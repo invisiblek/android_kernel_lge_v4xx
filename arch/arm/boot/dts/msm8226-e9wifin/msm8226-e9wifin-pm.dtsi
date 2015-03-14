@@ -452,6 +452,8 @@
 	qcom,vbatdet-delta-mv = <100>;
 	qcom,tchg-mins = <480>;
 	qcom,ext-ovp-present = <1>;
+	qcom,power-stage-reduced;
+
 	/* If you want to enable external OVP, use below GPIO_2 setting */
 	lge,ext_ovp_gpio = <&pm8226_gpios 2 0x00>;
 };

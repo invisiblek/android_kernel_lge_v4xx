@@ -141,7 +141,7 @@ static struct msm_sensor_power_setting mt9m114_power_setting[] = {
 		.delay = 0,
 	},
 /*                                                                     */
-#if defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E8LTE)
+#if defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_VDIG,
@@ -170,12 +170,12 @@ static struct msm_sensor_power_setting mt9m114_power_setting[] = {
 		.config_val = GPIO_OUT_HIGH,
 		.delay = 15,
 	},
-#if defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E8LTE)
+#if defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_VANA,
 		.config_val = GPIO_OUT_HIGH,
-		.delay = 0,
+		.delay = 10,
 	},
 #else
 	{

@@ -689,8 +689,8 @@ static struct android_usb_function acm_function = {
 /* Supported functions initialization */
 
 /* laf */
-struct laf_data { 
-	bool opened; 
+struct laf_data {
+	bool opened;
 	bool enabled;
 };
 
@@ -1969,7 +1969,7 @@ static int mass_storage_function_init(struct android_usb_function *f,
 		config->fsg.luns[1].removable = 1;
 		name[0] = "lun";
 		name[1] = "lun1";
-#else 
+#else
 	name[0] = "lun";
 	if (dev->pdata && dev->pdata->cdrom) {
 		config->fsg.luns[config->fsg.nluns].cdrom = 1;
@@ -3090,9 +3090,18 @@ static void android_lge_factory_bind(struct usb_composite_dev *cdev)
 	strlcpy(diag_clients, "diag", sizeof(diag_clients));
 
 	ret = lgeusb_get_factory_composition(lge_factory_composition);
+#ifdef CONFIG_USB_G_LGE_MULTIPLE_CONFIGURATION
+	if (ret)
+		strlcpy(lge_factory_composition, "acm,diag",
+				sizeof(lge_factory_composition) - 1);
+	if (lge_get_laf_mode())
+		strlcpy(lge_factory_composition, "acm,laf",
+				sizeof(lge_factory_composition) - 1);
+#else
 	if (ret)
 		strlcpy(lge_factory_composition, lge_get_laf_mode() ? "acm,laf" : "acm,diag",
 				sizeof(lge_factory_composition) - 1);
+#endif
 
 	b = strim(lge_factory_composition);
 	while (b) {
@@ -3103,11 +3112,12 @@ static void android_lge_factory_bind(struct usb_composite_dev *cdev)
 				pr_err("android_usb: Cannot enable '%s'", name);
 		}
 	}
-
+#ifndef CONFIG_USB_G_LGE_MULTIPLE_CONFIGURATION
     if (lge_get_laf_mode()) {
         android_enable(dev);
         dev->enabled = true;
     }
+#endif
 }
 
 #endif /*                                           */

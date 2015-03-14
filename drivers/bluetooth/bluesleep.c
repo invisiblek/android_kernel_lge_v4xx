@@ -667,7 +667,9 @@ static void bluesleep_stop(int uart_off)
         if(bsi->uport != NULL && msm_hs_get_bt_uport_clock_state(bsi->uport) == CLOCK_REQUEST_UNAVAILABLE && uart_off)
         {
             BT_DBG("UART On Status... UART Clock Off...");
-            hsuart_power(0);
+//BT_S :  20140429, [START]
+//            hsuart_power(0);
+//BT_E :  20140429, [END]
         }
         else
         {

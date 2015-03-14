@@ -79,18 +79,18 @@
 		qcom,gpio-no-mux = <0>;
 		gpios = <&msmgpio 26 0>,		//MAIN_CAM_MCLK
 			<&msmgpio 114 0>,		//MAIN_RESET_N
-			<&msmgpio 36 0>,		//VCM_PWDN, //CAM_VCM_2V8, MAIN_CAM0_VCM_PWDN=GPIO36
-			<&msmgpio 62 0>,		//CAM_AVDD_2V8, LDO1_EN=GPIO 62
-			<&msmgpio 113 0>,	//CAM_IOVDD_1V8, LDO3_EN=GPIO 113
-			<&msmgpio 109 0>;	//CAM_LDAF_EN=GPIO 109
+			<&msmgpio 113 0>,		//CAM_IOVDD_1V8, LDO3_EN=GPIO_113
+			<&msmgpio 62 0>,			//CAM_AVDD_2V8, LDO1_EN=GPIO_62
+			<&msmgpio 36 0>,			//CAM_VCM_2V8, MAIN_CAM0_VCM_PWDN=GPIO_36
+			<&msmgpio 109 0>;		//CAM_LDAF_EN=GPIO_109
 		qcom,gpio-reset = <1>;
-		qcom,gpio-standby = <2>;		// +VCM_2V8 (AF)
-		qcom,gpio-vana = <3>;		// =CAM_AVDD_2V8
-		qcom,gpio-vio = <4>;		// =CAM_IOVDD_1V8
+		qcom,gpio-vio = <2>;			// CAM_IOVDD_1V8
+		qcom,gpio-vana = <3>;		// CAM_AVDD_2V8
+		qcom,gpio-vaf = <4>;			// CAM_VCM_2V8
 		qcom,gpio-ldaf-en = <5>;		// CAM_LDAF_EN
 		qcom,gpio-req-tbl-num = <0 1 2 3 4 5>;
 		qcom,gpio-req-tbl-flags = <1 0 0 0 0 0>;
-		qcom,gpio-req-tbl-label = "CAMIF_MCLK", "CAM_RESET1", "CAM_STANDBY", "CAM_AVDD", "CAM_IOVDD", "CAM_LDAF_EN";
+		qcom,gpio-req-tbl-label = "CAMIF_MCLK", "CAM_RESET1", "CAM_IOVDD", "CAM_AVDD", "CAM_VAF", "CAM_LDAF_EN";
 		qcom,csi-lane-assign = <0x4320>;
 		qcom,csi-lane-mask = <0x1F>;
 		qcom,sensor-position = <0>;
@@ -114,18 +114,16 @@
 		qcom,cam-vreg-max-voltage = <1200000>;
 		qcom,cam-vreg-op-mode = <200000>;
 		qcom,gpio-no-mux = <0>;
-		gpios = <&msmgpio 27 0>,
-			<&msmgpio 28 0>,		//VT_CAM_RESET_N, GPIO 28
-			<&msmgpio 31 0>,		//VT_CAM_PWDN, GPIO=31
-			<&msmgpio 62 0>,		//CAM_AVDD_2V8, LDO1_EN=GPIO 62
-			<&msmgpio 113 0>;	//CAM_IOVDD_1V8, LDO3_EN=GPIO 113
+		gpios = <&msmgpio 27 0>,	//VT_CAM_MCLK
+			<&msmgpio 28 0>,		//VT_CAM_RESET_N
+			<&msmgpio 113 0>,	//CAM_IOVDD_1V8, LDO3_EN=GPIO 113
+			<&msmgpio 62 0>;	//CAM_AVDD_2V8, LDO1_EN=GPIO 62
 		qcom,gpio-reset = <1>;
-		qcom,gpio-standby = <2>;
-		qcom,gpio-vana = <3>;		// =CAM_AVDD_2V8
-		qcom,gpio-vio = <4>;		// =CAM_IOVDD_1V8
-		qcom,gpio-req-tbl-num = <0 1 2 3 4>;
-		qcom,gpio-req-tbl-flags = <1 0 0 0 0>;
-		qcom,gpio-req-tbl-label = "CAMIF_MCLK2", "CAM_RESET2", "CAM_STANDBY", "CAM_AVDD", "CAM_IOVDD";
+		qcom,gpio-vio = <2>;		// CAM_IOVDD_1V8
+		qcom,gpio-vana = <3>;	// CAM_AVDD_2V8
+		qcom,gpio-req-tbl-num = <0 1 2 3>;
+		qcom,gpio-req-tbl-flags = <1 0 0 0>;
+		qcom,gpio-req-tbl-label = "CAMIF_MCLK2", "CAM_RESET2", "CAM_IOVDD", "CAM_AVDD";
 		qcom,csi-lane-assign = <0x4320>;
 		qcom,csi-lane-mask = <0x3>;
 		qcom,sensor-position = <1>;

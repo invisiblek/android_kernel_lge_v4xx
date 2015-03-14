@@ -35,6 +35,13 @@
 #include <linux/usb_usual.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/f_mtp.h>
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+#endif
+
+#if defined CONFIG_DEBUG_FS && defined CONFIG_USB_G_LGE_ANDROID
+#define CONFIG_USB_G_LGE_MTP_PROFILING
+#endif
 
 #define MTP_BULK_BUFFER_SIZE       16384
 #define INTR_BUFFER_SIZE           28
@@ -131,6 +138,20 @@ struct mtp_dev {
 	uint16_t xfer_command;
 	uint32_t xfer_transaction_id;
 	int xfer_result;
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+	struct {
+		uint64_t rbytes, t_rbytes;
+		uint64_t wbytes, t_wbytes;
+		ktime_t rtime, t_rtime;
+		ktime_t wtime, t_wtime;
+		ktime_t send_time, t_send_time;
+		ktime_t receive_time, t_receive_time;
+		int r_count, w_count;
+		ktime_t first_start_rtime, first_start_wtime;
+		ktime_t last_end_rtime, last_end_wtime;
+
+	} perf;
+#endif
 };
 
 static struct usb_interface_descriptor mtp_interface_desc = {
@@ -1131,6 +1152,9 @@ static void send_file_work(struct work_struct *data)
 	int xfer, ret, hdr_size;
 	int r = 0;
 	int sendZLP = 0;
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+	ktime_t	send_start, start, diff;
+#endif
 
 	/* read our parameters */
 	smp_rmb();
@@ -1139,6 +1163,15 @@ static void send_file_work(struct work_struct *data)
 	count = dev->xfer_file_length;
 
 	DBG(cdev, "send_file_work(%lld %lld)\n", offset, count);
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+	if(!ktime_to_ms(dev->perf.first_start_rtime)) {
+		dev->perf.first_start_rtime = ktime_get();
+		dev->perf.r_count = 0;
+	}
+	dev->perf.rbytes = (uint64_t)0;
+	memset(&dev->perf.rtime, 0, sizeof(dev->perf.rtime));
+	memset(&dev->perf.send_time, 0, sizeof(dev->perf.send_time));
+#endif
 
 	if (dev->xfer_send_header) {
 		hdr_size = sizeof(struct mtp_data_header);
@@ -1154,6 +1187,9 @@ static void send_file_work(struct work_struct *data)
 		sendZLP = 1;
 
 	while (count > 0 || sendZLP) {
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+		send_start = ktime_get();
+#endif
 		/* so we exit after sending ZLP */
 		if (count == 0)
 			sendZLP = 0;
@@ -1187,8 +1223,18 @@ static void send_file_work(struct work_struct *data)
 					__cpu_to_le32(dev->xfer_transaction_id);
 		}
 
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+		start = ktime_get();
+#endif
 		ret = vfs_read(filp, req->buf + hdr_size, xfer - hdr_size,
 								&offset);
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+		diff = ktime_sub(ktime_get(), start);
+		dev->perf.rbytes += ret;
+		dev->perf.t_rbytes += ret;
+		dev->perf.rtime = ktime_add(dev->perf.rtime, diff);
+		dev->perf.t_rtime = ktime_add(dev->perf.t_rtime, diff);
+#endif
 		if (ret < 0) {
 			r = ret;
 			break;
@@ -1210,11 +1256,20 @@ static void send_file_work(struct work_struct *data)
 
 		/* zero this so we don't try to free it on error exit */
 		req = 0;
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+		diff = ktime_sub(ktime_get(), send_start);
+		dev->perf.send_time = ktime_add(dev->perf.send_time, diff);
+		dev->perf.t_send_time = ktime_add(dev->perf.t_send_time, diff);
+#endif
 	}
 
 	if (req)
 		mtp_req_put(dev, &dev->tx_idle, req);
 
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+	dev->perf.r_count++;
+	dev->perf.last_end_rtime = ktime_get();
+#endif
 	DBG(cdev, "send_file_work returning %d\n", r);
 	/* write the result */
 	dev->xfer_result = r;
@@ -1233,6 +1288,9 @@ static void receive_file_work(struct work_struct *data)
 	int64_t count;
 	int ret, cur_buf = 0;
 	int r = 0;
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+	ktime_t	receive_start, start, diff;
+#endif
 
 	/* read our parameters */
 	smp_rmb();
@@ -1241,11 +1299,23 @@ static void receive_file_work(struct work_struct *data)
 	count = dev->xfer_file_length;
 
 	DBG(cdev, "receive_file_work(%lld)\n", count);
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+	if(!ktime_to_ms(dev->perf.first_start_wtime)) {
+		dev->perf.first_start_wtime = ktime_get();
+		dev->perf.w_count = 0;
+	}
+	dev->perf.wbytes = (uint64_t)0;
+	memset(&dev->perf.wtime, 0, sizeof(dev->perf.wtime));
+	memset(&dev->perf.receive_time, 0, sizeof(dev->perf.receive_time));
+#endif
 	if (!IS_ALIGNED(count, dev->ep_out->maxpacket))
 		DBG(cdev, "%s- count(%lld) not multiple of mtu(%d)\n", __func__,
 						count, dev->ep_out->maxpacket);
 
 	while (count > 0 || write_req) {
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+		receive_start = ktime_get();
+#endif
 		if (count > 0) {
 			/* queue a request */
 			read_req = dev->rx_req[cur_buf];
@@ -1266,8 +1336,18 @@ static void receive_file_work(struct work_struct *data)
 
 		if (write_req) {
 			DBG(cdev, "rx %p %d\n", write_req, write_req->actual);
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+			start = ktime_get();
+#endif
 			ret = vfs_write(filp, write_req->buf, write_req->actual,
 				&offset);
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+			diff = ktime_sub(ktime_get(), start);
+			dev->perf.wbytes += ret;
+			dev->perf.t_wbytes += ret;
+			dev->perf.wtime = ktime_add(dev->perf.wtime, diff);
+			dev->perf.t_wtime = ktime_add(dev->perf.t_wtime, diff);
+#endif
 			DBG(cdev, "vfs_write %d\n", ret);
 			if (ret != write_req->actual) {
 				r = -EIO;
@@ -1313,8 +1393,17 @@ static void receive_file_work(struct work_struct *data)
 			write_req = read_req;
 			read_req = NULL;
 		}
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+		diff = ktime_sub(ktime_get(), receive_start);
+		dev->perf.receive_time = ktime_add(dev->perf.receive_time, diff);
+		dev->perf.t_receive_time = ktime_add(dev->perf.t_receive_time, diff);
+#endif
 	}
 
+#ifdef CONFIG_USB_G_LGE_MTP_PROFILING
+	dev->perf.w_count++;
+	dev->perf.last_end_wtime = ktime_get();
+#endif
 	DBG(cdev, "receive_file_work returning %d\n", r);
 	/* write the result */
 	dev->xfer_result = r;
@@ -1947,6 +2036,139 @@ multiple_mtp:
 #endif
 }
 
+#if defined CONFIG_DEBUG_FS && defined CONFIG_USB_G_LGE_MTP_PROFILING
+static char debug_buffer[PAGE_SIZE];
+
+static ssize_t debug_profile_write(struct file *file, const char __user *ubuf,
+		size_t count, loff_t *ppos)
+{
+	struct mtp_dev *dev = file->private_data;
+	int value;
+
+	sscanf(ubuf, "%d", &value);
+	if (!value) {
+		spin_lock(&dev->lock);
+		memset(&dev->perf, 0, sizeof(dev->perf));
+		spin_unlock(&dev->lock);
+	}
+
+	return count;
+}
+
+static ssize_t debug_profile_read(struct file *file, char __user *ubuf,
+		size_t count, loff_t *ppos)
+{
+	struct mtp_dev *dev = file->private_data;
+
+	char *buf = debug_buffer;
+	unsigned long flags;
+	int i = 0;
+	uint64_t rbytes, wbytes;
+	uint64_t t_rbytes, t_wbytes;
+	unsigned long rtemp, wtemp, t_rtemp, t_wtemp;
+	int64_t rtime, wtime, send_time, receive_time;
+	int64_t t_rtime, t_wtime, t_send_time, t_receive_time;
+	int64_t file_ready_rtime, file_ready_wtime;
+	int64_t fr_avg_rtime, fr_avg_wtime;
+
+	if (!dev)
+		return 0;
+
+	spin_lock_irqsave(&dev->lock, flags);
+	rbytes = dev->perf.rbytes;
+	wbytes = dev->perf.wbytes;
+
+	t_rbytes = dev->perf.t_rbytes;
+	t_wbytes = dev->perf.t_wbytes;
+
+	rtime = ktime_to_ms(dev->perf.rtime);
+	wtime = ktime_to_ms(dev->perf.wtime);
+	send_time = ktime_to_ms(dev->perf.send_time);
+	receive_time = ktime_to_ms(dev->perf.receive_time);
+
+	t_rtime = ktime_to_ms(dev->perf.t_rtime);
+	t_wtime = ktime_to_ms(dev->perf.t_wtime);
+	t_send_time = ktime_to_ms(dev->perf.t_send_time);
+	t_receive_time = ktime_to_ms(dev->perf.t_receive_time);
+
+	file_ready_rtime = ktime_to_ms(ktime_sub(ktime_sub(dev->perf.last_end_rtime,
+				   dev->perf.first_start_rtime), dev->perf.t_send_time));
+	file_ready_wtime = ktime_to_ms(ktime_sub(ktime_sub(dev->perf.last_end_wtime,
+					dev->perf.first_start_wtime), dev->perf.t_receive_time));
+	fr_avg_rtime = dev->perf.r_count ?
+		DIV_ROUND_UP_ULL(file_ready_rtime, dev->perf.r_count): 0;
+	fr_avg_wtime = dev->perf.w_count ?
+		DIV_ROUND_UP_ULL(file_ready_wtime, dev->perf.w_count): 0;
+
+	wtemp = receive_time ?
+		DIV_ROUND_UP_ULL(wbytes, receive_time) * 1000 / 1024 : 0;
+	rtemp = send_time + file_ready_rtime ?
+		DIV_ROUND_UP_ULL(rbytes, send_time) * 1000 / 1024 : 0;
+	t_wtemp = t_receive_time + file_ready_wtime?
+		DIV_ROUND_UP_ULL(t_wbytes, t_receive_time + file_ready_wtime) * 1000 / 1024 : 0;
+	t_rtemp = t_send_time ?
+		DIV_ROUND_UP_ULL(t_rbytes, t_send_time + file_ready_rtime) * 1000 / 1024 : 0 ;
+
+	i += snprintf(buf + i, PAGE_SIZE - i,
+			"\nLast file throughput\n");
+	i += snprintf(buf + i, PAGE_SIZE - i,
+			"Receive performance(vfs write+usb_delay=receive time)\n"
+			"%llu bytes in (%lld+%lld=%lld) miliseconds (%luKB/s)\n",
+			wbytes, wtime, receive_time-wtime, receive_time, wtemp);
+	i += snprintf(buf + i, PAGE_SIZE - i,
+			"\nSend performance(vfs read+usb delay=send time)\n"
+			"%llu bytes in (%lld+%lld=%lld) miliseconds (%luKB/s)\n",
+			rbytes, rtime, send_time-rtime, send_time, rtemp);
+
+	i += snprintf(buf + i, PAGE_SIZE - i,
+			"\n\nTotal file throughput\n");
+	i += snprintf(buf + i, PAGE_SIZE - i,
+			"Receive performance(vfs write+usb delay+file interval=total receive time)\n"
+			"%llu bytes in (%lld+%lld+%lld=%lld) miliseconds (%luKB/s)\n",
+			t_wbytes, t_wtime, t_receive_time-t_wtime, file_ready_wtime,
+			t_receive_time+file_ready_wtime, t_wtemp);
+	i += snprintf(buf + i, PAGE_SIZE - i,
+			"Receive file count: %d\n"
+			"Average of interval to ready file: %lld miliseconds\n",
+			dev->perf.w_count, fr_avg_wtime);
+	i += snprintf(buf + i, PAGE_SIZE - i,
+			"\nSend performance(vfs read+usb delay+file interval=total send time)\n"
+			"%llu bytes in (%lld+%lld+%lld=%lld) miliseconds (%luKB/s)\n",
+			t_rbytes, t_rtime, t_send_time-t_rtime, file_ready_rtime,
+			t_send_time+file_ready_rtime, t_rtemp);
+	i += snprintf(buf + i, PAGE_SIZE - i,
+			"Send file count: %d\n"
+			"Average of interval to ready file %lld miliseconds\n",
+			dev->perf.r_count, fr_avg_wtime);
+
+	spin_unlock_irqrestore(&dev->lock, flags);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, i);
+}
+
+static int debug_profile_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+const struct file_operations debug_profile_ops = {
+	.open = debug_profile_open,
+	.read = debug_profile_read,
+	.write = debug_profile_write,
+};
+
+static void mtp_debugfs_init(struct mtp_dev *dev)
+{
+	struct dentry *dent;
+	dent = debugfs_create_dir("usb_mtp", 0);
+	if (IS_ERR(dent))
+		return;
+
+	debugfs_create_file("profile", 0444, dent, dev, &debug_profile_ops);
+}
+#endif /*                                                   */
+
 static int mtp_setup(void)
 {
 	struct mtp_dev *dev;
@@ -1979,6 +2201,9 @@ static int mtp_setup(void)
 	if (ret)
 		goto err2;
 
+#if defined CONFIG_DEBUG_FS && defined CONFIG_USB_G_LGE_MTP_PROFILING
+	mtp_debugfs_init(dev);
+#endif
 	return 0;
 
 err2:

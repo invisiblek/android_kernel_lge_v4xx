@@ -1142,6 +1142,22 @@ config TOUCHSCREEN_AGS04_TOUCH_KEYPAD
 	help
 	  Say Y here to enable support for AGS04 Touch Keypad driver
 
+config TOUCHSCREEN_APS_MIT200
+	bool "LGDisplay touchscreen with melfas"
+	depends on I2C
+	default n
+	help
+	 Say Y here to enable support for Melfas Touch driver
+	 series touchscreen controller.
+
+config TOUCHSCREEN_APS_MIT200_E2
+	bool "LGDisplay touchscreen with melfas"
+	depends on I2C
+	default n
+	help
+	 Say Y here to enable support for Melfas Touch driver
+	 series touchscreen controller.
+
 config TOUCHSCREEN_LGE_TS_MISC
 	bool "LGE Touch Misc driver"
 	depends on I2C
@@ -1230,6 +1246,30 @@ config TOUCHSCREEN_LGE_TOUCHCORE
 	help
 	 Say Y here if you use lge touch core
 	 if unsure, say N
+
+config TOUCHSCREEN_LGE_AIT_TOUCHCORE
+	bool "LGE Touch Core driver"
+	depends on I2C
+	default n
+	help
+	 Say Y here if you use lge touch core
+	 if unsure, say N
+
+config TOUCHSCREEN_LGE_APS_TOUCHCORE_E2
+	bool "LGE Touch Core driver"
+	depends on I2C
+	default n
+	help
+	 Say Y here if you use lge touch core
+	 if unsure, say N
+
+config TOUCHSCREEN_LGE_AIT_MELFAS
+	bool "Melfas MMS-100S or MMS-100A based on LGE Touch Core driver"
+	depends on I2C && TOUCHSCREEN_LGE_AIT_TOUCHCORE
+	default n
+	help
+         Say Y here if you have a Mefas MMS-100S or MMS-100A I2C touchscreen
+         connected to your system.
 
 config TOUCHSCREEN_LGE_MELFAS
 	bool "Melfas MMS-100S or MMS-100A based on LGE Touch Core driver"

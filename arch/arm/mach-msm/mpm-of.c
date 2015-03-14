@@ -704,13 +704,8 @@ static int __devinit msm_mpm_dev_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-#if defined(CONFIG_MACH_MSM8926_B2L_ATT)|| defined(CONFIG_MACH_MSM8926_JAGNM_ATT)
     ret = devm_request_irq(&pdev->dev, dev->mpm_ipc_irq, msm_mpm_irq,
 		IRQF_TRIGGER_RISING | IRQF_NO_SUSPEND, pdev->name, msm_mpm_irq);
-#else
-    ret = devm_request_irq(&pdev->dev, dev->mpm_ipc_irq, msm_mpm_irq,
-		IRQF_TRIGGER_RISING, pdev->name, msm_mpm_irq);
-#endif
 
 
 

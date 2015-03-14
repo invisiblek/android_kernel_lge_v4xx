@@ -383,8 +383,13 @@ int8	tunerbb_drv_fc8080_init(void)
 	bbm_com_fic_callback_register((fci_u32)NULL, tunerbb_drv_fc8080_fic_cb);
 	bbm_com_msc_callback_register((fci_u32)NULL, tunerbb_drv_fc8080_msc_cb);
 #endif
-	res = bbm_com_init(NULL);
-	res |= bbm_com_probe(NULL);
+
+	res = bbm_com_probe(NULL);
+
+	if(res)
+		res = tdmb_fc8080_power_on_retry();
+
+	res |= bbm_com_init(NULL);
 
 	if(res)
 	{

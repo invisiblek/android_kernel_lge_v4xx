@@ -306,6 +306,10 @@ struct mdss_dsi_ctrl_pdata {
 	int bl_en_gpio;
 #elif defined(CONFIG_FB_MSM_MIPI_TOVIS_LM570HN1A_VIDEO_HD_PT_PANEL)
 	int lcd_dsv_enp_gpio;
+#elif defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+	int disp_fd_gpio;
+	int disp_iovcc_gpio;
+	int disp_p_mode;
 #endif
 };
 

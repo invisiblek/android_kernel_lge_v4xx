@@ -55,7 +55,23 @@ extern int is_dsv_cont_splash_screening_f;
 extern int has_dsv_f;
 #endif
 
-#if defined (CONFIG_MACH_MSM8X10_W5) || defined (CONFIG_MACH_MSM8X10_W6)
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+static struct dsi_panel_cmds lge_display_on_cmds;
+static struct dsi_panel_cmds lge_sleep_in_cmds;
+extern int is_dsv_cont_splash_screening_f;
+extern int has_dsv_f;
+static struct mdss_panel_data *pdata_base;
+extern struct platform_device *of_find_device_by_node(struct device_node *np);
+#if defined (CONFIG_MACH_MSM8X10_L70P)
+#define DSV_FD 20
+#define DSV_EN 6
+#else
+#define DSV_FD 3
+#endif
+
+#endif
+
+#if defined (CONFIG_MACH_MSM8X10_W5) || defined (CONFIG_MACH_MSM8X10_W6) || defined (CONFIG_MACH_MSM8X10_L70P)
 /* At booting up, Between LG Logo and Operation Animation showing, abnormal LG Logo is appearing one time.
 Because LG Logo image format is RGB888, Android side image format is RGBA8888, both Image formats are mismatched.
 So, We add the code to change MDP_RGBA_8888 to MDP_RGB_888 at mdp3_overlay_set when is_done_drawing_logo is not "1".
@@ -89,6 +105,11 @@ static struct dsi_panel_cmds lge_display_on_cmds;
 static struct dsi_panel_cmds lge_display_on_cmds_2;
 static struct dsi_panel_cmds lge_sleep_out_cmds;
 #endif
+
+#if defined(CONFIG_LGE_LCD_ESD)
+static struct mdss_panel_data *pdata_esd;
+#endif
+
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	ctrl->pwm_bl = pwm_request(ctrl->pwm_lpg_chan, "lcd-bklt");
@@ -247,7 +268,7 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 	!defined(CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT_PANEL) && \
 	!defined(CONFIG_FB_MSM_MIPI_TOVIS_LM570HN1A_VIDEO_HD_PT_PANEL) && \
 	!defined(CONFIG_LGE_MIPI_DSI_LGD_LVDS_WXGA) && !defined(CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA) && \
-	!defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL)
+	!defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL) && !defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
 
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
@@ -255,7 +276,6 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 #if defined(CONFIG_LGE_MIPI_NT35521_VIDEO_720P_PANEL)
 		usleep(50000);
 #endif
-
 		for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
 			gpio_set_value((ctrl_pdata->rst_gpio),
 				pdata->panel_info.rst_seq[i]);
@@ -275,13 +295,14 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			ctrl_pdata->ctrl_state &= ~CTRL_STATE_PANEL_INIT;
 			pr_debug("%s: Reset panel done\n", __func__);
 		}
+
 	} else {
 		gpio_set_value((ctrl_pdata->rst_gpio), 0);
 #if !defined(CONFIG_LGE_MIPI_TOVIS_VIDEO_540P_PANEL) && !defined(CONFIG_FB_MSM_MIPI_TIANMA_VIDEO_QHD_PT_PANEL) && \
 	!defined(CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT_PANEL) && \
 	!defined(CONFIG_FB_MSM_MIPI_TOVIS_LM570HN1A_VIDEO_HD_PT_PANEL) && \
 	!defined(CONFIG_LGE_MIPI_DSI_LGD_LVDS_WXGA) && !defined(CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA) &&\
-	!defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL)
+	!defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL) &&  !defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
 
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
@@ -407,6 +428,62 @@ static int mdss_dsi_panel_partial_update(struct mdss_panel_data *pdata)
 	return rc;
 }
 
+#if defined(CONFIG_LGE_LCD_ESD)
+void mdss_lcd_esd_reset(void)
+{
+	struct mdss_dsi_ctrl_pdata *esd_ctrl = NULL;
+	int lcd_on=0;
+
+	if(pdata_esd == NULL) {
+		pr_err("%s: Invalid input data\n", __func__);
+	}
+
+	esd_ctrl =  container_of(pdata_esd, struct mdss_dsi_ctrl_pdata,
+			panel_data);
+
+	lcd_on = gpio_get_value(esd_ctrl->disp_en_gpio);
+	if(!(lcd_on)) {
+		pr_err("%s : LCD ESD Detected, LCD status off \n", __func__);
+		return;
+	}
+
+	pr_err("%s : LCD ESD Detected\n\n", __func__);
+	pr_err("********        **        ****\n");
+	pr_err("********      **  **      **  **\n");
+	pr_err("**          **     **     **   **\n");
+	pr_err("**            **          **    **\n");
+	pr_err("********        **        **    **\n");
+	pr_err("**                **      **    **\n");
+	pr_err("**           **     **    **   **\n");
+	pr_err("********      **  **      **  **\n");
+	pr_err("********        **        ****\n\n");
+
+	mdss_dsi_panel_cmds_send(esd_ctrl, &esd_ctrl->off_cmds);
+	mdelay(20);
+
+	gpio_set_value((esd_ctrl->disp_en_gpio), 0);
+	mdelay(300);
+
+	gpio_set_value(esd_ctrl->rst_gpio, 1);
+	mdelay(20);
+	gpio_set_value(esd_ctrl->rst_gpio, 0);
+	mdelay(20);
+	gpio_set_value(esd_ctrl->rst_gpio, 1);
+
+	mdss_dsi_panel_cmds_send(esd_ctrl, &esd_ctrl->on_cmds);
+	mdelay(20);
+
+	gpio_set_value((esd_ctrl->disp_en_gpio), 1);
+	mdelay(20);
+
+	mdss_dsi_panel_cmds_send(esd_ctrl, &lge_display_on_cmds);
+
+	pr_err("%s : LCD ESD Reset Completed\n", __func__);
+
+	return;
+}
+#endif
+
 #ifdef CONFIG_LGE_PM_PWR_KEY_FOR_CHG_LOGO
 #include <mach/board_lge.h>
 
@@ -423,6 +500,10 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 		pr_err("%s: Invalid input data\n", __func__);
 		return;
 	}
+
+#if defined(CONFIG_LGE_LCD_ESD)
+	pdata_esd=pdata;
+#endif
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
@@ -457,7 +538,7 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 			rt8555_lcd_backlight_set_level(bl_level);
 #else
 #if defined(CONFIG_BACKLIGHT_LM3630)
-	#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
+	#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
 			if(bl_level > 16)
 				bl_level = bl_level/16;
 	#endif
@@ -531,12 +612,12 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	if(is_dsv_cont_splash_screening_f)
 	{
 		pr_info("[LCD] %s[%d]: is_dsv_cont_splash_screening_f == TRUE... delay 130 ", __func__, __LINE__);
-		mdelay(130);
+		mdelay(40);
 	}
 	else
 	{
 		pr_info("[LCD] %s[%d]: is_dsv_cont_splash_screening_f == FALSE... delay 5 ", __func__, __LINE__);
-		mdelay(5);
+		mdelay(1);
 	}
 
 	if (lge_sleep_out_cmds.cmd_cnt) {
@@ -587,7 +668,56 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	pr_info("[LCD] %s: defined CONFIG_FB_MSM_MIPI_TOVIS_LM570HN1A_VIDEO_HD_PT_PANEL", __func__);
 	if (!is_dsv_cont_splash_screening_f && ctrl->on_cmds.cmd_cnt) //          
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
+#elif defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+	pr_info("[LCD] %s: defined CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL", __func__);
+	if (!is_dsv_cont_splash_screening_f && ctrl->on_cmds.cmd_cnt) //          
+		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
 #elif defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL)
+#if 1
+	if (!is_dsv_cont_splash_screening_f && ctrl->on_cmds.cmd_cnt) //          
+	{
+//mdss_dsi_lane_config(&ctrl->panel_data, 0);
+		/* init code */
+		if(ctrl->on_cmds.cmd_cnt) {
+			mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
+			printk("[%s] on cmds are sent \n", __func__);
+		}
+//mdss_dsi_lane_config(&ctrl->panel_data, 1);
+		/* Sleep out */
+		//if(lge_sleep_out_cmds.cmd_cnt) {
+		//	mdss_dsi_panel_cmds_send(ctrl, &lge_sleep_out_cmds);
+		//	printk("[%s] sleep out cmds are sent \n", __func__);
+		//}
+
+		/* DSV enable */
+		//gpio_set_value((ctrl->disp_en_gpio), 1);
+		//printk("ctrl->disp_en_gpio = %x , DSV is HIGH \n",ctrl->disp_en_gpio);
+		//mdelay(10);
+
+		/* Display on */
+		//if(lge_display_on_cmds.cmd_cnt) {
+		//	mdss_dsi_panel_cmds_send(ctrl, &lge_display_on_cmds);
+		//	printk("[%s] display on cmds are sent \n", __func__);
+		//}
+
+		/* VSS + HSS + PPS */
+		if(lge_display_on_cmds_2.cmd_cnt) {
+			mdss_dsi_panel_cmds_send(ctrl, &lge_display_on_cmds_2);
+			printk("[%s] vss, hss, pps cmds are sent \n", __func__);
+		}
+		/* Display on */
+		//if(lge_display_on_cmds.cmd_cnt) {
+		//	mdss_dsi_panel_cmds_send(ctrl, &lge_display_on_cmds);
+		//	printk("[%s] display on cmds are sent \n", __func__);
+		//}
+
+		//mdelay(5);
+		/* DSV enable */
+		gpio_set_value((ctrl->disp_en_gpio), 1);
+		printk("ctrl->disp_en_gpio = %x , DSV is HIGH \n",ctrl->disp_en_gpio);
+		//mdelay(150);
+	}
+#else
 	if (!is_dsv_cont_splash_screening_f && ctrl->on_cmds.cmd_cnt) //          
 	{
 		mdss_dsi_lane_config(&ctrl->panel_data, 1);
@@ -611,6 +741,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 		mdss_dsi_lane_config(&ctrl->panel_data, 0);
 		mdelay(50);
 	}
+#endif
 #else
 	if (ctrl->on_cmds.cmd_cnt)												  //qct original
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
@@ -618,7 +749,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 
 
 #if defined(CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT_PANEL)
-#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
 	if(HW_REV_0 == hw_rev)
 #endif
     {
@@ -631,7 +762,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 #endif
 
 #if defined(CONFIG_LGE_MIPI_TOVIS_VIDEO_540P_PANEL) || defined(CONFIG_FB_MSM_MIPI_TIANMA_VIDEO_QHD_PT_PANEL) || defined(CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT_PANEL)
-#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
 	if(HW_REV_0 == hw_rev)
 #endif
     {
@@ -660,6 +791,32 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 		else
 			msleep(80);
 #endif
+		if (lge_display_on_cmds.cmd_cnt) {
+			pr_info("sending diplay on code\n");
+			mdss_dsi_panel_cmds_send(ctrl, &lge_display_on_cmds);
+		}
+	}
+#endif
+
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+    {
+		/*
+		if (!is_dsv_cont_splash_screening_f && gpio_is_valid(ctrl->disp_en_gpio))
+			gpio_set_value((ctrl->disp_en_gpio), 1);
+
+		if(is_dsv_cont_splash_screening_f)
+			msleep(130);
+		else
+			msleep(80);
+			*/
+		if (gpio_is_valid(ctrl->disp_en_gpio))
+		{
+			msleep(20);
+			pr_info("%s: dsv on %d ", __func__, ctrl->disp_en_gpio);
+			gpio_set_value((ctrl->disp_en_gpio), 1);
+			msleep(20);
+		}
+
 		if (lge_display_on_cmds.cmd_cnt) {
 			pr_info("sending diplay on code\n");
 			mdss_dsi_panel_cmds_send(ctrl, &lge_display_on_cmds);
@@ -699,6 +856,7 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	if (ctrl->off_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->off_cmds);
 
+#if 0
 	mdelay(40);
 	if(lge_display_off_cmds.cmd_cnt) {
 		mdss_dsi_panel_cmds_send(ctrl, &lge_display_off_cmds);
@@ -708,6 +866,7 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 		mdss_dsi_panel_cmds_send(ctrl, &lge_display_off_cmds);
 	}
 	mdelay(40);
+#endif
 	if (!is_dsv_cont_splash_screening_f && gpio_is_valid(ctrl->disp_en_gpio)){
 		gpio_set_value((ctrl->disp_en_gpio), 0);
 		if (has_dsv_f)
@@ -717,8 +876,10 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 		}
 	}
 
+#if 0
 	if (ctrl->off_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->off_cmds);
+#endif
 
 	pr_info("%s:-\n", __func__);
 	return 0;
@@ -745,6 +906,26 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	mipi  = &pdata->panel_info.mipi;
 
 #ifdef CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL
+#if 1
+	if (!is_dsv_cont_splash_screening_f && gpio_is_valid(ctrl->disp_en_gpio)){
+		if(lge_display_off_cmds.cmd_cnt) {
+			mdss_dsi_panel_cmds_send(ctrl, &lge_display_off_cmds);
+			printk("[%s] display off cmds are sent \n", __func__);
+		}
+
+		/* DSV disable */
+		gpio_set_value((ctrl->disp_en_gpio), 0);
+		printk("ctrl->disp_en_gpio = %x , DSV is HIGH \n",ctrl->disp_en_gpio);
+		mdelay(10);
+
+		if(lge_sleep_in_cmds.cmd_cnt) {
+				mdss_dsi_panel_cmds_send(ctrl, &lge_sleep_in_cmds);
+				printk("[%s] sleep in cmds are sent \n", __func__);
+		}
+
+		mdss_dsi_panel_reset(pdata, 0); //qct original
+	}
+#else
 	if (!is_dsv_cont_splash_screening_f && gpio_is_valid(ctrl->disp_en_gpio)){
 		if(lge_display_off_cmds.cmd_cnt) {
 			mdss_dsi_panel_cmds_send(ctrl, &lge_display_off_cmds);
@@ -757,14 +938,13 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 			if(lge_sleep_in_cmds.cmd_cnt) {
 				mdss_dsi_panel_cmds_send(ctrl, &lge_sleep_in_cmds);
 			}
-			mdelay(50);
-			mdss_dsi_panel_reset(pdata, 0);
 		}
 	}
+#endif
 #else
 
 #if defined(CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT_PANEL)
-#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
 	if(HW_REV_0 == hw_rev)
 #endif
     {
@@ -786,7 +966,7 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 #endif
 
 #if !defined(CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT_PANEL)
-#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
 	if(HW_REV_0 != hw_rev)
 #endif
     {
@@ -802,10 +982,20 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 			mdss_dsi_panel_reset(pdata, 0);
 	}
 #endif
-
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+	if (!is_dsv_cont_splash_screening_f && gpio_is_valid(ctrl->disp_en_gpio)){
+		gpio_set_value((ctrl->disp_en_gpio), 0);
+		//gpio_set_value(DSV_FD, 0);
+		gpio_set_value((ctrl->disp_fd_gpio), 0);
+		mdelay(15);
+		//gpio_set_value(DSV_FD, 1);
+		gpio_set_value((ctrl->disp_fd_gpio), 1);
+		mdelay(19);
+	}
+#endif
 #endif
 
-#if defined (CONFIG_MACH_MSM8X10_W5) || defined (CONFIG_MACH_MSM8X10_W6)
+#if defined (CONFIG_MACH_MSM8X10_W5) || defined (CONFIG_MACH_MSM8X10_W6) || defined (CONFIG_MACH_MSM8X10_L70P)
 /* At booting up, Between LG Logo and Operation Animation showing, abnormal LG Logo is appearing one time.
 Because LG Logo image format is RGB888, Android side image format is RGBA8888, both Image formats are mismatched.
 So, We add the code to change MDP_RGBA_8888 to MDP_RGB_888 at mdp3_overlay_set when is_done_drawing_logo is not "1".
@@ -1384,8 +1574,16 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		"lge,sleep-in-cmds", "qcom,mdss-dsi-off-command-state");
 	#endif
 
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+	mdss_dsi_parse_dcs_cmds(np, &lge_display_on_cmds,
+		"lge,display-on-cmds", "qcom,mdss-dsi-on-command-state");
+
+	mdss_dsi_parse_dcs_cmds(np, &lge_sleep_in_cmds,
+		"lge,sleep-in-cmds", "qcom,mdss-dsi-off-command-state");
+	#endif
+
 #ifdef CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT_PANEL
-#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
 	if(HW_REV_0 == hw_rev)
 #endif
     {
@@ -1402,7 +1600,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 #endif
 
 #if defined(CONFIG_FB_MSM_MIPI_TOVIS_LM570HN1A_VIDEO_HD_PT_PANEL)
-#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
 	if(HW_REV_0 != hw_rev)
 #endif
     {
@@ -1497,6 +1695,199 @@ error:
 	return -EINVAL;
 }
 
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+static ssize_t store_panel_timings(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	char buffer[256] = {0, };
+	char *b = NULL;
+	char *conf_str = NULL;
+
+	struct mdss_dsi_ctrl_pdata *ctrl_pinfo;
+
+	strlcpy(buffer, buf, sizeof(buffer));
+	b = strim(buffer);
+
+	ctrl_pinfo = container_of(pdata_base, struct mdss_dsi_ctrl_pdata, panel_data);
+
+	conf_str = strsep(&b, " ");
+	if(conf_str != NULL)
+		ctrl_pinfo->panel_data.panel_info.lcdc.h_back_porch  = simple_strtoul(conf_str, NULL, 0);
+	conf_str = strsep(&b, " ");
+	if(conf_str != NULL)
+		ctrl_pinfo->panel_data.panel_info.lcdc.h_front_porch = simple_strtoul(conf_str, NULL, 0);
+	conf_str = strsep(&b, " ");
+	if(conf_str != NULL)
+		ctrl_pinfo->panel_data.panel_info.lcdc.h_pulse_width = simple_strtoul(conf_str, NULL, 0);
+	conf_str = strsep(&b, " ");
+	if(conf_str != NULL)
+		ctrl_pinfo->panel_data.panel_info.lcdc.v_back_porch  = simple_strtoul(conf_str, NULL, 0);
+	conf_str = strsep(&b, " ");
+	if(conf_str != NULL)
+		ctrl_pinfo->panel_data.panel_info.lcdc.v_front_porch = simple_strtoul(conf_str, NULL, 0);
+	conf_str = strsep(&b, " ");
+	if(conf_str != NULL)
+		ctrl_pinfo->panel_data.panel_info.lcdc.v_pulse_width = simple_strtoul(conf_str, NULL, 0);
+
+	printk(KERN_ERR "h_back_porch  = [%d]\n", ctrl_pinfo->panel_data.panel_info.lcdc.h_back_porch );
+	printk(KERN_ERR "h_front_porch = [%d]\n", ctrl_pinfo->panel_data.panel_info.lcdc.h_front_porch);
+	printk(KERN_ERR "h_pulse_width = [%d]\n", ctrl_pinfo->panel_data.panel_info.lcdc.h_pulse_width);
+	printk(KERN_ERR "v_back_porch  = [%d]\n", ctrl_pinfo->panel_data.panel_info.lcdc.v_back_porch );
+	printk(KERN_ERR "v_front_porch = [%d]\n", ctrl_pinfo->panel_data.panel_info.lcdc.v_front_porch);
+	printk(KERN_ERR "v_pulse_width = [%d]\n", ctrl_pinfo->panel_data.panel_info.lcdc.v_pulse_width);
+
+	return count;
+}
+
+static ssize_t show_panel_timings(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int ret;
+	struct mdss_dsi_ctrl_pdata *ctrl_pinfo;
+
+	ctrl_pinfo = container_of(pdata_base, struct mdss_dsi_ctrl_pdata, panel_data);
+
+	ret = snprintf(buf, PAGE_SIZE, " h_back_porch  = [%d]\n\
+ h_front_porch = [%d]\n\
+ h_pulse_width = [%d]\n\
+ v_back_porch  = [%d]\n\
+ v_front_porch = [%d]\n\
+ v_pulse_width = [%d]\n", ctrl_pinfo->panel_data.panel_info.lcdc.h_back_porch ,
+			  ctrl_pinfo->panel_data.panel_info.lcdc.h_front_porch,
+			  ctrl_pinfo->panel_data.panel_info.lcdc.h_pulse_width,
+			  ctrl_pinfo->panel_data.panel_info.lcdc.v_back_porch ,
+			  ctrl_pinfo->panel_data.panel_info.lcdc.v_front_porch,
+			  ctrl_pinfo->panel_data.panel_info.lcdc.v_pulse_width);
+
+	return ret;
+}
+
+static ssize_t store_dsiphy_timings(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	char buffer[256] = {0, };
+	char *b = NULL;
+	char *conf_str = NULL;
+	int i;
+
+	struct mdss_dsi_ctrl_pdata *ctrl_pinfo;
+
+	strlcpy(buffer, buf, sizeof(buffer));
+	b = strim(buffer);
+
+	ctrl_pinfo = container_of(pdata_base, struct mdss_dsi_ctrl_pdata, panel_data);
+
+	for(i=0; i<12; i++) {
+		conf_str = strsep(&b, " ");
+		if(conf_str != NULL)
+			ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[i] = simple_strtoul(conf_str, NULL, 0);
+	}
+
+	for(i=0 ; i<12; i++)
+		/* pr_info("timing[%2d] = [%x]\n", i, ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db->timing[i]); */
+		printk(KERN_ERR "dsi_phy timing[%2d] = [%02X]\n", i, ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[i]);
+
+	return count;
+}
+
+static ssize_t show_dsiphy_timings(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int ret;
+	struct mdss_dsi_ctrl_pdata *ctrl_pinfo;
+
+	ctrl_pinfo = container_of(pdata_base, struct mdss_dsi_ctrl_pdata, panel_data);
+	/* Modify is needed. */
+	ret = snprintf(buf, PAGE_SIZE, "dsi_phy timings = [%02X][%02X][%02X][%02X][%02X][%02X][%02X][%02X][%02X][%02X][%02X][%02X]\n",
+			  ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[0],
+			  ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[1],
+			  ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[2],
+			  ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[3],
+			  ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[4],
+			  ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[5],
+			  ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[6],
+			  ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[7],
+			  ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[8],
+			  ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[9],
+			  ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[10],
+			  ctrl_pinfo->panel_data.panel_info.mipi.dsi_phy_db.timing[11]);
+
+	return ret;
+}
+
+static ssize_t store_panel_registers(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	char buffer[256] = {0, };
+	char *b = NULL;
+	char *conf_str = NULL;
+	int reg_num=0;
+
+	int i, j;
+	struct mdss_dsi_ctrl_pdata *ctrl_pinfo;
+
+	strlcpy(buffer, buf, sizeof(buffer));
+	b = strim(buffer);
+
+	ctrl_pinfo = container_of(pdata_base, struct mdss_dsi_ctrl_pdata, panel_data);
+
+	conf_str = strsep(&b, " ");
+	if(conf_str != NULL)
+		reg_num = simple_strtoul(conf_str, NULL, 0);
+
+	for(i=0; i<ctrl_pinfo->on_cmds.cmd_cnt; i++) {
+		if(ctrl_pinfo->on_cmds.cmds[i].payload[0] == reg_num) {
+			for(j=0; j<ctrl_pinfo->on_cmds.cmds[i].dchdr.dlen; j++) {
+				conf_str = strsep(&b, " ");
+				if(conf_str != NULL)
+					ctrl_pinfo->on_cmds.cmds[i].payload[j+1] = simple_strtoul(conf_str, NULL, 0);
+			}
+			break;
+		}
+	}
+
+	return count;
+}
+
+static ssize_t show_panel_registers(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int i, j;
+	struct mdss_dsi_ctrl_pdata *ctrl_pinfo;
+
+	ctrl_pinfo = container_of(pdata_base, struct mdss_dsi_ctrl_pdata, panel_data);
+
+	for(i=0; i<ctrl_pinfo->on_cmds.cmd_cnt; i++) {
+		printk(KERN_ERR "on_commands = [0x%X] ======\n", ctrl_pinfo->on_cmds.cmds[i].payload[0]);
+		for(j=0; j<(ctrl_pinfo->on_cmds.cmds[i].dchdr.dlen-1); j++)
+			printk(KERN_ERR "[%02d] = 0x%02X \n", j+1, ctrl_pinfo->on_cmds.cmds[i].payload[j+1]);
+	}
+
+	return snprintf(buf, PAGE_SIZE, "Please look at the kernel log :)\n");
+}
+
+static struct device_attribute incell_sysfs[] = {
+	__ATTR(panel_timings,   S_IRUGO | S_IWUSR, show_panel_timings,   store_panel_timings),
+	__ATTR(dsiphy_timings,  S_IRUGO | S_IWUSR, show_dsiphy_timings,  store_dsiphy_timings),
+	__ATTR(panel_registers, S_IRUGO | S_IWUSR, show_panel_registers, store_panel_registers),
+};
+
+static int incell_create_sysfs(struct platform_device *pdev)
+{
+	int i, ret;
+
+	for(i=0; i<ARRAY_SIZE(incell_sysfs); i++) {
+		ret = device_create_file(&pdev->dev, &incell_sysfs[i]);
+		if(ret) {
+			pr_err("%s: failed to create sysfs file_%d.\n", __func__, i);
+			return -ENODEV;
+		}
+	}
+
+	return 0;
+}
+#endif
+
 int mdss_dsi_panel_init(struct device_node *node,
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 	bool cmd_cfg_cont_splash)
@@ -1505,6 +1896,11 @@ int mdss_dsi_panel_init(struct device_node *node,
 	static const char *panel_name;
 	bool cont_splash_enabled;
 	bool partial_update_enabled;
+
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+	struct device_node *dsi_ctrl_np   = NULL;
+	struct platform_device *ctrl_pdev = NULL;
+#endif
 
 	if (!node) {
 		pr_err("%s: no panel node\n", __func__);
@@ -1557,5 +1953,23 @@ int mdss_dsi_panel_init(struct device_node *node,
 	ctrl_pdata->off = mdss_dsi_panel_off;
 	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
 
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+	if (pdata_base == NULL)
+		pdata_base = &ctrl_pdata->panel_data;
+
+	dsi_ctrl_np = of_parse_phandle(node,
+			"qcom,mdss-dsi-panel-controller", 0);
+
+	if (!dsi_ctrl_np) {
+		pr_err("%s: DSI controller node is not initialized.\n", __func__);
+		return -EPROBE_DEFER;
+	}
+
+	ctrl_pdev = of_find_device_by_node(dsi_ctrl_np);
+	rc = incell_create_sysfs(ctrl_pdev);
+	if (rc) {
+		pr_err("%s: failed to create sysfs.\n", __func__);
+	}
+#endif
 	return 0;
 }

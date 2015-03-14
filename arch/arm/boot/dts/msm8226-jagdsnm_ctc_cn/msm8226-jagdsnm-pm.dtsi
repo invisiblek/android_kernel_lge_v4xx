@@ -16,6 +16,15 @@
 
 &spmi_bus {
 	qcom,pm8226@0 {
+		qcom,power-on@800 {
+				compatible = "qcom,qpnp-power-on";
+				qcom,s3-debounce = <128>;
+				qcom,system-reset;
+				reg = <0x800 0x100>;
+				qcom,pon_3 {
+					qcom,support-reset = <0>;
+				};
+		};
 		qcom,leds@a100 {		/* MPP2_MPP : Red LED */
 				status = "okay";
 				qcom,led_mpp_2 {
@@ -26,15 +35,29 @@
 				qcom,max-current = <40>;
 				qcom,current-setting = <5>;
 				qcom,id = <6>;
-				qcom,mode = "pwm";
+				qcom,mode = "lpg";
 				qcom,pwm-us = <1000>;
 				qcom,source-sel = <8>;
 				qcom,mode-ctrl = <0x60>;
 				qcom,pwm-channel = <0>;
 				qcom,start-idx = <0>;
-				qcom,idx-len = <2>;
+				qcom,idx-len = <63>;
 				qcom,ramp-step-ms = <1000>;
-				qcom,duty-pcts = [FF 00];
+				qcom,duty-pcts = [
+					FF 00 00 00 00
+					00 00 00 15 2A
+					3F 2A 15 00 00
+					00 00 00 00 00
+					00 00 2C 57 5E
+					64 63 63 63 62
+					60 5F 5D 5A 58
+					53 4F 4A 41 37
+					2D 17 00 00 00
+					22 43 2C 16 00
+					00 00 00 00 00
+					09 10 21 31 21
+					10 09 00
+				];
 				qcom,use-blink;
 				};
 		};
@@ -125,7 +148,7 @@
 		qcom,output-type = <0>;	/* CMOS logic */
 		qcom,pull = <5>;			/* QPNP_PIN_PULL_NO*/
 		qcom,vin-sel = <3>;		/* QPNP_PIN_VIN2 */
-		qcom,out-strength = <3>;	/* QPNP_PIN_OUT_STRENGTH_HIGH */
+		qcom,out-strength = <2>;	/* QPNP_PIN_OUT_STRENGTH_MED */
 		qcom,src-sel = <2>;		/* QPNP_PIN_SEL_FUNC_1 */
 		qcom,master-en = <1>;	/* Enable GPIO */
 	};
@@ -310,7 +333,7 @@
 
 
 &pm8226_chg {
-       qcom,vddmax-mv = <4350>;
+	qcom,vddmax-mv = <4350>;
 	qcom,vddsafe-mv = <4380>;
 	qcom,vinmin-mv = <4350>;
 	qcom,ibatterm-ma = <150>;
@@ -327,7 +350,7 @@
 	qcom,shutdown-soc-valid-limit = <20>;
 	qcom,adjust-soc-low-threshold = <25>;
 	qcom,adjust-soc-high-threshold = <45>;
-	qcom,ocv-voltage-high-threshold-uv = <3900000>;
+	qcom,ocv-voltage-high-threshold-uv = <4000000>;
 	qcom,ocv-voltage-low-threshold-uv = <3650000>;
 	qcom,low-soc-calculate-soc-threshold = <15>;
 	qcom,low-soc-calculate-soc-ms = <5000>;
@@ -337,6 +360,7 @@
 	qcom,batt-type = <0>;
 	qcom,low-voltage-threshold = <3420000>;
 	qcom,use-external-rsense = <1>;
+	qcom,use-ocv-thresholds = <1>;
 };
 
 &pm8226_iadc {
@@ -386,7 +410,6 @@
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			qcom,init-voltage = <1800000>;
-			regulator-always-on;
 			status = "okay";
 		};
 	};

@@ -71,6 +71,14 @@ config LGE_NFC_DEBUG_MESSAGE
     bool "NFC Debug Message"
     default n
 
+config LGE_NFC_USE_TIMEOUT_WAKELOCK
+	bool "NFC Using wake_lock timeout workaround"
+	default n
+	---help---
+	  Say yes if you want to use workaround for B100.
+	  If unsure, say N here.
+	  Please refer to [NFC-368] for more details.
+
 config LGE_NFC_HW_QCT_MSM72X7A
     bool "Qualcom MSM72X7A Chipset"
     default n

@@ -442,8 +442,8 @@ void lge_pm_set_usb_cable_to_minimum(void){
 #ifdef CONFIG_LGE_PM_BATTERY_ID_CHECKER
 
 #if defined(CONFIG_MACH_MSM8926_X5_VZW) || defined(CONFIG_MACH_MSM8926_X3C_TRF_US) || \
-	defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) || \
-	defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR) || defined(CONFIG_MACH_MSM8926_F70_GLOBAL_COM)
+	defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_AME) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) || \
+	defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR) || defined(CONFIG_MACH_MSM8926_F70_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_E2_SPR_US)
 int lge_battery_info = BATT_ID_DS2704_N;// BATT_ID_UNKNOWN;
 #else
 int lge_battery_info = BATT_ID_UNKNOWN;
@@ -464,6 +464,14 @@ bool is_lge_battery_valid(void)
 		lge_battery_info == BATT_ID_DS2704_C ||
 		lge_battery_info == BATT_ID_ISL6296_N ||
 		lge_battery_info == BATT_ID_ISL6296_L ||
+#ifdef CONFIG_LGE_PM_BATTERY_ID_RANIX_SILICON_WORKS
+		lge_battery_info == BATT_ID_RA4301_VC0 ||
+		lge_battery_info == BATT_ID_RA4301_VC1 ||
+		lge_battery_info == BATT_ID_RA4301_VC2 ||
+		lge_battery_info == BATT_ID_SW3800_VC0 ||
+		lge_battery_info == BATT_ID_SW3800_VC1 ||
+		lge_battery_info == BATT_ID_SW3800_VC2 ||
+#endif
 		lge_battery_info == BATT_ID_ISL6296_C)
 		return true;
 
@@ -499,6 +507,20 @@ static int __init battery_information_setup(char *batt_info)
                 lge_battery_info = BATT_ID_ISL6296_L;
         else if(!strcmp(batt_info, "ISL6296_C"))
                 lge_battery_info = BATT_ID_ISL6296_C;
+#ifdef CONFIG_LGE_PM_BATTERY_ID_RANIX_SILICON_WORKS
+        else if(!strcmp(batt_info, "RA4301_VC0"))
+                lge_battery_info = BATT_ID_RA4301_VC0;
+        else if(!strcmp(batt_info, "RA4301_VC1"))
+                lge_battery_info = BATT_ID_RA4301_VC1;
+        else if(!strcmp(batt_info, "RA4301_VC2"))
+                lge_battery_info = BATT_ID_RA4301_VC2;
+        else if(!strcmp(batt_info, "SW3800_VC0"))
+                lge_battery_info = BATT_ID_SW3800_VC0;
+        else if(!strcmp(batt_info, "SW3800_VC1"))
+                lge_battery_info = BATT_ID_SW3800_VC1;
+        else if(!strcmp(batt_info, "SW3800_VC2"))
+                lge_battery_info = BATT_ID_SW3800_VC2;
+#endif
         else
                 lge_battery_info = BATT_ID_UNKNOWN;
 
@@ -592,6 +614,29 @@ enum lge_boot_mode_type lge_get_boot_mode(void)
     return lge_boot_mode;
 }
 
+int lge_get_factory_boot(void)
+{
+    int res;
+
+    /*   if boot mode is factory,
+     *   cable must be factory cable.
+     */
+    switch (lge_boot_mode) {
+        case LGE_BOOT_MODE_QEM_56K:
+        case LGE_BOOT_MODE_QEM_130K:
+        case LGE_BOOT_MODE_QEM_910K:
+        case LGE_BOOT_MODE_PIF_56K:
+        case LGE_BOOT_MODE_PIF_130K:
+        case LGE_BOOT_MODE_PIF_910K:
+            res = 1;
+            break;
+        default:
+            res = 0;
+            break;
+    }
+    return res;
+}
+
 static enum lge_boot_cable_type lge_boot_cable = LGE_BOOT_NO_INIT_CABLE;
 int __init lge_boot_cable_type_init(char *s)
 {
@@ -635,7 +680,7 @@ enum lge_laf_mode_type lge_get_laf_mode(void)
 static hw_rev_type lge_bd_rev = HW_REV_A;
 
 /* CAUTION: These strings are come from LK. */
-#if defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) || \
+#if defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_AME) || defined(CONFIG_MACH_MSM8926_F70_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) || \
 	defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR)
 char *rev_str[] = {"rev_0", "rev_a", "rev_a2", "rev_b", "rev_b2",
 	"rev_c", "rev_10", "rev_11", "revserved"};

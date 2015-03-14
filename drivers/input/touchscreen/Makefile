@@ -96,7 +96,11 @@ obj-$(CONFIG_TOUCHSCREEN_IST30XX)      += ist30xx_tracking.o
 obj-$(CONFIG_TOUCHSCREEN_IST30XX)      += ist30xx_update.o
 obj-$(CONFIG_TOUCHSCREEN_MELFAS_APS)	+= aps_ts.o
 obj-$(CONFIG_TOUCHSCREEN_ADS_AGS04)	+= ags04_ts.o
-obj-$(CONFIG_TOUCHSCREEN_LGE_TS_MISC)		+= lge_ts_misc.o
+ifdef CONFIG_MACH_MSM8926_VFP_KR
+obj-$(CONFIG_TOUCHSCREEN_LGE_TS_MISC)		+= lge_ts_misc_vfp.o
+else
+obj-$(CONFIG_TOUCHSCREEN_LGE_TS_MISC)       += lge_ts_misc.o
+endif
 obj-$(CONFIG_TOUCHSCREEN_ATMEL_S336)	+= atmel_s336.o
 obj-$(CONFIG_TOUCHSCREEN_ATMEL_S336)	+= atmel_s336_patch.o
 obj-$(CONFIG_TOUCHSCREEN_ATMEL_1188S)	+= atmel_mxt1188S.o
@@ -110,10 +114,21 @@ obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136)	+= mms100a_ts.o
 obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136)	+= mms100a_isp.o
 obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136)	+= mms100a_isc.o
 obj-$(CONFIG_TOUCHSCREEN_LGE_TOUCHCORE)		+= lge_ts_core.o
-obj-$(CONFIG_TOUCHSCREEN_LGE_MELFAS)		+= lge_ts_melfas.o
-obj-$(CONFIG_TOUCHSCREEN_LGE_MELFAS)		+= lge_ts_mms100s.o
-obj-$(CONFIG_TOUCHSCREEN_LGE_MELFAS)		+= lge_ts_mms100a.o
+ifdef CONFIG_MACH_MSM8926_VFP_KR
+obj-$(CONFIG_TOUCHSCREEN_LGE_MELFAS)        += lge_ts_melfas.o
+obj-$(CONFIG_TOUCHSCREEN_LGE_MELFAS)        += lge_ts_mms100s.o
+obj-$(CONFIG_TOUCHSCREEN_LGE_MELFAS)        += lge_ts_mms100a.o
+else
+#obj-$(CONFIG_TOUCHSCREEN_LGE_MELFAS)		+= lge_ts_melfas.o
+#obj-$(CONFIG_TOUCHSCREEN_LGE_MELFAS)		+= lge_ts_mit200.o
+endif
 obj-$(CONFIG_LGE_TOUCH_SYNAPTICS) += lge_touch_core.o
 obj-$(CONFIG_LGE_TOUCH_SYNAPTICS) += touch_synaptics.o
 obj-$(CONFIG_LGE_TOUCH_SYNAPTICS_FW_UPGRADE) += touch_synaptics_fw_upgrade.o
 obj-$(CONFIG_LGE_TOUCH_SYNAPTICS)	+= DS4/
+obj-$(CONFIG_TOUCHSCREEN_LGE_APS_TOUCHCORE_E2)	+= lge_ait_ts_core_E2.o
+obj-$(CONFIG_TOUCHSCREEN_APS_MIT200_E2)		+= lge_ait_ts_melfas_E2.o
+obj-$(CONFIG_TOUCHSCREEN_APS_MIT200_E2)		+= lge_ait_ts_mit200_E2.o
+obj-$(CONFIG_TOUCHSCREEN_LGE_AIT_TOUCHCORE)		+= lge_ait_ts_core.o
+obj-$(CONFIG_TOUCHSCREEN_LGE_AIT_MELFAS)		+= lge_ait_ts_melfas.o
+obj-$(CONFIG_TOUCHSCREEN_LGE_AIT_MELFAS)		+= lge_ait_ts_mit200.o

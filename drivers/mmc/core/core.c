@@ -106,6 +106,24 @@ MODULE_PARM_DESC(
 	removable,
 	"MMC/SD cards are removable and may be removed during suspend");
 
+/*
+               
+                     
+                                
+                              
+                                                                                                       
+ */
+#if defined(CONFIG_LGE_MMC_DYNAMIC_LOG)
+
+uint32_t mmc_debug_level = 6;
+
+module_param_named(debug_level, mmc_debug_level, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(
+	debug_level,
+	"MMC/SD cards debug_level");
+
+#endif	/*                     */
+
 #define MMC_UPDATE_BKOPS_STATS_HPI(stats)	\
 	do {					\
 		spin_lock(&stats.lock);		\
@@ -486,8 +504,11 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 	int err;
 
 	BUG_ON(!card);
+
 	if (!card->ext_csd.bkops_en)
 		return;
+
+	pr_debug("%s: %s\n", mmc_hostname(card->host), __func__);
 
 	if ((card->bkops_info.cancel_delayed_work) && !from_exception) {
 		pr_debug("%s: %s: cancel_delayed_work was set, exit\n",
@@ -685,6 +706,8 @@ static int mmc_stop_request(struct mmc_host *host)
 	struct mmc_card *card = host->card;
 	int err = 0;
 	u32 status;
+
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
 
 	if (!host->ops->stop_request || !card->ext_csd.hpi_en) {
 		pr_warn("%s: host ops stop_request() or HPI not supported\n",
@@ -973,7 +996,8 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 			mmc_post_req(host, host->areq->mrq, 0);
 			host->areq = NULL;
 			if (areq) {
-				if (!(areq->cmd_flags & REQ_URGENT)) {
+				if (!(areq->cmd_flags &
+						MMC_REQ_NOREINSERT_MASK)) {
 					areq->reinsert_req(areq);
 					mmc_post_req(host, areq->mrq, 0);
 				} else {
@@ -1070,6 +1094,8 @@ bool mmc_card_is_prog_state(struct mmc_card *card)
 	bool rc;
 	struct mmc_command cmd;
 
+	pr_debug("%s: %s\n", mmc_hostname(card->host), __func__);
+
 	mmc_claim_host(card->host);
 	memset(&cmd, 0, sizeof(struct mmc_command));
 	cmd.opcode = MMC_SEND_STATUS;
@@ -1109,6 +1135,8 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 	unsigned long prg_wait;
 
 	BUG_ON(!card);
+
+	pr_debug("%s: %s\n", mmc_hostname(card->host), __func__);
 
 	if (!card->ext_csd.hpi_en) {
 		pr_info("%s: HPI enable bit unset\n", mmc_hostname(card->host));
@@ -2101,7 +2129,7 @@ int mmc_resume_bus(struct mmc_host *host)
 	if (!mmc_bus_needs_resume(host))
 		return -EINVAL;
 
-	printk("%s: Starting deferred resume\n", mmc_hostname(host));
+	pr_debug("%s: Starting deferred resume\n", mmc_hostname(host));
 	spin_lock_irqsave(&host->lock, flags);
 	host->bus_resume_flags &= ~MMC_BUSRESUME_NEEDS_RESUME;
 	host->rescan_disable = 0;
@@ -2118,7 +2146,8 @@ int mmc_resume_bus(struct mmc_host *host)
 		host->bus_ops->detect(host);
 
 	mmc_bus_put(host);
-	printk("%s: Deferred resume completed\n", mmc_hostname(host));
+	pr_debug("%s: Deferred resume completed\n", mmc_hostname(host));
+	
 	return 0;
 }
 
@@ -2192,6 +2221,9 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 	WARN_ON(host->removed);
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
+	
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
+
 	host->detect_change = 1;
 #ifdef CONFIG_LGE_ENABLE_MMC_STRENGTH_CONTROL
 	if(host->index == 1)
@@ -2203,7 +2235,10 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 		}
 		
 	}
-#endif	
+#endif
+#if defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_VFP_KR)
+	wake_lock(&host->detect_wake_lock);
+#endif
 	mmc_schedule_delayed_work(&host->detect, delay);
 }
 
@@ -2916,6 +2951,8 @@ static void mmc_clk_scale_work(struct work_struct *work)
 			!host->clk_scaling.enable || !host->ios.clock)
 		return;
 
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
+
 	mmc_rpm_hold(host, &host->card->dev);
 	if (!mmc_try_claim_host(host)) {
 		/* retry after a timer tick */
@@ -2965,6 +3002,8 @@ static int mmc_clk_update_freq(struct mmc_host *host,
 		unsigned long freq, enum mmc_load state)
 {
 	int err = 0;
+
+	pr_debug("%s: %s freq:%ld, state : %d \n", mmc_hostname(host), __func__, freq, state);
 
 	if (host->ops->notify_load) {
 		err = host->ops->notify_load(host, state);
@@ -3021,6 +3060,8 @@ static void mmc_clk_scaling(struct mmc_host *host, bool from_wq)
 	unsigned int down_threshold = host->clk_scaling.down_threshold;
 	bool queue_scale_down_work = false;
 	enum mmc_load state;
+
+	pr_debug("%s: %s from_wq:%d \n", mmc_hostname(host), __func__, from_wq);
 
 	if (!card || !host->bus_ops || !host->bus_ops->change_bus_speed) {
 		pr_err("%s: %s: invalid entry\n", mmc_hostname(host), __func__);
@@ -3162,10 +3203,9 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 {
 	host->f_init = freq;
 
-#ifdef CONFIG_MMC_DEBUG
-	pr_info("%s: %s: trying to init card at %u Hz\n",
+	pr_debug("%s: %s: trying to init card at %u Hz\n",
 		mmc_hostname(host), __func__, host->f_init);
-#endif
+	
 	mmc_power_up(host);
 
 	/*
@@ -3223,6 +3263,8 @@ int mmc_detect_card_removed(struct mmc_host *host)
 	struct mmc_card *card = host->card;
 	int ret;
 
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
+
 	WARN_ON(!host->claimed);
 
 	if (!card)
@@ -3262,6 +3304,8 @@ void mmc_rescan(struct work_struct *work)
 
 	if (host->rescan_disable)
 		return;
+
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
 
 	mmc_bus_get(host);
 	mmc_rpm_hold(host, &host->class_dev);
@@ -3330,9 +3374,17 @@ void mmc_rescan(struct work_struct *work)
 	mmc_release_host(host);
 	mmc_rpm_release(host, &host->class_dev);
  out:
+#ifdef CONFIG_MACH_MSM8926_MMC_ABORT_RESCAN_IN_SUSPEND
+	/* only extend the wakelock, if suspend has not started yet */
+	if (extend_wakelock && !host->rescan_disable)
+#else
 	if (extend_wakelock)
+#endif
 		wake_lock_timeout(&host->detect_wake_lock, HZ / 2);
-
+#if defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_VFP_KR)
+	else
+		wake_unlock(&host->detect_wake_lock);
+#endif
 	if (host->caps & MMC_CAP_NEEDS_POLL)
 		mmc_schedule_delayed_work(&host->detect, HZ);
 }
@@ -3383,9 +3435,7 @@ int mmc_power_save_host(struct mmc_host *host)
 {
 	int ret = 0;
 
-#ifdef CONFIG_MMC_DEBUG
-	pr_info("%s: %s: powering down\n", mmc_hostname(host), __func__);
-#endif
+	pr_debug("%s: %s: powering down\n", mmc_hostname(host), __func__);
 
 	mmc_bus_get(host);
 
@@ -3409,9 +3459,7 @@ int mmc_power_restore_host(struct mmc_host *host)
 {
 	int ret;
 
-#ifdef CONFIG_MMC_DEBUG
-	pr_info("%s: %s: powering up\n", mmc_hostname(host), __func__);
-#endif
+	pr_debug("%s: %s: powering up\n", mmc_hostname(host), __func__);
 
 	mmc_bus_get(host);
 
@@ -3694,6 +3742,8 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 	unsigned long flags;
 	int err = 0;
 
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
+
 	switch (mode) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
@@ -3713,23 +3763,34 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 			spin_unlock_irqrestore(&host->lock, flags);
 			break;
 		}
+#ifdef CONFIG_MACH_MSM8926_MMC_ABORT_RESCAN_IN_SUSPEND
+		/* since its suspending anyway, disable rescan */
+		host->rescan_disable = 1;
+#endif
 		spin_unlock_irqrestore(&host->lock, flags);
 
 		/* Wait for pending detect work to be completed */
 		if (!(host->caps & MMC_CAP_NEEDS_POLL))
 			flush_work(&host->detect.work);
-
+#ifndef CONFIG_MACH_MSM8926_MMC_ABORT_RESCAN_IN_SUSPEND
 		spin_lock_irqsave(&host->lock, flags);
 		host->rescan_disable = 1;
 		spin_unlock_irqrestore(&host->lock, flags);
-
+#endif
 		/*
 		 * In some cases, the detect work might be scheduled
 		 * just before rescan_disable is set to true.
 		 * Cancel such the scheduled works.
 		 */
 		cancel_delayed_work_sync(&host->detect);
-
+#ifdef CONFIG_MACH_MSM8926_MMC_ABORT_RESCAN_IN_SUSPEND
+		/*
+		 * It is possible that the wake-lock has been acquired, since
+		 * its being suspended, release the wakelock
+		 */
+		if (wake_lock_active(&host->detect_wake_lock))
+			wake_unlock(&host->detect_wake_lock);
+#endif
 		if (!host->bus_ops || host->bus_ops->suspend)
 			break;
 
@@ -3748,6 +3809,8 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 	case PM_POST_HIBERNATION:
 	case PM_POST_RESTORE:
 
+		pr_debug("%s: PM_POST_SUSPEND/HIBERNATION/RESTORE:%ld - %s\n", mmc_hostname(host), mode, __func__);
+
 		spin_lock_irqsave(&host->lock, flags);
 		if (mmc_bus_manual_resume(host)) {
 			spin_unlock_irqrestore(&host->lock, flags);
@@ -3755,7 +3818,24 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 		}
 		host->rescan_disable = 0;
 		spin_unlock_irqrestore(&host->lock, flags);
+#if defined(CONFIG_MMC_DAMAGED_SDCARD_CTRL)
+		if ( !(host->caps & MMC_CAP_NONREMOVABLE))		// SD Card.
+		{
+			/*                                    
+                                                                                   
+                                                                                 
+                                                       
+    */
+			if (!host->damaged)
+				mmc_detect_change(host, 0);
+		}
+		else	
+		{
+			mmc_detect_change(host, 0);
+		}
+#else
 		mmc_detect_change(host, 0);
+#endif
 		break;
 
 	default:

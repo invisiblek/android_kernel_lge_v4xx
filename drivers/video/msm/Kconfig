@@ -225,6 +225,10 @@ config FB_MSM_MIPI_DSI_TIANMA
 	bool
 	select FB_MSM_MIPI_DSI
 
+config FB_MSM_MIPI_DSI_LGD_INCELL
+	bool
+	select FB_MSM_MIPI_DSI
+
 config FB_MSM_MIPI_DSI_TC358764_DSI2LVDS
 	bool
 	select FB_MSM_MIPI_DSI
@@ -398,6 +402,11 @@ config FB_MSM_MIPI_TIANMA_CMD_HVGA_PT
 config FB_MSM_MIPI_TIANMA_VIDEO_QHD_PT
 	bool
 	select FB_MSM_MIPI_DSI_TIANMA
+	default n
+
+config FB_MSM_MIPI_LGD_INCELL_VIDEO_WVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_LGD_INCELL
 	default n
 
 config FB_MSM_MIPI_CHIMEI_WXGA
@@ -741,6 +750,12 @@ config FB_MSM_MIPI_TIANMA_CMD_HVGA_PT_PANEL
 	select FB_MSM_MIPI_TIANMA_CMD_HVGA_PT
 	---help---
 	Support for TIANMA CMD HVGA PT panel
+
+config FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL
+	bool "MIPI LGD VIDEO WVGA PT panel"
+	select FB_MSM_MIPI_LGD_INCELL_VIDEO_WVGA_PT
+	---help---
+	Support for LGD VIDEO WVGA PT panel
 
 config FB_MSM_MIPI_SIMULATOR_VIDEO_PANEL
 	bool "MIPI Simulator Video Panel"

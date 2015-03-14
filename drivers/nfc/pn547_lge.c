@@ -32,6 +32,11 @@
 #define pn547_RESET_CMD 0
 #define pn547_DOWNLOAD_CMD  1
 
+#ifdef CONFIG_LGE_NFC_USE_TIMEOUT_WAKELOCK // [NFC-368]
+#define NFC_TIMEOUT_MS 2000
+static bool sIsWakeLocked = false;
+#endif
+
 #ifdef CONFIG_LGE_NFC_SET_IRQ_WAKEUP
 static bool sIrqState = false;
 #endif
@@ -93,10 +98,20 @@ static irqreturn_t pn547_dev_irq_handler(int irq, void *dev_id)
     if (sPowerState == NFC_POWER_ON) {
         spin_lock_irqsave(&pn547_dev->irq_enabled_lock, flags);
         pn547_dev->count_irq++;
-        spin_unlock_irqrestore(&pn547_dev->irq_enabled_lock, flags);
         /* Wake up waiting readers */
         wake_up(&pn547_dev->read_wq);
+#ifdef CONFIG_LGE_NFC_USE_TIMEOUT_WAKELOCK
+        if (sIsWakeLocked == false) {
+            wake_lock(&nfc_wake_lock);
+            sIsWakeLocked = true;
+        }
+        else {
+            //pr_err("%s already wake locked!\n", __func__); // for debug
+        }
+#else
         wake_lock(&nfc_wake_lock);
+#endif
+        spin_unlock_irqrestore(&pn547_dev->irq_enabled_lock, flags);
 
         //pr_err("%s: wake_lock (%d)\n", __func__, pn547_dev->count_irq); // for debug
     }
@@ -115,6 +130,9 @@ static ssize_t pn547_dev_read(struct file *filp, char __user *buf,
     static char tmp[MAX_BUFFER_SIZE];
     static unsigned char nErrorCnt = 0;
     int ret;
+#ifdef CONFIG_LGE_NFC_USE_TIMEOUT_WAKELOCK
+    static bool isFinalPacket = true;
+#endif
     int irq_gpio_val = 0;
     unsigned long flags;
 
@@ -124,15 +142,42 @@ static ssize_t pn547_dev_read(struct file *filp, char __user *buf,
     //pr_err("%s : reading %zu bytes.\n", __func__, count); // for debug
     irq_gpio_val = gpio_get_value(pn547_dev->irq_gpio);
 
+#ifdef CONFIG_LGE_NFC_USE_TIMEOUT_WAKELOCK
+wait:
+#endif
     if (sReadSequence == NFC_PACKET_HEADER) {
+#ifdef CONFIG_LGE_NFC_USE_TIMEOUT_WAKELOCK
+        if (isFinalPacket == true) {
+            ret = wait_event_interruptible_timeout(pn547_dev->read_wq, pn547_dev->count_irq > 0, msecs_to_jiffies(NFC_TIMEOUT_MS));
+            if (ret == 0) {
+                //pr_err("%s: pass wait_event_interruptible by %dms timeout. restart waiting!\n", __func__, NFC_TIMEOUT_MS); // for debug
+                spin_lock_irqsave(&pn547_dev->irq_enabled_lock, flags);
+                wake_unlock(&nfc_wake_lock);
+                sIsWakeLocked = false;
+                spin_unlock_irqrestore(&pn547_dev->irq_enabled_lock, flags);
+                //pr_err("%s: wake_unlock\n", __func__); // for debug
+                isFinalPacket = false;
+                goto wait;
+            }
+        }
+        else {
+            ret = wait_event_interruptible(pn547_dev->read_wq, pn547_dev->count_irq > 0);
+            isFinalPacket = true;
+        }
+#else
         ret = wait_event_interruptible(pn547_dev->read_wq, pn547_dev->count_irq > 0);
-        //pr_err("%s: pass wait_event_interruptible (%d)\n", __func__, pn547_dev->count_irq); // for debug
-
+#endif
         if (ret == -ERESTARTSYS) {
             if (pn547_dev->count_irq <= 0) {
-                //pr_err("%s: pass wait_event_interruptible by signal. Skip!\n", __func__); // for debug
-                return -ENOTCONN;
+                //pr_err("%s: pass wait_event_interruptible by signal. Skip\n", __func__); // for debug
+                return -0xFF;
             }
+#ifdef CONFIG_LGE_NFC_USE_TIMEOUT_WAKELOCK
+            else {
+                //pr_err("%s: pass wait_event_interruptible by signal. restart waiting!\n", __func__); // for debug
+                goto wait;
+            }
+#endif
         }
         else {
             //pr_err("%s: pass wait_event_interruptible by condition (%d)\n", __func__, pn547_dev->count_irq); // for debug
@@ -199,8 +244,12 @@ skip:
             //pr_err("%s: current count_irq = %d\n", __func__, pn547_dev->count_irq); // for debug
         }
         if (pn547_dev->count_irq == 0) {
+#ifdef CONFIG_LGE_NFC_USE_TIMEOUT_WAKELOCK
+
+#else
             wake_unlock(&nfc_wake_lock);
             //pr_err("%s: wake_unlock\n", __func__); // for debug
+#endif
         }
         spin_unlock_irqrestore(&pn547_dev->irq_enabled_lock, flags);
     }
@@ -322,6 +371,15 @@ static long pn547_dev_unlocked_ioctl(struct file *filp, unsigned int cmd, unsign
                     pn547_dev->count_irq = 0;
                     wake_unlock(&nfc_wake_lock);
                 }
+
+#ifdef CONFIG_LGE_NFC_USE_TIMEOUT_WAKELOCK
+                if (sIsWakeLocked == true) {
+                    pr_err("%s: Wake Unlock\n", __func__);
+                    wake_unlock(&nfc_wake_lock);
+                    sIsWakeLocked = false;
+                }
+#endif
+
                 //pr_err("%s NFC_POWER_OFF\n", __func__); // for debug
                 sPowerState = NFC_POWER_OFF;
                 sReadSequence = NFC_PACKET_HEADER;

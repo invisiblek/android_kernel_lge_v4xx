@@ -31,15 +31,22 @@ struct pm8xxx_cradle {
 	int state;
 };
 
-#if defined(CONFIG_MACH_MSM8X10_W5_MPCS_US) || defined(CONFIG_MACH_MSM8X10_W5C_VZW) || defined(CONFIG_MACH_MSM8X10_W5_AIO_US) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US) || defined(CONFIG_MACH_MSM8X10_W5_TRF_US) || defined(CONFIG_MACH_MSM8X10_W5C_TRF_US) || defined(CONFIG_MACH_MSM8X10_W5_CCA_US) || \
-    defined(CONFIG_MACH_MSM8226_E7WIFI) || defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN)||defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US)
+#if defined(CONFIG_MACH_MSM8X10_W5_MPCS_US) || defined(CONFIG_MACH_MSM8X10_W5C_VZW) || \
+    defined(CONFIG_MACH_MSM8X10_W5_AIO_US) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US) || \
+    defined(CONFIG_MACH_MSM8X10_W5_TRF_US) || defined(CONFIG_MACH_MSM8X10_W5C_TRF_US) || \
+    defined(CONFIG_MACH_MSM8X10_W5_CCA_US) || defined(CONFIG_MACH_MSM8226_E7WIFI) || \
+    defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE) || \
+    defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN)|| \
+    defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || \
+	defined(CONFIG_MACH_MSM8926_E7LTE_USC_US) || defined(CONFIG_MACH_MSM8926_B2LN_KR)
 #define POUCH_DETECT_DELAY 100
 #endif
 
 static struct workqueue_struct *cradle_wq;
 static struct pm8xxx_cradle *cradle;
-#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR)
-#ifdef CONFIG_TOUCHSCREEN_ATMEL_S540 
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || \
+    defined(CONFIG_MACH_MSM8926_B2LN_KR)
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_S540
 static int is_smart_cover_closed = 0; /* check status of smart cover to resize quick window area */
 int cradle_smart_cover_status(void)
 {
@@ -96,8 +103,8 @@ static void pm8xxx_pouch_work_func(struct work_struct *work)
 		spin_unlock_irqrestore(&cradle->lock, flags);
 		printk("%s : [Cradle] pouch value is %d (no change)\n", __func__ , state);
 	}
-#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR)
-#ifdef CONFIG_TOUCHSCREEN_ATMEL_S540 
+#if defined(CONFIG_MACH_MSM8926_B2LN_KR)
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_S540
 	is_smart_cover_closed = state;
 #endif
 #endif
@@ -133,16 +140,24 @@ int cradle_get_deskdock(void)
 
 static irqreturn_t pm8xxx_pouch_irq_handler(int irq, void *handle)
 {
+#if !defined(CONFIG_MACH_MSM8926_X10_VZW) && !defined(CONFIG_MACH_MSM8926_B2L_ATT)
 	struct pm8xxx_cradle *cradle_handle = handle;
 	int v = 200;
 	printk("pouch irq!!!!\n");
-#if defined(CONFIG_MACH_MSM8X10_W5_MPCS_US) || defined(CONFIG_MACH_MSM8X10_W5C_VZW) || defined(CONFIG_MACH_MSM8X10_W5_AIO_US) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US) || defined(CONFIG_MACH_MSM8X10_W5_TRF_US) || defined(CONFIG_MACH_MSM8X10_W5C_TRF_US) || defined(CONFIG_MACH_MSM8X10_W5_CCA_US) || \
-    defined(CONFIG_MACH_MSM8226_E7WIFI) || defined(CONFIG_MACH_MSM8226_E8WIFI) ||  defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN)||defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US)
+#if defined(CONFIG_MACH_MSM8X10_W5_MPCS_US) || defined(CONFIG_MACH_MSM8X10_W5C_VZW) || \
+    defined(CONFIG_MACH_MSM8X10_W5_AIO_US) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US) || \
+    defined(CONFIG_MACH_MSM8X10_W5_TRF_US) || defined(CONFIG_MACH_MSM8X10_W5C_TRF_US) || \
+    defined(CONFIG_MACH_MSM8X10_W5_CCA_US) || defined(CONFIG_MACH_MSM8226_E7WIFI) || \
+    defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE) || \
+    defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || \
+    defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || \
+	defined(CONFIG_MACH_MSM8926_E7LTE_USC_US) || defined(CONFIG_MACH_MSM8926_B2LN_KR)
 	v = 1 + 1*(!gpio_get_value(cradle->pdata->hallic_pouch_detect_pin));
 	wake_lock_timeout(&cradle->wake_lock, msecs_to_jiffies(POUCH_DETECT_DELAY*v+5));
 	queue_delayed_work(cradle_wq, &cradle_handle->pouch_work, msecs_to_jiffies(POUCH_DETECT_DELAY*v+5));
 #else
 	queue_delayed_work(cradle_wq, &cradle_handle->pouch_work, msecs_to_jiffies(v));
+#endif
 #endif
 	return IRQ_HANDLED;
 }
@@ -246,8 +261,11 @@ static int __devinit pm8xxx_cradle_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	cradle->pdata	= pdata;
-
+#ifdef CONFIG_MACH_MSM8926_VFP_KR
+	cradle->sdev.name = "folderstatus";
+#else
 	cradle->sdev.name = "smartcover";
+#endif
 	cradle->sdev.print_name = cradle_print_name;
 	cradle->pouch = 0;
 

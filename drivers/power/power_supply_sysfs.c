@@ -124,7 +124,7 @@ static ssize_t power_supply_show_property(struct device *dev,
 		"Unknown", "System", "Device"
 	};
 #ifdef CONFIG_LGE_PM_FACTORY_TESTMODE
-#if defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70_GLOBAL_COM) || \
+#if defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_AME) || defined(CONFIG_MACH_MSM8926_F70_GLOBAL_COM) || \
 	defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) || \
 	defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR)
 	static char *lge_hw_rev_text[] = {
@@ -482,6 +482,9 @@ static struct device_attribute power_supply_attrs[] = {
 #endif
 #ifdef CONFIG_LGE_PM
 	POWER_SUPPLY_ATTR(charger_timer),
+#endif
+#ifdef CONFIG_LGE_PM_FIX_CEC_FAIL
+POWER_SUPPLY_ATTR(cv_lock),
 #endif
 	/* Properties of type `const char *' */
 	POWER_SUPPLY_ATTR(model_name),

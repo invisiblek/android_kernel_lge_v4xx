@@ -178,6 +178,9 @@ enum power_supply_property {
 #ifdef CONFIG_LGE_PM
 	POWER_SUPPLY_PROP_SAFTETY_CHARGER_TIMER,
 #endif
+#ifdef CONFIG_LGE_PM_FIX_CEC_FAIL
+	POWER_SUPPLY_PROP_RELEASE_CV_LOCK,
+#endif
 	/* Properties of type `const char *' */
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,

@@ -312,7 +312,7 @@ static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 
 };
 
-#elif defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGN_KR)
+#elif defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGN_KR)|| defined (CONFIG_MACH_MSM8926_VFP_KR)
 static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{-400, 1710},
 	{-350, 1670},
@@ -354,7 +354,8 @@ static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{850, 400}
 };
 
-#elif defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
+#elif defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 static const struct qpnp_vadc_map_pt adcmap_btm_threshold_A[] = {
 	{-400,	1729},
 	{-350,	1600},
@@ -433,7 +434,7 @@ static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{800, 410},
 	{850, 400}
 };
-#elif defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+#elif defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{-300,	1673},
 	{-290,	1661},
@@ -1215,7 +1216,8 @@ int32_t qpnp_adc_scale_batt_therm(struct qpnp_vadc_chip *chip,
 			adc_properties, chan_properties);
 	return qpnp_adc_map_temp_voltage(
 #ifdef CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO
-#if defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
+#if defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 			(lge_get_board_revno() == HW_REV_A) ? adcmap_btm_threshold_A : adcmap_btm_threshold,
 
 #elif defined (CONFIG_MACH_MSM8926_JAGC_SPR)
@@ -1435,6 +1437,13 @@ int32_t qpnp_adc_scale_default(struct qpnp_vadc_chip *vadc,
 			scale_voltage = -scale_voltage;
 			negative_rawfromoffset = 1;
 		} else {
+		#ifdef CONFIG_LGE_PM
+			pr_err("adc_result is negative! ->  %lld uV \n",scale_voltage);
+			pr_err("adc code = 0x%x, gnd = %lld, dx = %lld, dy = %lld \n",
+			   adc_code,chan_properties->adc_graph[CALIB_ABSOLUTE].adc_gnd,
+			   chan_properties->adc_graph[CALIB_ABSOLUTE].dx,
+			   chan_properties->adc_graph[CALIB_ABSOLUTE].dy);
+		#endif
 			scale_voltage = 0;
 		}
 	}
@@ -1600,7 +1609,7 @@ EXPORT_SYMBOL(qpnp_vadc_check_result);
 
 /*                                             
                                                    */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 int qpnp_adc_get_revid_version(struct device *dev)
 {
 	struct pmic_revid_data *revid_data;
@@ -1626,7 +1635,7 @@ int qpnp_adc_get_revid_version(struct device *dev)
 		(revid_data->pmic_type == PM8941_V3P1_TYPE) &&
 		(revid_data->pmic_subtype == PM8941_V3P1_SUBTYPE))
 			return QPNP_REV_ID_8941_3_1;
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	else if ((revid_data->rev1 == PM8941_V3P0_REV1) &&
 		(revid_data->rev2 == PM8941_V3P0_REV2) &&
 		(revid_data->rev3 == PM8941_V3P0_REV3) &&
@@ -1679,7 +1688,7 @@ int qpnp_adc_get_revid_version(struct device *dev)
 			return QPNP_REV_ID_8110_1_0;
 /*                                             
                                                    */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	else if ((revid_data->rev1 == PM8110_V2P0_REV1) &&
 		(revid_data->rev2 == PM8110_V2P0_REV2) &&
 		(revid_data->rev3 == PM8110_V2P0_REV3) &&

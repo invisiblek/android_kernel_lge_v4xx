@@ -37,6 +37,11 @@ endif
 touch_limit_txt := $(wildcard $(srctree)/firmware/melfas/$(TARGET_PRODUCT)/*.txt)
 $(shell objcopy -I binary -O ihex $(touch_limit_txt) $(touch_limit_txt).ihex)
 
+ifdef CONFIG_MACH_MSM8926_VFP_KR
+touch_fw_mfsb := $(wildcard $(srctree)/firmware/melfas/$(TARGET_PRODUCT)/*.mfsb)
+$(shell objcopy -I binary -O ihex $(touch_fw_mfsb) $(touch_fw_mfsb).ihex)
+endif
+
 touch_fw_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/melfas/$(TARGET_PRODUCT)/*.ihex)))
 touch_fw_files := $(foreach var, $(touch_fw_list), melfas/$(TARGET_PRODUCT)/$(var))
 
@@ -67,10 +72,31 @@ $(foreach var, $(atmel_fw_file),  $(shell objcopy -I binary -O ihex $(var) $(var
 atmel_ihex_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/atmel/$(TARGET_PRODUCT)/*.ihex)))
 atmel_ihex_files := $(foreach var, $(atmel_ihex_list), atmel/$(TARGET_PRODUCT)/$(var))
 else 
+ifdef CONFIG_MACH_MSM8926_JAGNM_RGS
+atmel_fw_file := $(wildcard $(srctree)/firmware/atmel/$(TARGET_PRODUCT)/*.fw)
+$(foreach var, $(atmel_fw_file),  $(shell objcopy -I binary -O ihex $(var) $(var).ihex))
+atmel_ihex_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/atmel/$(TARGET_PRODUCT)/*.ihex)))
+atmel_ihex_files := $(foreach var, $(atmel_ihex_list), atmel/$(TARGET_PRODUCT)/$(var))
+else 
+ifdef CONFIG_MACH_MSM8926_JAGNM_TLS
+atmel_fw_file := $(wildcard $(srctree)/firmware/atmel/$(TARGET_PRODUCT)/*.fw)
+$(foreach var, $(atmel_fw_file),  $(shell objcopy -I binary -O ihex $(var) $(var).ihex))
+atmel_ihex_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/atmel/$(TARGET_PRODUCT)/*.ihex)))
+atmel_ihex_files := $(foreach var, $(atmel_ihex_list), atmel/$(TARGET_PRODUCT)/$(var))
+else 
+ifdef CONFIG_MACH_MSM8926_JAGNM_VTR
+atmel_fw_file := $(wildcard $(srctree)/firmware/atmel/$(TARGET_PRODUCT)/*.fw)
+$(foreach var, $(atmel_fw_file),  $(shell objcopy -I binary -O ihex $(var) $(var).ihex))
+atmel_ihex_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/atmel/$(TARGET_PRODUCT)/*.ihex)))
+atmel_ihex_files := $(foreach var, $(atmel_ihex_list), atmel/$(TARGET_PRODUCT)/$(var))
+else 
 atmel_fw_file := $(wildcard $(srctree)/firmware/atmel/*.fw)
 $(foreach var, $(atmel_fw_file),  $(shell objcopy -I binary -O ihex $(var) $(var).ihex))
 atmel_ihex_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/atmel/*.ihex)))
 atmel_ihex_files := $(foreach var, $(atmel_ihex_list), atmel/$(var))
+endif
+endif
+endif
 endif
 endif
 
@@ -78,15 +104,44 @@ fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_S336) += $(atmel_ihex_files)
 fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_T641) += $(atmel_ihex_files)
 fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_T1664) += $(atmel_ihex_files)
 
+ifdef CONFIG_TOUCHSCREEN_LGE_AIT_MELFAS
+ifdef CONFIG_MACH_MSM8X10_L70P
+ait_fw_file := $(wildcard $(srctree)/firmware/melfas/mit200/l70p/*.fw)
+$(foreach var, $(ait_fw_file),  $(shell objcopy -I binary -O ihex $(var) $(var).ihex))
+
+ait_fw_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/melfas/mit200/l70p/*.ihex)))
+ait_fw_files := $(foreach var, $(ait_fw_list), melfas/mit200/l70p/$(var))
+fw-shipped-$(CONFIG_TOUCHSCREEN_LGE_AIT_MELFAS) += $(ait_fw_files)
+else
+ait_limit_txt := $(wildcard $(srctree)/firmware/melfas/mit200/*.txt)
+$(shell objcopy -I binary -O ihex $(ait_limit_txt) $(ait_limit_txt).ihex)
+ait_fw_file := $(wildcard $(srctree)/firmware/melfas/mit200/*.fw)
+$(foreach var, $(ait_fw_file),  $(shell objcopy -I binary -O ihex $(var) $(var).ihex))
+
+ait_fw_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/melfas/mit200/*.ihex)))
+ait_fw_files := $(foreach var, $(ait_fw_list), melfas/mit200/$(var))
+fw-shipped-$(CONFIG_TOUCHSCREEN_LGE_AIT_MELFAS) += $(ait_fw_files)
+endif
+else
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136) += melfas/mms100a_core54_v01.mfsb
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136) += $(touch_fw_files)
 
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MMS100S) += melfas/mms100s_core32_v01.mfsb
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MMS100S) += $(touch_fw_files)
-
+ifdef CONFIG_MACH_MSM8926_VFP_KR
+fw-shipped-$(CONFIG_TOUCHSCREEN_LGE_MELFAS) += melfas/$(TARGET_PRODUCT)/vfp_lgu_kr_rev_a_v001.mfsb
+else
 fw-shipped-$(CONFIG_TOUCHSCREEN_LGE_MELFAS) += melfas/mms100a_core54_v01.mfsb
 fw-shipped-$(CONFIG_TOUCHSCREEN_LGE_MELFAS) += melfas/mms100s_core32_v01.mfsb
+endif
 fw-shipped-$(CONFIG_TOUCHSCREEN_LGE_MELFAS) += $(touch_fw_files)
+endif
+
+ifdef CONFIG_TOUCHSCREEN_APS_MIT200_E2
+mit200_fw_file := $(wildcard $(srctree)/firmware/melfas/mit200/e2/*)
+mit200_firmware := $(subst $(srctree)/firmware/,,$(mit200_fw_file))
+fw-shipped-$(CONFIG_TOUCHSCREEN_APS_MIT200_E2) += $(mit200_firmware)
+endif
 
 synaptics_img_file := $(wildcard $(srctree)/firmware/synaptics/$(TARGET_PRODUCT)/*.img)
 $(foreach var, $(synaptics_img_file),  $(shell objcopy -I binary -O ihex $(var) $(var).ihex))
@@ -236,6 +291,9 @@ quiet_cmd_mkdir = MKDIR   $(patsubst $(objtree)/%,%,$@)
 quiet_cmd_ihex  = IHEX    $@
       cmd_ihex  = $(OBJCOPY) -Iihex -Obinary $< $@
 
+quiet_cmd_copy  = COPY    $@
+      cmd_copy  = cp $(srctree)/$@ $@
+
 quiet_cmd_ihex2fw  = IHEX2FW $@
       cmd_ihex2fw  = $(objtree)/$(obj)/ihex2fw $< $@
 
@@ -298,6 +356,9 @@ $(patsubst %,$(obj)/%.gen.o, $(fw-external-y)): $(obj)/%.gen.o: $(fwdir)/%
 # where binaries are frowned upon. They are directly converted with objcopy.
 $(obj)/%: $(obj)/%.ihex | $(objtree)/$(obj)/$$(dir %)
 	$(call cmd,ihex)
+
+$(obj)/%.fw: $(objtree)/$(obj)/$$(dir %.fw)
+	$(call cmd,copy)
 
 # Don't depend on ihex2fw if we're installing and it already exists.
 # Putting it after | in the dependencies doesn't seem sufficient when

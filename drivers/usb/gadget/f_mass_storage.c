@@ -330,6 +330,9 @@ static const char fsg_string_interface[] = "Mass Storage";
 #define TYPE_MOD_CHG_TO_TET     0x09
 #define TYPE_MOD_CHG_TO_FDG     0x0A
 #define TYPE_MOD_CHG_TO_PTP     0x0B
+#ifdef CONFIG_USB_G_LGE_MULTIPLE_CONFIGURATION_VZW
+#define TYPE_MOD_CHG_TO_MUL     0x0C
+#endif
 #define TYPE_MOD_CHG2_TO_ACM    0x81
 #define TYPE_MOD_CHG2_TO_UMS    0x82
 #define TYPE_MOD_CHG2_TO_MTP    0x83
@@ -338,6 +341,9 @@ static const char fsg_string_interface[] = "Mass Storage";
 #define TYPE_MOD_CHG2_TO_TET    0x87
 #define TYPE_MOD_CHG2_TO_FDG    0x88
 #define TYPE_MOD_CHG2_TO_PTP    0x89
+#ifdef CONFIG_USB_G_LGE_MULTIPLE_CONFIGURATION_VZW
+#define TYPE_MOD_CHG2_TO_MUL    0x8A
+#endif
 /* ACK TO SEND HOST PC */
 #define ACK_STATUS_TO_HOST      0x10
 #define ACK_SW_REV_TO_HOST      0x12
@@ -391,6 +397,9 @@ static char *envp_mode[][2] = {
 	{"AUTORUN=change_ptp", NULL},
 	{"AUTORUN=query_value", NULL},
 	{"AUTORUN=device_info", NULL},
+#ifdef CONFIG_USB_G_LGE_MULTIPLE_CONFIGURATION_VZW
+	{"AUTORUN=change_mul", NULL},
+#endif
 };
 #endif
 #ifdef CONFIG_USB_G_LGE_ANDROID_AUTORUN_LGE
@@ -409,6 +418,9 @@ enum chg_mode_state{
 	MODE_STATE_PTP,
 	MODE_STATE_GET_VALUE,
 	MODE_STATE_PROBE_DEV,
+#ifdef CONFIG_USB_G_LGE_MULTIPLE_CONFIGURATION_VZW
+	MODE_STATE_MUL,
+#endif
 };
 
 enum check_mode_state {
@@ -2421,6 +2433,12 @@ static int do_scsi_command(struct fsg_common *common)
 			case TYPE_MOD_CHG2_TO_PTP:
 				common->mode_state = MODE_STATE_PTP;
 				break;
+#ifdef CONFIG_USB_G_LGE_MULTIPLE_CONFIGURATION_VZW
+			case TYPE_MOD_CHG_TO_MUL:
+			case TYPE_MOD_CHG2_TO_MUL:
+				common->mode_state = MODE_STATE_MUL;
+				break;
+#endif
 			default:
 				common->mode_state = MODE_STATE_UNKNOWN;
 			}

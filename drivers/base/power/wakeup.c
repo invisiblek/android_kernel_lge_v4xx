@@ -24,6 +24,10 @@
  */
 bool events_check_enabled __read_mostly;
 
+ #ifdef CONFIG_MACH_MSM8X10_L70P
+static int counter_first = 0;
+#endif
+
 /*
  * Combined counters of registered wakeup events and wakeup events in progress.
  * They need to be modified together atomically, so it's better to use one
@@ -378,6 +382,18 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 {
 	unsigned int cec;
 
+ #ifdef CONFIG_MACH_MSM8X10_L70P /* Boost Cpu when wake up */
+    extern int boost_freq;
+    extern bool suspend_marker_entry;
+    bool wakeup_pending = true;
+    
+    if (!strcmp(ws->name, "touch_irq") || !strcmp(ws->name, "hall_ic_wakeups")) {
+        if(!counter_first) {
+            wakeup_pending = false;
+            counter_first = 1;
+        }
+    }
+#endif
 	ws->active = true;
 	ws->active_count++;
 	ws->last_time = ktime_get();
@@ -388,6 +404,20 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 	cec = atomic_inc_return(&combined_event_count);
 
 	trace_wakeup_source_activate(ws->name, cec);
+
+#ifdef CONFIG_MACH_MSM8X10_L70P  /* Boost cpu when wake up */
+	if (suspend_marker_entry) {
+		if (!wakeup_pending) {
+			if (boost_freq == 1) {
+				if (!strcmp(ws->name, "touch_irq") || !strcmp(ws->name, "hall_ic_wakeups")) {
+					printk(KERN_ERR "ws->name=%s, boost_Freq=%d\n", ws->name, boost_freq);
+					boost_freq++;
+					printk(KERN_ERR "ws->name=%s, boost_Freq=%d\n", ws->name, boost_freq);
+				}
+		    }
+		}
+	}
+#endif
 }
 
 /**
@@ -491,6 +521,11 @@ static void wakeup_source_deactivate(struct wakeup_source *ws)
 		ws->relax_count--;
 		return;
 	}
+#ifdef CONFIG_MACH_MSM8X10_L70P
+    if (!strcmp(ws->name, "touch_irq") || !strcmp(ws->name, "hall_ic_wakeups")) {
+        counter_first = 0;
+    }
+#endif
 
 	ws->active = false;
 

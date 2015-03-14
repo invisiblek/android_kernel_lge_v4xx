@@ -57,7 +57,7 @@ static const RTV_REG_INIT_INFO g_atTopHostInitData[] = {
 static const RTV_REG_INIT_INFO g_atOfdmInitData[] = {
 	{0x21, 0xFF},
 	{0x22, 0xFF},
-	{0x34, 0x9F},
+	{0x34, 0x0F},
 	{0x35, 0xFF},
 	{0x36, 0x00},
 	{0x37, 0x86}, //Locking
@@ -929,7 +929,7 @@ INT rtvISDBT_ScanFrequency(UINT nChNum)
 	if (nRet != RTV_SUCCESS)
 		goto ISDBT_SCAN_FREQ_EXIT;
 
-	pwr_threshold = 20000;
+	pwr_threshold = 10000;
 
 #if defined(__KERNEL__) /* Linux kernel */
 	start_jiffies = get_jiffies_64();

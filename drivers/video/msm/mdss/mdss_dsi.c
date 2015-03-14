@@ -40,6 +40,11 @@ static unsigned char *mdss_dsi_base;
 int has_dsv_f;
 #endif
 
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+int has_dsv_f;
+extern int is_dsv_cont_splash_screening_f;
+#endif
+
 #ifdef CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL
 int mdss_dsi_lane_config(struct mdss_panel_data *pdata, int enable)
 {
@@ -128,7 +133,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 
 		/*Disable DSV (VDD, VEE)*/
 		#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR)
-		mdelay(10);
+		mdelay(5);
 		if(lge_get_board_revno() >= HW_REV_B)
 		{
 			if(gpio_is_valid(ctrl_pdata->disp_en_gpio))
@@ -141,7 +146,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 				pr_err("%s:%d, lcd_dsv_enp_gpio gpio not specified\n",
 							__func__, __LINE__);
 			}
-			mdelay(15);
+			mdelay(10);
 		}
 		if(gpio_is_valid(ctrl_pdata->lcd_dsv_enp_gpio))
 		{
@@ -155,7 +160,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 		}
 		#endif
 
-		mdelay(15);
+		mdelay(10);
 
 		ret = msm_dss_enable_vreg(
 			ctrl_pdata->power_data.vreg_config,
@@ -190,7 +195,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 
 	if (enable) {
 #ifdef CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT_PANEL
-#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
 		if(HW_REV_0 == hw_rev)
 #endif
     	{
@@ -228,12 +233,29 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			lge_lvds_panel_power(pdata, 1);
 			mdss_dsi_panel_reset(pdata, 1);
 		}
+#elif defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+		if (!has_dsv_f && pdata->panel_info.panel_power_on == 0)
+			mdss_dsi_panel_reset(pdata, 1);
 #else
 		if(pdata->panel_info.panel_power_on ==0) //qct original
 			mdss_dsi_panel_reset(pdata, 1);
 #endif
+
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+		pr_info("%s: DSV FD Enable", __func__);
+		gpio_direction_output((ctrl_pdata->disp_fd_gpio), 1);
+		gpio_set_value((ctrl_pdata->disp_fd_gpio), 1);
+
+		pr_info("%s: LCD IOVCC Enable", __func__);
+		gpio_direction_output((ctrl_pdata->disp_iovcc_gpio), 1);
+		gpio_set_value((ctrl_pdata->disp_iovcc_gpio), 1);
+
+		pr_info("%s: LCD P-Mode Enable", __func__);
+		gpio_direction_output((ctrl_pdata->disp_p_mode), 1);
+		gpio_set_value((ctrl_pdata->disp_p_mode), 1);
+#endif
 	} else {
-#if defined(CONFIG_LGE_MIPI_TOVIS_VIDEO_540P_PANEL) || defined(CONFIG_FB_MSM_MIPI_TIANMA_VIDEO_QHD_PT_PANEL) || defined(CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT_PANEL) || defined(CONFIG_FB_MSM_MIPI_TOVIS_LM570HN1A_VIDEO_HD_PT_PANEL) || defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL)
+#if defined(CONFIG_LGE_MIPI_TOVIS_VIDEO_540P_PANEL) || defined(CONFIG_FB_MSM_MIPI_TIANMA_VIDEO_QHD_PT_PANEL) || defined(CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT_PANEL) || defined(CONFIG_FB_MSM_MIPI_TOVIS_LM570HN1A_VIDEO_HD_PT_PANEL)
 		if (!has_dsv_f) //          
 			mdss_dsi_panel_reset(pdata, 0);
 #elif defined(CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA)
@@ -247,8 +269,13 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			pr_err("%s:Failed to disable lge_lvds_panel_power!\n",__func__);
 				return 0;
 		}
+#elif defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+		if (!has_dsv_f) //          
+			mdss_dsi_panel_reset(pdata, 0);
 #else
+#if !defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL)
 		mdss_dsi_panel_reset(pdata, 0); //qct original
+#endif
 #endif
 
 		ret = msm_dss_enable_vreg(
@@ -554,6 +581,10 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 
 	pinfo = &pdata->panel_info;
 
+	#if defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL)
+	mdss_dsi_panel_reset(pdata, 0);
+	pr_info("mdss_dsi_panel_reset is LOW\n");
+	#endif
 	ret = msm_dss_enable_vreg(ctrl_pdata->power_data.vreg_config,
 				ctrl_pdata->power_data.num_vreg, 1);
 	if (ret) {
@@ -568,9 +599,6 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 #else
 	if (!pdata->panel_info.mipi.lp11_init)
 		mdss_dsi_panel_reset(pdata, 1);
-#endif
-#if defined( CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL)
-	mdss_dsi_panel_reset(pdata, 0);
 #endif
 	ret = mdss_dsi_enable_bus_clocks(ctrl_pdata);
 	if (ret) {
@@ -655,17 +683,6 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0x5C, data);
 	}
 
-	#if defined(CONFIG_FB_MSM_MIPI_TOVIS_LM570HN1A_VIDEO_HD_PT_PANEL)
-	{
-#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM)
-		if(HW_REV_0 != lge_get_board_revno())
-#endif
-		{
-			pr_info("[LCD] %s: delay(20) \n",__func__);
-			mdelay(20);
-		}
-	}
-	#endif
 	mdss_dsi_sw_reset(pdata);
 	mdss_dsi_host_init(mipi, pdata);
 
@@ -706,25 +723,37 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	 * Issue hardware reset line after enabling the DSI clocks and data
 	 * data lanes for LP11 init
 	 */
+#if defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL)
+	if (pdata->panel_info.mipi.lp11_init) {
+		mdss_dsi_panel_reset(pdata, 1);
+		pr_info("mdss_dsi_panel_reset is HIGH\n");
+	}
+	mdelay(5);
+	mipi->force_clk_lane_hs = 1;
+#else
 	if (pdata->panel_info.mipi.lp11_init)
 		mdss_dsi_panel_reset(pdata, 1);
-
+#endif
 	if (pdata->panel_info.mipi.init_delay)
 		usleep(pdata->panel_info.mipi.init_delay);
 
+#if defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined(CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	if (mipi->force_clk_lane_hs) {
 		u32 tmp;
-#if defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL)
-		if (pdata->panel_info.mipi.init_delay)
-			printk("mipi_init_delay = %d\n", pdata->panel_info.mipi.init_delay);
-		mdss_dsi_panel_reset(pdata, 1);
-		mdelay(10);
-#endif
-		tmp = MIPI_INP((ctrl_pdata->ctrl_base) + 0xac);
+		tmp = MIPI_INP((ctrl_pdata->ctrl_base) + 0x2c);
 		tmp |= (1<<28);
-		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac, tmp);
+		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0x2c, tmp);  //To HS Clock gating for clock source (non-continuous mode)
 		wmb();
 	}
+#else
+	if (mipi->force_clk_lane_hs) {
+		u32 tmp;
+		tmp = MIPI_INP((ctrl_pdata->ctrl_base) + 0xac);
+		tmp |= (1<<28);
+		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac, tmp);  //To HS Clock gating for clock source (continuous mode)
+		wmb();
+	}
+#endif
 
 #if defined(CONFIG_LGE_MIPI_TOVIS_VIDEO_540P_PANEL) || defined(CONFIG_FB_MSM_MIPI_TIANMA_VIDEO_QHD_PT_PANEL) || defined(CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT_PANEL) || defined(CONFIG_FB_MSM_MIPI_TOVIS_LM570HN1A_VIDEO_HD_PT_PANEL)
 	if( has_dsv_f ) {
@@ -737,6 +766,18 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	  pr_info(" panel reset after mipi stop state. lane_ctrl value = %x\n", tmp);
 	}
 	#endif
+
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+	if( has_dsv_f ) {
+	  u32 tmp;
+	  tmp = MIPI_INP((ctrl_pdata->ctrl_base) + 0xac);
+	  tmp &= ~(1<<28);
+	  MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac, tmp);
+	  wmb();
+	  mdss_dsi_panel_reset(pdata, 1);
+	  pr_info(" panel reset after mipi stop state. lane_ctrl value = %x\n", tmp);
+	}
+#endif
 
 	if (pdata->panel_info.type == MIPI_CMD_PANEL)
 		mdss_dsi_clk_ctrl(ctrl_pdata, 0);
@@ -1000,7 +1041,8 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 	}
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
-	printk("%s+:event=%d\n", __func__, event);
+	if (event != MDSS_EVENT_DSI_CMDLIST_KOFF)
+		printk("%s+:event=%d\n", __func__, event);
 	switch (event) {
 	case MDSS_EVENT_UNBLANK:
 		rc = mdss_dsi_on(pdata);
@@ -1062,7 +1104,8 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		pr_info("%s: unhandled event=%d\n", __func__, event);
 		break;
 	}
-	pr_info("%s-:event=%d, rc=%d\n", __func__, event, rc);
+	if (event != MDSS_EVENT_DSI_CMDLIST_KOFF)
+		pr_info("%s-:event=%d, rc=%d\n", __func__, event, rc);
 	return rc;
 }
 
@@ -1506,7 +1549,7 @@ int dsi_panel_device_register(struct device_node *pan_node,
 			return -ENODEV;
 		}
 	}
-#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGC_SPR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGN_KR)
+#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGC_SPR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 	if(lge_get_board_revno() >= HW_REV_B)
 		ctrl_pdata->disp_en_gpio = 60;//for just safe rev B SMT
 	else
@@ -1518,6 +1561,21 @@ int dsi_panel_device_register(struct device_node *pan_node,
 	else
 		ctrl_pdata->disp_en_gpio = 111;
 #endif
+
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+	ctrl_pdata->disp_fd_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,"qcom,platform-fd-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->disp_fd_gpio))
+		 pr_err("%s:%d, disp_fd_gpio not specified\n",__func__, __LINE__);
+
+	ctrl_pdata->disp_iovcc_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node, "qcom,platform-iovcc-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->disp_iovcc_gpio))
+		 pr_err("%s:%d, disp_iovcc_gpio not specified\n",__func__, __LINE__);
+
+	ctrl_pdata->disp_p_mode = of_get_named_gpio(ctrl_pdev->dev.of_node, "qcom,platform-pmode-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->disp_p_mode))
+		 pr_err("%s:%d, disp_p_mode not specified\n",__func__, __LINE__);
+#endif
+
 	#ifdef CONFIG_FB_MSM_MIPI_TOVIS_LM570HN1A_VIDEO_HD_PT_PANEL
 	if(lge_get_board_revno() >= HW_REV_B)
 	{
@@ -1674,6 +1732,11 @@ int dsi_panel_device_register(struct device_node *pan_node,
 	has_dsv_f = of_property_read_bool(pan_node,
 			"lge,has-dsv");
   #endif
+
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+	has_dsv_f = of_property_read_bool(pan_node,
+			"lge,has-dsv");
+#endif
 
 
 	pr_info("%s-: pinfo->cont_splash_enabled : %d\n", __func__, pinfo->cont_splash_enabled);

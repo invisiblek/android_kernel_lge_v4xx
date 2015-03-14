@@ -511,7 +511,7 @@ static int sdhci_pre_dma_transfer(struct sdhci_host *host,
 
 	if (!next && data->host_cookie &&
 	    data->host_cookie != host->next_data.cookie) {
-		printk(KERN_WARNING "[%s] invalid cookie: data->host_cookie %d"
+		pr_warning("[%s] invalid cookie: data->host_cookie %d"
 		       " host->next_data.cookie %d\n",
 		       __func__, data->host_cookie, host->next_data.cookie);
 		data->host_cookie = 0;
@@ -2939,6 +2939,8 @@ int sdhci_suspend_host(struct sdhci_host *host)
 	int ret;
 	bool has_tuning_timer;
 
+	pr_debug("%s: Enter %s\n", mmc_hostname(host->mmc), __func__);
+
 	if (host->ops->platform_suspend)
 		host->ops->platform_suspend(host);
 
@@ -2975,6 +2977,8 @@ EXPORT_SYMBOL_GPL(sdhci_suspend_host);
 int sdhci_resume_host(struct sdhci_host *host)
 {
 	int ret;
+
+	pr_debug("%s: Enter %s\n", mmc_hostname(host->mmc), __func__);
 
 	if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA)) {
 		if (host->ops->enable_dma)
@@ -3051,6 +3055,8 @@ int sdhci_runtime_suspend_host(struct sdhci_host *host)
 	unsigned long flags;
 	int ret = 0;
 
+	pr_debug("%s: Enter %s\n", mmc_hostname(host->mmc), __func__);
+
 	/* Disable tuning since we are suspending */
 	if (host->version >= SDHCI_SPEC_300 &&
 	    host->tuning_mode == SDHCI_TUNING_MODE_1) {
@@ -3076,6 +3082,8 @@ int sdhci_runtime_resume_host(struct sdhci_host *host)
 {
 	unsigned long flags;
 	int ret = 0, host_flags = host->flags;
+
+	pr_debug("%s: Enter %s\n", mmc_hostname(host->mmc), __func__);
 
 	if (host_flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA)) {
 		if (host->ops->enable_dma)

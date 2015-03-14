@@ -58,6 +58,11 @@ static unsigned char touched_finger_count = 0;
 static unsigned char patchevent_mask = 0;
 static unsigned char power_block_mask = 0;
 
+#if defined(CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8226_E8WIFI)
+bool thermal_status = 0;
+extern int touch_thermal_mode;
+#endif
+
 struct lge_touch_attribute {
 	struct attribute	attr;
 	ssize_t (*show)(struct mxt_data *ts, char *buf);
@@ -82,6 +87,10 @@ static int last_reported_case = 0xFF;
 static u16 retry_chk = 0;
 static int card_detection_check_count = 0;
 static u8 ime_status_value = 0;
+
+#ifdef MXT_FACTORY
+static bool factorymode = false;
+#endif
 
 static int mxt_soft_reset(struct mxt_data *data);
 static int mxt_hw_reset(struct mxt_data *data);
@@ -934,10 +943,10 @@ int mxt_write_object(struct mxt_data *data, u8 type, u8 offset, u8 val)
 
 	reg = object->start_address;
 	error = __mxt_write_reg(data->client, reg + offset, 1, &val);
-	if (error)
-		TOUCH_INFO_MSG("Error to write T[%d] offset[%d] val[%d]\n",
-				type, offset, val);
-
+	if (error) {
+		TOUCH_INFO_MSG("Error to write T[%d] offset[%d] val[%d]\n", type, offset, val);
+		mxt_hw_reset(data);
+	}
 	return error;
 }
 
@@ -1463,12 +1472,14 @@ static void mxt_proc_t6_messages(struct mxt_data *data, u8 *msg)
 	}
 
 	/* Set KnockCode Delay after RESET */
-	if (status & MXT_T6_STATUS_RESET && data->is_knockCodeDelay) {
-		mxt_write_object(data, MXT_PROCI_TOUCH_SEQUENCE_LOGGER_T93, 19, 43);
-		TOUCH_INFO_MSG("Set Knock Code delay after RESET (700ms)\n");
-	} else if (status & MXT_T6_STATUS_RESET && !data->is_knockCodeDelay) {
-		mxt_write_object(data, MXT_PROCI_TOUCH_SEQUENCE_LOGGER_T93, 19, 0);
-		TOUCH_INFO_MSG("Set Knock Code delay after RESET (0ms)\n");
+	if (!data->mfts_enable) {
+		if (status & MXT_T6_STATUS_RESET && data->is_knockCodeDelay) {
+			mxt_write_object(data, MXT_PROCI_TOUCH_SEQUENCE_LOGGER_T93, 19, 43);
+			TOUCH_INFO_MSG("Set Knock Code delay after RESET (700ms)\n");
+		} else if (status & MXT_T6_STATUS_RESET && !data->is_knockCodeDelay) {
+			mxt_write_object(data, MXT_PROCI_TOUCH_SEQUENCE_LOGGER_T93, 19, 0);
+			TOUCH_INFO_MSG("Set Knock Code delay after RESET (0ms)\n");
+		}
 	}
 
 	if (status & MXT_T6_STATUS_RESET && data->suspended) {
@@ -1476,7 +1487,10 @@ static void mxt_proc_t6_messages(struct mxt_data *data, u8 *msg)
 
 		if (mxt_patchevent_get(PATCH_EVENT_TA)) {
 			TOUCH_INFO_MSG("   Stage 1 : USB/TA \n");
-			mxt_patch_event(global_mxt_data, CHARGER_PLUGGED);
+			if (factorymode)
+				mxt_patch_event(global_mxt_data, CHARGER_PLUGGED_AAT);
+			else
+				mxt_patch_event(global_mxt_data, CHARGER_PLUGGED);
 		}
 
 #if defined(CONFIG_TOUCHSCREEN_LGE_LPWG)
@@ -1970,8 +1984,10 @@ static void mxt_proc_t9_message(struct mxt_data *data, u8 *message)
 	/* Ghost detection solution */
 	if (data->pdata->ghost_detection_card_enable) {
 		ret = ghost_detect_solution(data, id);
-		if (ret == NEED_TO_OUT)
+		if (!global_mxt_data->charging_mode && ret == NEED_TO_OUT)
 			goto out;
+		else
+			TOUCH_INFO_MSG("Do not calibrate on TA mode.\n");
 	}
 
 	data->ts_data.prev_data[id]= data->ts_data.curr_data[id];
@@ -2330,8 +2346,9 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 	vector =  message[data->t100_aux_vect];
 	amplitude = message[data->t100_aux_ampl];	/* message[6] */
 	area = message[data->t100_aux_area];
-	height = message[8];
-	width = message[9];
+
+	height = message[data->t100_aux_resv];
+	width = message[data->t100_aux_resv+1];
 
 #if 0//def T100_AREA_W_H_IN_2BYTES
 	if(data->t100_aux_ampl && data->t100_aux_area && data->t100_aux_resv){
@@ -2359,8 +2376,18 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 			data->ts_data.curr_data[id].x_position = x;
 			data->ts_data.curr_data[id].y_position = y;
             data->ts_data.curr_data[id].area = area;
-			data->ts_data.curr_data[id].pressure = amplitude;
 			data->ts_data.curr_data[id].tool = MT_TOOL_FINGER;
+
+
+			if (amplitude == 255 &&
+				((status & MXT_T100_TYPE_MASK) == MXT_T100_TYPE_FINGER
+				|| (status & MXT_T100_TYPE_MASK) == MXT_T100_TYPE_STYLUS)) {
+				data->ts_data.curr_data[id].pressure = 240;
+			} else if ((status & MXT_T100_TYPE_MASK) == MXT_T100_TYPE_PALM) {
+				data->ts_data.curr_data[id].pressure = 255;
+			} else {
+				data->ts_data.curr_data[id].pressure = amplitude;
+			}
 
 			if (height >= width) {
 				data->ts_data.curr_data[id].touch_major = height;
@@ -2368,12 +2395,6 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 			} else {
 				data->ts_data.curr_data[id].touch_major = width;
 				data->ts_data.curr_data[id].touch_minor = height;
-			}
-
-			if ((status & MXT_T100_TYPE_MASK) == MXT_T100_TYPE_PALM) {
-				data->ts_data.curr_data[id].pressure = 255;
-			} else {
-				data->ts_data.curr_data[id].pressure = amplitude;
 			}
 
 			if ((status & MXT_T100_STATUS_MASK) == MXT_T100_PRESS) {
@@ -2450,7 +2471,10 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 	if (FINGER_PRESSED == data->ts_data.curr_data[id].status) {
 
 		if (NEED_TO_OUT == ghost_detect_solution(data, id)) {
-            goto ghost_err;
+			if (!global_mxt_data->charging_mode)
+				goto ghost_err;
+			else
+				TOUCH_INFO_MSG("Do not calibrate on TA mode.\n");
         }
 
 	}
@@ -2562,8 +2586,10 @@ void trigger_usb_state_from_otg(int usb_type)
 			TOUCH_INFO_MSG("IC Regulator Disabled. Do nothing\n");
 			if (usb_type == 0) {
 				mxt_patchevent_unset(PATCH_EVENT_TA);
+				global_mxt_data->charging_mode = 0;
 			} else {
 				mxt_patchevent_set(PATCH_EVENT_TA);
+				global_mxt_data->charging_mode = 1;
 			}
 			return;
 		}
@@ -2628,7 +2654,12 @@ void trigger_usb_state_from_otg(int usb_type)
 				mxt_patchevent_unset(PATCH_EVENT_KNOCKON);
 			}
 			global_mxt_data->charging_mode = 1;
-			mxt_patch_event(global_mxt_data, CHARGER_PLUGGED);
+
+			if (factorymode)
+				mxt_patch_event(global_mxt_data, CHARGER_PLUGGED_AAT);
+			else
+				mxt_patch_event(global_mxt_data, CHARGER_PLUGGED);
+
 			mxt_patchevent_set(PATCH_EVENT_TA);
 		}
 
@@ -2637,6 +2668,16 @@ void trigger_usb_state_from_otg(int usb_type)
 		TOUCH_INFO_MSG("global_mxt_data is null\n");
 	}
 }
+
+#if defined(CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8226_E8WIFI)
+void check_touch_bat_therm(int therm_mode){
+	if (global_mxt_data!= NULL) {
+		TOUCH_INFO_MSG("[%s] thermal status = (%d)\n", __func__, therm_mode);
+		mxt_t6_command(global_mxt_data, MXT_COMMAND_CALIBRATE, 1, false);
+		thermal_status = therm_mode;
+	}
+}
+#endif
 
 static void mxt_proc_message_log(struct mxt_data *data, u8 type)
 {
@@ -2764,6 +2805,11 @@ static irqreturn_t mxt_process_messages_t44(struct mxt_data *data)
 
 	int report_num = 0;
 	int i;
+
+	if (!regulator_is_enabled(data->vcc_i2c)) {
+		TOUCH_INFO_MSG( "I2C Regulator Already Disabled.\n");
+		return IRQ_NONE;
+	}
 
 	/* Read T44 and T5 together */
 	ret = __mxt_read_reg(data->client, data->T44_address,
@@ -5018,6 +5064,12 @@ static ssize_t mxt_mfts_enable_store(struct mxt_data *data, const char *buf, siz
 
 	data->mfts_enable = value;
 
+	/* Touch IC Reset for Initial configration. */
+	mxt_soft_reset(data);
+
+	/* Calibrate for Active touch IC */
+	mxt_t6_command(data, MXT_COMMAND_CALIBRATE, 1, false);
+
 	return count;
 }
 
@@ -5041,6 +5093,11 @@ static void mxt_lpwg_enable(struct mxt_data *data, u32 value)
 		TOUCH_INFO_MSG("Multi Tap Enable\n");
 	}else{
 		TOUCH_INFO_MSG("Unknown Value. Not Setting\n");
+		return;
+	}
+
+	if (data->suspended && gpio_get_value(HALL_IC_GPIO)) {
+		TOUCH_INFO_MSG("%s : Wake Up from Quick Cover.\n", __func__);
 		return;
 	}
 
@@ -5082,11 +5139,19 @@ static void mxt_lpwg_enable(struct mxt_data *data, u32 value)
 
 	if(value == LPWG_DOUBLE_TAP){
 		data->is_knockONonly = true;
+#if defined(CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8226_E8WIFI)
+		error = mxt_write_object(data, MXT_PROCI_TOUCH_SEQUENCE_LOGGER_T93, 22, 75);
+#else
 		error = mxt_write_object(data, MXT_PROCI_TOUCH_SEQUENCE_LOGGER_T93, 22, 60);
+#endif
 		TOUCH_INFO_MSG("Set Knock ON range (10mm)\n");
 	}else if(value == LPWG_MULTI_TAP){
 		data->is_knockONonly = false;
+#if defined(CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8226_E8WIFI)
+		error = mxt_write_object(data, MXT_PROCI_TOUCH_SEQUENCE_LOGGER_T93, 22, 52);
+#else
 		error = mxt_write_object(data, MXT_PROCI_TOUCH_SEQUENCE_LOGGER_T93, 22, 42);
+#endif
 		TOUCH_INFO_MSG("Set Knock ON range (7mm)\n");
 	}
 }
@@ -5636,13 +5701,6 @@ static void mxt_active_mode_start(struct mxt_data *data)
 			error = mxt_write_reg(data->client, object->start_address+17, data->g_tap_cnt);
 			if (error)
 				TOUCH_INFO_MSG("Object Write Fail\n");
-
-		} else {
-			if (mxt_patchevent_get(PATCH_EVENT_TA)) {
-				mxt_patch_event(global_mxt_data, CHARGER_PLUGGED);
-			} else {
-				mxt_patch_event(global_mxt_data, CHARGER_UNplugged);
-			}
 		}
 #else
 		if (mxt_patchevent_get(PATCH_EVENT_TA)) {
@@ -5677,16 +5735,26 @@ static void mxt_start(struct mxt_data *data)
 	if (!data->mxt_knock_on_enable && !data->mfts_enable) {
 #endif
 		mxt_regulator_enable(data);
+	} else {
+		TOUCH_INFO_MSG("%s : After Quick Cover Opened.\n", __func__);
+		mxt_regulator_enable(data);
 	}
 
 	// mxt_set_t7_power_cfg(data, MXT_POWER_CFG_RUN);
+/*
 	if (!mxt_patchevent_get(PATCH_EVENT_KNOCKON))
 		mxt_patch_event(global_mxt_data, DEEP_SLEEP_WAKEUP);
-
+*/
 	mxt_active_mode_start(data);
 
 	/* Recalibrate since chip has been in deep sleep */
 	mxt_t6_command(data, MXT_COMMAND_CALIBRATE, 1, false);
+
+#ifdef MXT_FACTORY
+	if (factorymode) {
+		mxt_patch_event(data, PATCH_EVENT_AAT);
+	}
+#endif
 
 	mxt_reset_slots(data);
 	data->suspended = false;
@@ -6044,9 +6112,14 @@ static int mxt_read_t100_config(struct mxt_data *data)
 
 	if (tchaux & MXT_T100_TCHAUX_AMPL)
 		data->t100_aux_ampl = aux++;
+	else
+		data->t100_aux_ampl = aux;
 
 	if (tchaux & MXT_T100_TCHAUX_AREA)
 		data->t100_aux_area = aux++;
+
+	if (tchaux & MXT_T100_TCHAUX_RESV)
+		data->t100_aux_resv = aux++;
 
 	dev_info(&client->dev,
 		 "T100 Touchscreen size X%uY%u\n", data->max_x, data->max_y);
@@ -6804,7 +6877,7 @@ static int mxt_write_config(struct mxt_fw_info *fw_info)
 		TOUCH_INFO_MSG("Same Config[%06X] Skip Writing\n", current_crc);
 
 		/* Change config for RevB 0x00 panel */
-		if ((data->panel_check_revB == 0x00) && (lge_get_board_revno() < HW_REV_B)) {
+		if ((data->panel_check_revB == 0x00) && (lge_get_board_revno() < HW_REV_A)) {
 			ret = mxt_panel_write_t38(data);
 			if (ret) {
 				TOUCH_INFO_MSG("Failed rewrite Panel Status\n");
@@ -6933,7 +7006,7 @@ static int mxt_write_config(struct mxt_fw_info *fw_info)
 	}
 
 	/* Change config for RevB 0x00 panel */
-	if (data->panel_check_revB == 0x00 && lge_get_board_revno() < HW_REV_B) {
+	if (data->panel_check_revB == 0x00 && lge_get_board_revno() < HW_REV_A) {
 		ret = mxt_panel_write_t38(data);
 		if (ret) {
 			TOUCH_INFO_MSG("Failed rewrite Panel Status\n");
@@ -7082,6 +7155,10 @@ static int __devinit mxt_probe(struct i2c_client *client, const struct i2c_devic
 
 	is_probing = true;
 	TOUCH_INFO_MSG("%s \n", __func__);
+
+#if defined(CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8226_E8WIFI)
+	touch_thermal_mode = 0;
+#endif
 
 	wake_lock_init(&touch_wake_lock, WAKE_LOCK_SUSPEND, "touch_wakelock");
 	mutex_init(&i2c_suspend_lock);
@@ -7293,10 +7370,23 @@ static int __devinit mxt_probe(struct i2c_client *client, const struct i2c_devic
 
 	data->ref_chk = 0;
 
+#ifdef MXT_FACTORY
+	if (lge_get_boot_mode() != LGE_BOOT_MODE_NORMAL ) {
+		factorymode = true;
+		TOUCH_INFO_MSG("Yes-factory factory = %d\n", factorymode);
+	}else{
+		factorymode = false;
+		TOUCH_INFO_MSG("No-factory factory = %d\n", factorymode);
+	}
+#endif
+
 	/* disabled report touch event to prevent unnecessary event.
 	* it will be enabled in open function
 	*/
-	mxt_stop(data);
+//	mxt_stop(data);
+
+	data->suspended = true;
+	data->enable_reporting = false;
 
 	/* Register sysfs for making fixed communication path to framework layer */
 	error = sysdev_class_register(&lge_touch_sys_class);
@@ -7520,11 +7610,12 @@ static int mxt_fb_resume(struct mxt_data *data)
 			kfree(package_name);
 		}
 
-		mxt_hw_reset(data);
+//		mxt_hw_reset(data);
 
 		TOUCH_INFO_MSG("MFTS : IC Init complete \n");
 
 		mxt_read_fw_version(data);
+
 	}
 
 	if (input_dev->users)

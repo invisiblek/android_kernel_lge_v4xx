@@ -14,7 +14,7 @@
 /include/ "msm8226-jagnm.dtsi"
 
 / {
-	model = "Qualcomm MSM 8926 jagnmattus";
-	compatible = "qcom,msm8926-jagnmattus", "qcom,msm8926", "qcom,mtp";
+	model = "Qualcomm MSM 8926 jagnm_global_com";
+	compatible = "qcom,msm8926-jagnmglobalcom", "qcom,msm8926", "qcom,mtp";
 	qcom,board-id = <191 0>;
 };

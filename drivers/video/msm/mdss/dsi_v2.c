@@ -191,7 +191,13 @@ static int dsi_parse_gpio(struct platform_device *pdev,
 	if (!gpio_is_valid(ctrl_pdata->disp_en_gpio))
 		pr_err("%s:%d, Disp_en gpio not specified\n",
 						__func__, __LINE__);
-
+#if defined(CONFIG_MACH_MSM8X10_L70P)
+	ctrl_pdata->disp_fd_gpio = of_get_named_gpio(np,
+		"qcom,platform-fd-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->disp_fd_gpio))
+		pr_err("%s:%d, Disp_en gpio not specified\n",
+						__func__, __LINE__);
+#endif
 	ctrl_pdata->disp_te_gpio = -1;
 	if (ctrl_pdata->panel_data.panel_info.mipi.mode == DSI_CMD_MODE) {
 		ctrl_pdata->disp_te_gpio = of_get_named_gpio(np,

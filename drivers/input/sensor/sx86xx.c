@@ -8,16 +8,20 @@
  *  published by the Free Software Foundation.
  */
 
-#define DEBUG
+//#define DEBUG /* for dev_dbg function */
 
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <sx86xx.h> /* main struct, interrupt,init,pointers */
+#include <sx9500_platform_data.h> /* platform data */
+
+#define FAR_IRQ                 0x20
+#define COMPDONE_IRQ            0x10
 
 
 #ifdef USE_THREADED_IRQ
-static void sx86XX_process_interrupt(struct sx86XX *this,u8 nirqlow)
+void sx86XX_process_interrupt(struct sx86XX *this, u8 nirqlow)
 {
     int status = 0;
     int counter = 0;
@@ -29,12 +33,30 @@ static void sx86XX_process_interrupt(struct sx86XX *this,u8 nirqlow)
 
     /* since we are not in an interrupt don't need to disable irq. */
     status = this->refreshStatus(this);
-    dev_dbg(this->pdev, "Worker - Refresh Irq Source 0x%02x\n", status);
+
+    dev_info(this->pdev, "set wake lock timeout!\n");
+    wake_lock_timeout(&this->capsensor_wake_lock, msecs_to_jiffies(1500));
+
+    if ((this->inStartupTouch) == true) {
+        if (((status & COMPDONE_IRQ) == COMPDONE_IRQ) || ((status & FAR_IRQ) == FAR_IRQ)) {
+            struct sx9500 *pDevice = this->pDevice;
+
+            if (pDevice) {
+                touchCheckWithReferenceSensor(this,
+                    (unsigned char)pDevice->ptouchCheckParameters->defaultStartupMainSensor,
+                    (unsigned char)pDevice->ptouchCheckParameters->defaultStartupRefSensor);
+            }
+        }
+
+        dev_info(this->pdev, "Ignore interrupt!! inStartupTouch is true.\n");
+
+        return;
+    }
 
     counter = -1;
-    while((++counter) < MAX_NUM_STATUS_BITS) { /* counter start from MSB */
-        dev_dbg(this->pdev, "Looping Counter %d\n",counter);
-        if (((status>>counter) & 0x01) && (this->statusFunc[counter])) {
+    while ((++counter) < MAX_NUM_STATUS_BITS) { /* counter start from MSB */
+        dev_dbg(this->pdev, "Looping Counter %d\n", counter);
+        if (((status >> counter) & 0x01) && (this->statusFunc[counter])) {
             dev_dbg(this->pdev, "Function Pointer Found. Calling\n");
             this->statusFunc[counter](this);
         }
@@ -176,8 +198,8 @@ static void sx86XX_worker_func(struct work_struct *work)
 
 void sx86XX_suspend(struct sx86XX *this)
 {
-    if (this)
-        disable_irq(this->irq);
+    /*if (this)
+        disable_irq(this->irq);*/
 }
 
 void sx86XX_resume(struct sx86XX *this)
@@ -191,9 +213,9 @@ void sx86XX_resume(struct sx86XX *this)
 #else
         sx86XX_schedule_work(this,0);
 #endif
-        if (this->init)
+        /*if (this->init)
             this->init(this);
-        enable_irq(this->irq);
+        enable_irq(this->irq);*/
     }
 }
 

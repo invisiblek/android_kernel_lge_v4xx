@@ -1644,7 +1644,7 @@ static void msm_otg_notify_charger(struct msm_otg *motg, unsigned mA)
 	cable = lge_pm_get_cable_type();
 
 	if (mA > 2 && cable != NO_INIT_CABLE) {
-#if defined (CONFIG_MACH_MSM8926_X5_VZW) || defined (CONFIG_MACH_MSM8926_X10_VZW)
+#if defined (CONFIG_MACH_MSM8926_X5_VZW) || defined (CONFIG_MACH_MSM8926_X10_VZW) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
 		if ( cable == CABLE_56K || cable == CABLE_130K || cable == CABLE_910K ) {
 			mA = lge_pm_get_usb_current();
 			dev_info(motg->phy.dev, "factory cable detected set current to %u\n", mA);
@@ -2581,44 +2581,61 @@ void lge_pm_set_usb_id_handle(struct qpnp_vadc_chip *usb_id_handle){
 	the_msm_otg->vadc_dev = usb_id_handle;
 }
 
+#define USBID_VCNT_TLC 100000
 int32_t lge_pm_get_cable_usb_id_adc(struct msm_otg *motg)
 {
-		int32_t rc;
-		struct qpnp_vadc_result result;
-		int i;
+	int32_t rc;
+	struct qpnp_vadc_result result;
+	int i;
+	int cnt = 0;
+	int32_t intitial_result = -ERANGE;
 
-		for ( i = 0 ; i < MAX_LGE_CABLE_RETRY_COUNT ; i ++ ){
+	for ( i = 0 ; i < MAX_LGE_CABLE_RETRY_COUNT ; i ++ ){
 #ifdef CONFIG_ARCH_MSM8610
-			rc = qpnp_vadc_read(motg->vadc_dev,P_MUX3_1_1, &result);
+		rc = qpnp_vadc_read(motg->vadc_dev,P_MUX3_1_1, &result);
 #else
 #if defined(CONFIG_MACH_MSM8226_W7_GLOBAL_COM) \
-	|| defined(CONFIG_MACH_MSM8226_W7_GLOBAL_SCA) \
-	|| defined(CONFIG_MACH_MSM8226_W7DS_GLOBAL_COM) \
-	|| defined(CONFIG_MACH_MSM8226_W7N_GLOBAL_COM) \
-	|| defined(CONFIG_MACH_MSM8226_W7N_GLOBAL_SCA) \
-	|| defined(CONFIG_MACH_MSM8226_W7DSN_GLOBAL_COM)
-			if(lge_get_board_revno() == HW_REV_0)
-				rc = qpnp_vadc_read(motg->vadc_dev,P_MUX8_1_1, &result);
-			else
-				rc = qpnp_vadc_read(motg->vadc_dev,LR_MUX10_USB_ID_LV, &result);
-#else
+		|| defined(CONFIG_MACH_MSM8226_W7_GLOBAL_SCA) \
+		|| defined(CONFIG_MACH_MSM8226_W7DS_GLOBAL_COM) \
+		|| defined(CONFIG_MACH_MSM8226_W7N_GLOBAL_COM) \
+		|| defined(CONFIG_MACH_MSM8226_W7N_GLOBAL_SCA) \
+		|| defined(CONFIG_MACH_MSM8226_W7DSN_GLOBAL_COM)
+		if(lge_get_board_revno() == HW_REV_0)
+			rc = qpnp_vadc_read(motg->vadc_dev,P_MUX8_1_1, &result);
+		else
 			rc = qpnp_vadc_read(motg->vadc_dev,LR_MUX10_USB_ID_LV, &result);
+#else
+		rc = qpnp_vadc_read(motg->vadc_dev,LR_MUX10_USB_ID_LV, &result);
 #endif
 #endif
 		if (rc < 0) {
 			pr_err("%s: adc read error - %d remaing retry count is - %d\n",__func__, rc, MAX_LGE_CABLE_RETRY_COUNT-i-1);
 			mdelay(10);
 			continue;
-			}
 		}
+		if (cnt == 0) {
+			intitial_result = (int32_t)result.physical;
+			cnt++;
+		}
+	}
 
 	if ( rc < 0 ){
 		return rc;
+	} else {
+		if (intitial_result != -ERANGE) {
+			if ((intitial_result - (int32_t)result.physical) > USBID_VCNT_TLC) {
+				pr_err("usb id dropped return initial adc\n");
+				pr_info("%s: adc read value is %d\n",__func__, (int32_t)intitial_result);
+				return (int32_t)intitial_result;
+			} else {
+				pr_info("%s: final adc read value is %d\n",__func__, (int32_t)result.physical);
+				return (int32_t)result.physical;
+			}
+		} else {
+			pr_info("%s: adc read value is %d\n",__func__, (int32_t)result.physical);
+			return (int32_t)result.physical;
 		}
-	else{
-		pr_info("%s: adc read value is %d\n",__func__, (int32_t)result.physical);
-		return (int32_t)result.physical;
-		}
+	}
 }
 #endif
 
@@ -2916,7 +2933,9 @@ static void msm_otg_wait_for_ext_chg_done(struct msm_otg *motg)
 
 #if defined (CONFIG_TOUCHSCREEN_ATMEL_S336) || defined (CONFIG_LGE_TOUCHSCREEN_SYNAPTIC) \
 	|| defined (CONFIG_TOUCHSCREEN_ATMEL_T641) || defined (CONFIG_TOUCHSCREEN_ATMEL_T1664)
-#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN)
+#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) \
+	&& !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN) && !defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	&& !defined(CONFIG_MACH_MSM8926_JAGNM_TLS) && !defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 extern void trigger_usb_state_from_otg(int usb_type);
 #else
 extern void trigger_usb_state_from_otg_JAG(int usb_type);
@@ -2931,7 +2950,8 @@ static void msm_otg_sm_work(struct work_struct *w)
 	struct usb_otg *otg = motg->phy.otg;
 	bool work = 0, srp_reqd, dcp;
 
-#if ( defined(CONFIG_MACH_MSM8X10_W3C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_VZW))
+#if ( defined(CONFIG_MACH_MSM8X10_W3C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_VZW) || \
+	defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined(CONFIG_MACH_MSM8926_X10_VZW))
     bool invalid;
 #endif
 #ifdef CONFIG_USB_G_LGE_ANDROID
@@ -2940,8 +2960,10 @@ static void msm_otg_sm_work(struct work_struct *w)
 
 	pm_runtime_resume(otg->phy->dev);
 
-	if(motg->pm_done)
+	if(motg->pm_done) {
 		pm_runtime_get_sync(otg->phy->dev);
+		motg->pm_done = 0;
+	}
 
 	pr_debug("%s work\n", otg_state_string(otg->phy->state));
 	switch (otg->phy->state) {
@@ -2993,7 +3015,9 @@ static void msm_otg_sm_work(struct work_struct *w)
 				case USB_DCP_CHARGER:
 #if defined (CONFIG_TOUCHSCREEN_ATMEL_S336) || defined (CONFIG_LGE_TOUCHSCREEN_SYNAPTIC) \
 	|| defined (CONFIG_TOUCHSCREEN_ATMEL_T641) || defined (CONFIG_TOUCHSCREEN_ATMEL_T1664)
-#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN)
+#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) \
+	&& !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN) && !defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	&& !defined(CONFIG_MACH_MSM8926_JAGNM_TLS) && !defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 		trigger_usb_state_from_otg(USB_DCP_CHARGER);
 #else
 		trigger_usb_state_from_otg_JAG(USB_DCP_CHARGER);
@@ -3046,7 +3070,9 @@ static void msm_otg_sm_work(struct work_struct *w)
 						OTG_STATE_B_PERIPHERAL;
 #if defined (CONFIG_TOUCHSCREEN_ATMEL_S336) || defined (CONFIG_LGE_TOUCHSCREEN_SYNAPTICS) \
 	|| defined (CONFIG_TOUCHSCREEN_ATMEL_T641) || defined (CONFIG_TOUCHSCREEN_ATMEL_T1664)
-#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN)
+#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) \
+	&& !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN) && !defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	&& !defined(CONFIG_MACH_MSM8926_JAGNM_TLS) && !defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 					trigger_usb_state_from_otg(USB_CDP_CHARGER);
 #else
 					trigger_usb_state_from_otg_JAG(USB_CDP_CHARGER);
@@ -3064,7 +3090,7 @@ static void msm_otg_sm_work(struct work_struct *w)
 						OTG_STATE_B_PERIPHERAL;
 					break;
 				case USB_SDP_CHARGER:
-#if ( defined (CONFIG_MACH_MSM8X10_W3C_VZW) || defined (CONFIG_MACH_MSM8X10_W5C_VZW) || defined (CONFIG_MACH_MSM8926_X5_VZW)|| defined (CONFIG_MACH_MSM8926_X10_VZW) )
+#if ( defined (CONFIG_MACH_MSM8X10_W3C_VZW) || defined (CONFIG_MACH_MSM8X10_W5C_VZW) || defined (CONFIG_MACH_MSM8926_X5_VZW)|| defined (CONFIG_MACH_MSM8926_X10_VZW) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) )
 					msm_otg_notify_charger(motg, IUNIT);
 #elif defined(CONFIG_LGE_PM)
 					msm_otg_notify_charger(motg,
@@ -3072,7 +3098,9 @@ static void msm_otg_sm_work(struct work_struct *w)
 #endif// jaegeun.jung for Setting the Charging Current
 #if defined (CONFIG_TOUCHSCREEN_ATMEL_S336) || defined (CONFIG_LGE_TOUCHSCREEN_SYNAPTIC) \
 	|| defined (CONFIG_TOUCHSCREEN_ATMEL_T641) || defined (CONFIG_TOUCHSCREEN_ATMEL_T1664)
-#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN)
+#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) \
+	&& !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN) && !defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	&& !defined(CONFIG_MACH_MSM8926_JAGNM_TLS) && !defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 					trigger_usb_state_from_otg(USB_SDP_CHARGER);
 #else
 					trigger_usb_state_from_otg_JAG(USB_SDP_CHARGER);
@@ -3126,7 +3154,8 @@ static void msm_otg_sm_work(struct work_struct *w)
 			clear_bit(B_FALSE_SDP, &motg->inputs);
 			clear_bit(A_BUS_REQ, &motg->inputs);
 			cancel_delayed_work_sync(&motg->chg_work);
-#if (defined(CONFIG_MACH_MSM8X10_W3C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_VZW) )
+#if (defined(CONFIG_MACH_MSM8X10_W3C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_VZW) || \
+	defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined(CONFIG_MACH_MSM8926_X10_VZW))
 			invalid = (motg->chg_type == USB_INVALID_CHARGER);
 #endif
 			dcp = (motg->chg_type == USB_DCP_CHARGER);
@@ -3141,7 +3170,9 @@ static void msm_otg_sm_work(struct work_struct *w)
             /*              */
 #if defined (CONFIG_TOUCHSCREEN_ATMEL_S336) || defined (CONFIG_LGE_TOUCHSCREEN_SYNAPTIC) \
 	|| defined (CONFIG_TOUCHSCREEN_ATMEL_T641) || defined (CONFIG_TOUCHSCREEN_ATMEL_T1664)
-#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN)
+#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) \
+	&& !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN) && !defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	&& !defined(CONFIG_MACH_MSM8926_JAGNM_TLS) && !defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 					trigger_usb_state_from_otg(0);
 #else
 					trigger_usb_state_from_otg_JAG(0);
@@ -3158,7 +3189,8 @@ static void msm_otg_sm_work(struct work_struct *w)
 				/* Turn off VDP_SRC */
 				ulpi_write(otg->phy, 0x2, 0x86);
 			}
-#if ( defined(CONFIG_MACH_MSM8X10_W3C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_VZW))
+#if ( defined(CONFIG_MACH_MSM8X10_W3C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_VZW) || \
+	defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined(CONFIG_MACH_MSM8926_X10_VZW))
 			if (invalid) {
 				ulpi_write(otg->phy, 0x2, 0x86);
 			}
@@ -3192,8 +3224,7 @@ static void msm_otg_sm_work(struct work_struct *w)
 			 */
 			pm_runtime_mark_last_busy(otg->phy->dev);
 			pm_runtime_autosuspend(otg->phy->dev);
-			if(atomic_read(&motg->in_lpm))
-				motg->pm_done = 1;
+			motg->pm_done = 1;
 		}
 		break;
 	case OTG_STATE_B_SRP_INIT:
@@ -5489,7 +5520,8 @@ static int msm_otg_pm_resume(struct device *dev)
 	motg->pm_done = 0;
 
 	atomic_set(&motg->pm_suspended, 0);
-	if (motg->async_int || motg->sm_work_pending) {
+	if (motg->async_int || motg->sm_work_pending ||
+			!pm_runtime_suspended(dev)) {
 		pm_runtime_get_noresume(dev);
 		ret = msm_otg_resume(motg);
 

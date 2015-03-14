@@ -33,7 +33,8 @@
 /* PMIC Arbiter configuration registers */
 #define PMIC_ARB_VERSION		0x0000
 #define PMIC_ARB_INT_EN			0x0004
-
+#define PMIC_ARB_GENI_CTRL		0x0024
+#define PMIC_ARB_GENI_STATUS		0x0028
 /* PMIC Arbiter channel registers */
 #define PMIC_ARB_CMD(N)			(0x0800 + (0x80 * (N)))
 #define PMIC_ARB_CONFIG(N)		(0x0804 + (0x80 * (N)))
@@ -48,7 +49,7 @@
 #define SPMI_PIC_ACC_ENABLE(N)		(0x0200 + (4 * (N)))
 #define SPMI_PIC_IRQ_STATUS(N)		(0x0600 + (4 * (N)))
 #define SPMI_PIC_IRQ_CLEAR(N)		(0x0A00 + (4 * (N)))
-
+#define PMIC_ARB_PROTOCOL_IRQ_STATUS	(0x700 + 0x820)
 /* Mapping Table */
 #define SPMI_MAPPING_TABLE_REG(N)	(0x0B00 + (4 * (N)))
 #define SPMI_MAPPING_BIT_INDEX(X)	(((X) >> 18) & 0xF)
@@ -63,6 +64,9 @@
 /* Ownership Table */
 #define SPMI_OWNERSHIP_TABLE_REG(N)	(0x0700 + (4 * (N)))
 #define SPMI_OWNERSHIP_PERIPH2OWNER(X)	((X) & 0x7)
+
+/*                                  */
+#define SPMI_ERR_CAUSE_DEBUG	1
 
 /* Channel Status fields */
 enum pmic_arb_chnl_status {
@@ -125,6 +129,7 @@ struct spmi_pmic_arb_dev {
 	u8			max_apid;
 	u16			periph_id_map[PMIC_ARB_MAX_PERIPHS];
 	u32			mapping_table[SPMI_MAPPING_TABLE_LEN];
+	u32			prev_prtcl_irq_stat;
 };
 
 static struct spmi_pmic_arb_dev *the_pmic_arb;
@@ -142,6 +147,18 @@ static void pmic_arb_write(struct spmi_pmic_arb_dev *dev, u32 offset, u32 val)
 	pr_debug("address 0x%p, val 0x%x\n", dev->base + offset, val);
 	writel_relaxed(val, dev->base + offset);
 }
+
+#ifdef SPMI_ERR_CAUSE_DEBUG
+static void pmic_arb_save_stat_before_txn(struct spmi_pmic_arb_dev *dev)
+{
+	dev->prev_prtcl_irq_stat =
+	readl_relaxed(dev->cnfg + PMIC_ARB_PROTOCOL_IRQ_STATUS);
+}
+#else
+static void pmic_arb_save_stat_before_txn(struct spmi_pmic_arb_dev *dev)
+{
+}
+#endif //SPMI_ERR_CAUSE_DEBUG
 
 static int pmic_arb_wait_for_done(struct spmi_pmic_arb_dev *dev)
 {
@@ -209,6 +226,43 @@ pa_write_data(struct spmi_pmic_arb_dev *dev, u8 *buf, u32 reg, u8 bc)
 	pmic_arb_write(dev, reg, data);
 }
 
+#ifdef SPMI_ERR_CAUSE_DEBUG
+static void pmic_arb_dbg_err_dump(struct spmi_pmic_arb_dev *pmic_arb, int ret,
+		const char *msg, u8 opc, u8 sid, u16 addr, u8 bc, u8 *buf)
+{
+	u32 irq_stat  = readl_relaxed(pmic_arb->cnfg +
+						PMIC_ARB_PROTOCOL_IRQ_STATUS);
+	u32 geni_stat = readl_relaxed(pmic_arb->cnfg + PMIC_ARB_GENI_STATUS);
+	u32 geni_ctrl = readl_relaxed(pmic_arb->cnfg + PMIC_ARB_GENI_CTRL);
+
+	bc += 1; /* actual byte count */
+
+	if (buf)
+		dev_err(pmic_arb->dev,
+		"error:%d on data %s  opcode:0x%x sid:%d addr:0x%x bc:%d buf:%*phC\n",
+			ret, msg, opc, sid, addr, bc, bc, buf);
+	else
+		dev_err(pmic_arb->dev,
+		"error:%d on non-data-cmd opcode:0x%x sid:%d\n",
+			ret, opc, sid);
+
+	if (irq_stat != pmic_arb->prev_prtcl_irq_stat)
+		dev_err(pmic_arb->dev,
+			"PROTOCOL_IRQ_STATUS before:0x%x after:0x%x GENI_STATUS:0x%x GENI_CTRL:0x%x\n",
+			irq_stat, pmic_arb->prev_prtcl_irq_stat, geni_stat,
+			geni_ctrl);
+	else if (geni_stat || geni_ctrl)
+		dev_err(pmic_arb->dev,
+			"GENI_STATUS:0x%x GENI_CTRL:0x%x\n",
+			geni_stat, geni_ctrl);
+}
+#else
+static void pmic_arb_dbg_err_dump(struct spmi_pmic_arb_dev *pmic_arb, int ret,
+		const char *msg, u8 opc, u8 sid, u16 addr, u8 bc, u8 *buf)
+{
+}
+#endif //SPMI_ERR_CAUSE_DEBUG
+
 /* Non-data command */
 static int pmic_arb_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid)
 {
@@ -228,10 +282,12 @@ static int pmic_arb_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid)
 	cmd = (opc << 27) | ((sid & 0xf) << 20);
 
 	spin_lock_irqsave(&pmic_arb->lock, flags);
+	pmic_arb_save_stat_before_txn(pmic_arb);
 	pmic_arb_write(pmic_arb, PMIC_ARB_CMD(pmic_arb->channel), cmd);
 	rc = pmic_arb_wait_for_done(pmic_arb);
 	spin_unlock_irqrestore(&pmic_arb->lock, flags);
-
+	if (rc)
+		pmic_arb_dbg_err_dump(pmic_arb, rc, "cmd", opc, sid, 0, 0, 0);
 	return rc;
 }
 
@@ -264,6 +320,7 @@ static int pmic_arb_read_cmd(struct spmi_controller *ctrl,
 	cmd = (opc << 27) | ((sid & 0xf) << 20) | (addr << 4) | (bc & 0x7);
 
 	spin_lock_irqsave(&pmic_arb->lock, flags);
+	pmic_arb_save_stat_before_txn(pmic_arb);
 	pmic_arb_write(pmic_arb, PMIC_ARB_CMD(pmic_arb->channel), cmd);
 	rc = pmic_arb_wait_for_done(pmic_arb);
 	if (rc)
@@ -279,6 +336,9 @@ static int pmic_arb_read_cmd(struct spmi_controller *ctrl,
 
 done:
 	spin_unlock_irqrestore(&pmic_arb->lock, flags);
+	if (rc)
+		pmic_arb_dbg_err_dump(pmic_arb, rc, "read", opc, sid, addr, bc,
+									buf);
 	return rc;
 }
 
@@ -314,6 +374,7 @@ static int pmic_arb_write_cmd(struct spmi_controller *ctrl,
 
 	/* Write data to FIFOs */
 	spin_lock_irqsave(&pmic_arb->lock, flags);
+	pmic_arb_save_stat_before_txn(pmic_arb);
 	pa_write_data(pmic_arb, buf, PMIC_ARB_WDATA0(pmic_arb->channel)
 							, min_t(u8, bc, 3));
 	if (bc > 3)
@@ -324,7 +385,9 @@ static int pmic_arb_write_cmd(struct spmi_controller *ctrl,
 	pmic_arb_write(pmic_arb, PMIC_ARB_CMD(pmic_arb->channel), cmd);
 	rc = pmic_arb_wait_for_done(pmic_arb);
 	spin_unlock_irqrestore(&pmic_arb->lock, flags);
-
+	if (rc)
+		pmic_arb_dbg_err_dump(pmic_arb, rc, "write", opc, sid, addr, bc,
+									buf);
 	return rc;
 }
 
@@ -501,7 +564,8 @@ periph_interrupt(struct spmi_pmic_arb_dev *pmic_arb, u8 apid, bool show)
 	int i;
 
 	if (!is_apid_valid(pmic_arb, apid)) {
-		dev_err(pmic_arb->dev, "unknown peripheral id 0x%x\n", ppid);
+		dev_err(pmic_arb->dev,"periph_interrupt(apid:0x%x sid:0x%x pid:0x%x) unknown peripheral\n",
+       apid, sid, pid);
 		/* return IRQ_NONE; */
 	}
 

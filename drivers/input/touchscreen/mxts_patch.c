@@ -289,7 +289,7 @@ extern int mxt_write_mem(struct mxt_data *data, u16 reg, u8 len, const u8 *buf);
 extern int mxt_read_mem(struct mxt_data *data, u16 reg, u8 len, void *buf);
 extern int mxt_read_object(struct mxt_data *data, u8 type, u8 offset, u8 *value);
 extern struct mxt_object *mxt_get_object(struct mxt_data *data, u8 type);
-
+extern bool patch_factorymode;
 #ifndef __mxt_patch_debug
 #define __mxt_patch_debug(_data, ...)	if(data->patch.debug) \
 	TOUCH_PATCH_MSG(__VA_ARGS__);
@@ -1269,7 +1269,8 @@ static int mxt_patch_run_stage(struct mxt_data *data)
 	//__mxt_patch_debug(data, "RUN STAGE:%d\n", cur_stage);
 
 	if(!ppatch || !pstage_addr){
-		dev_err(&data->client->dev, "%s pstage_addr is null\n", __func__);
+		if(!patch_factorymode)
+			dev_err(&data->client->dev, "%s pstage_addr is null\n", __func__);
 		return 1;
 	}
 	psdef = (struct stage_def*)(ppatch+pstage_addr[cur_stage]);
@@ -1317,7 +1318,9 @@ static int mxt_patch_test_source(struct mxt_data *data, u16* psrc_item)
 #endif
 
 	if(!ppatch || !pstage_addr){
-		dev_err(&data->client->dev, "%s pstage_addr is null\n", __func__);
+		if(!patch_factorymode) {
+			dev_err(&data->client->dev, "%s pstage_addr is null\n", __func__);
+		}
 		return 1;
 	}
 	if(!data->patch.run_stage){
@@ -1328,7 +1331,9 @@ static int mxt_patch_test_source(struct mxt_data *data, u16* psrc_item)
 			u16* ptline_addr = data->patch.tline_addr;
 			u16* pcheck_cnt = data->patch.check_cnt;
 			if(!ptline_addr || !pcheck_cnt){
-				dev_err(&data->client->dev, "ptline_addr is null\n");
+				if(!patch_factorymode) {
+					dev_err(&data->client->dev, "ptline_addr is null\n");
+				}
 				return 1;
 			}
 
@@ -1471,8 +1476,10 @@ static int mxt_patch_test_trigger(struct mxt_data *data,
 	u8	tmsg[MXT_PATCH_MAX_MSG_SIZE];
 
 	if(!ppatch || !ptrigger_addr){
-		dev_err(&data->client->dev, "%s ptrigger_addr is null\n",
-			__func__);
+		if(!patch_factorymode) {
+			dev_err(&data->client->dev, "%s ptrigger_addr is null\n",
+				__func__);
+		}
 		return 1;
 	}
 	memset(tmsg, 0, MXT_PATCH_MAX_MSG_SIZE);
@@ -1494,14 +1501,23 @@ int mxt_patch_test_event(struct mxt_data *data,
 	u16* pevent_addr = data->patch.event_addr;
 
 	if(!ppatch || !pevent_addr){
-		dev_err(&data->client->dev, "%s pevent_addr is null\n",
-			__func__);
+		if(!patch_factorymode) {
+			dev_err(&data->client->dev, "%s pevent_addr is null\n",
+				__func__);
+		}
 		return 1;
 	}
 	if(event_id < data->patch.event_cnt){
 		mxt_patch_parse_event(data, ppatch+pevent_addr[event_id],
 			true);
 	}
+#ifdef MXT_FACTORY
+	/* disable patch after writing config of FTM mode */
+	if(data->ta_status == MXT_PATCH_FTM_BAT_MODE_EVENT || data->ta_status == MXT_PATCH_FTM_TA_MODE_EVENT){
+		data->patch.start = false;
+		data->patch.patch = NULL;
+	}
+#endif
 	return 0;
 }
 

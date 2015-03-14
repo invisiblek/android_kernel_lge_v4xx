@@ -97,6 +97,8 @@
 /* RBCPR Result status Register */
 #define REG_RBCPR_RESULT_0		0xA0
 
+#define RBCPR_RESULT0_BUSY_SHIFT	19
+#define RBCPR_RESULT0_BUSY_MASK		BIT(RBCPR_RESULT0_BUSY_SHIFT)
 #define RBCPR_RESULT0_ERROR_STEPS_SHIFT	2
 #define RBCPR_RESULT0_ERROR_STEPS_BITS	4
 #define RBCPR_RESULT0_ERROR_STEPS_MASK	((1<<RBCPR_RESULT0_ERROR_STEPS_BITS)-1)
@@ -145,12 +147,23 @@ struct quot_adjust_info {
 };
 
 /// Check PVS(process voltage scaling) value.
-#if defined(CONFIG_MACH_MSM8226_W7_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_W7_GLOBAL_SCA) || defined(CONFIG_MACH_MSM8226_W7N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_W7N_GLOBAL_SCA) || defined(CONFIG_MACH_MSM8226_G2MDS_OPEN_CIS) || defined(CONFIG_MACH_MSM8226_G2MDS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_G2MSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_E7WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE)|| defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGN_KR)
+#if defined(CONFIG_MACH_MSM8226_W7_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_W7_GLOBAL_SCA) || \
+    defined(CONFIG_MACH_MSM8226_W7N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_W7N_GLOBAL_SCA) || \
+    defined(CONFIG_MACH_MSM8226_G2MDS_OPEN_CIS) || defined(CONFIG_MACH_MSM8226_G2MDS_GLOBAL_COM) || \
+    defined(CONFIG_MACH_MSM8226_G2MSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) || \
+    defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_E7WIFI) || \
+    defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || \
+    defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE)|| \
+    defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || \
+    defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || \
+    defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US) || \
+    defined(CONFIG_MACH_MSM8926_JAGDSNM_CN) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || \
+    defined(CONFIG_MACH_MSM8926_X10_VZW)
 int cpr_pvs_bin = 0;
 u32 cpr_vreg_pvs_bin = 0;
 module_param(cpr_pvs_bin, int, 0444);
 module_param(cpr_vreg_pvs_bin, int, 0444);
-#endif /* CONFIG_MACH_MSM8226_W7_OPEN_CIS || CONFIG_MACH_MSM8226_W7_OPEN_EU || CONFIG_MACH_MSM8226_W7_GLOBAL_COM || CONFIG_MACH_MSM8226_W7_GLOBAL_SCA */
+#endif
 
 enum voltage_change_dir {
 	NO_CHANGE,
@@ -232,7 +245,12 @@ struct cpr_regulator {
 #define CPR_DEBUG_MASK_IRQ	BIT(0)
 #define CPR_DEBUG_MASK_API	BIT(1)
 
-#if defined(CONFIG_MACH_MSM8X10_W3C_TRF_US)
+#if defined(CONFIG_MACH_MSM8X10_W3C_TRF_US) || defined(CONFIG_MACH_MSM8926_JAGDSNM_CN) || \
+	defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) || \
+	defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGC_SPR) || \
+	defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || \
+	defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || \
+	defined(CONFIG_MACH_MSM8926_E7LTE_USC_US) || defined(CONFIG_MACH_MSM8926_X10_VZW)
 static int cpr_debug_enable = 0;
 #else
 static int cpr_debug_enable = CPR_DEBUG_MASK_IRQ;
@@ -371,6 +389,22 @@ static void cpr_ctl_disable(struct cpr_regulator *cpr_vreg)
 	if (cpr_vreg->is_cpr_suspended)
 		return;
 	cpr_ctl_modify(cpr_vreg, RBCPR_CTL_LOOP_EN, 0);
+}
+
+static bool cpr_ctl_is_enabled(struct cpr_regulator *cpr_vreg)
+{
+	u32 reg_val;
+
+	reg_val = cpr_read(cpr_vreg, REG_RBCPR_CTL);
+	return reg_val & RBCPR_CTL_LOOP_EN;
+}
+
+static bool cpr_ctl_is_busy(struct cpr_regulator *cpr_vreg)
+{
+	u32 reg_val;
+
+	reg_val = cpr_read(cpr_vreg, REG_RBCPR_RESULT_0);
+	return reg_val & RBCPR_RESULT0_BUSY_MASK;
 }
 
 static void cpr_corner_save(struct cpr_regulator *cpr_vreg, int corner)
@@ -708,7 +742,13 @@ static irqreturn_t cpr_irq_handler(int irq, void *dev)
 
 	cpr_debug_irq("IRQ_STATUS = 0x%02X\n", reg_val);
 
-	if (!cpr_is_allowed(cpr_vreg)) {
+	if (!cpr_ctl_is_enabled(cpr_vreg)) {
+		cpr_debug_irq("CPR is disabled\n");
+		goto _exit;
+	} else if (cpr_ctl_is_busy(cpr_vreg)) {
+		cpr_debug_irq("CPR measurement is not ready\n");
+		goto _exit;
+	} else if (!cpr_is_allowed(cpr_vreg)) {
 		reg_val = cpr_read(cpr_vreg, REG_RBCPR_CTL);
 		pr_err("Interrupt broken? RBCPR_CTL = 0x%02X\n", reg_val);
 		goto _exit;
@@ -874,7 +914,6 @@ static int cpr_suspend(struct cpr_regulator *cpr_vreg)
 	mutex_lock(&cpr_vreg->cpr_mutex);
 
 	cpr_ctl_disable(cpr_vreg);
-	disable_irq(cpr_vreg->cpr_irq);
 
 	cpr_irq_clr(cpr_vreg);
 
@@ -894,7 +933,6 @@ static int cpr_resume(struct cpr_regulator *cpr_vreg)
 	cpr_vreg->is_cpr_suspended = false;
 	cpr_irq_clr(cpr_vreg);
 
-	enable_irq(cpr_vreg->cpr_irq);
 	cpr_ctl_enable(cpr_vreg, cpr_vreg->corner);
 
 	mutex_unlock(&cpr_vreg->cpr_mutex);
@@ -1138,15 +1176,10 @@ static int __devinit cpr_pvs_init(struct platform_device *pdev,
 		process = APC_PVS_SLOW;
 	}
 
-#if 1 // 2013.12.04, To check pvs type value.
-	pr_err("[row:%d] = 0x%llX, n_bits=%d, bin=%d (%d)",
-		pvs_fuse[0], efuse_bits, pvs_fuse[2],
-		cpr_vreg->pvs_bin, process);
-#else
 	pr_info("[row:%d] = 0x%llX, n_bits=%d, bin=%d (%d)",
 		pvs_fuse[0], efuse_bits, pvs_fuse[2],
 		cpr_vreg->pvs_bin, process);
-#endif
+
 	pr_info("pvs initial turbo voltage_= from %u to %u\n",
 		init_v, cpr_vreg->pvs_corner_v[process][CPR_FUSE_CORNER_TURBO]);
 
@@ -1158,10 +1191,22 @@ static int __devinit cpr_pvs_init(struct platform_device *pdev,
 		cpr_vreg->quotient_adjustment = quot_adjust;
 
 /// Check PVS(process voltage scaling) value.
-#if defined(CONFIG_MACH_MSM8226_W7_OPEN_CIS) || defined(CONFIG_MACH_MSM8226_W7_OPEN_EU) || defined(CONFIG_MACH_MSM8226_W7_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_W7_GLOBAL_SCA) || defined(CONFIG_MACH_MSM8226_G2MDS_OPEN_CIS) || defined(CONFIG_MACH_MSM8226_G2MDS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_G2MSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_E7WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE)|| defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGN_KR)
+
+#if defined(CONFIG_MACH_MSM8226_W7_OPEN_CIS) || defined(CONFIG_MACH_MSM8226_W7_OPEN_EU) || \
+    defined(CONFIG_MACH_MSM8226_W7_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_W7_GLOBAL_SCA) || \
+    defined(CONFIG_MACH_MSM8226_G2MDS_OPEN_CIS) || defined(CONFIG_MACH_MSM8226_G2MDS_GLOBAL_COM) || \
+    defined(CONFIG_MACH_MSM8226_G2MSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) || \
+    defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_E7WIFI) || \
+    defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || \
+    defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE)|| \
+    defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || \
+    defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || \
+    defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US) || \
+    defined(CONFIG_MACH_MSM8926_JAGDSNM_CN) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || \
+    defined(CONFIG_MACH_MSM8926_X10_VZW)
 	cpr_pvs_bin = cpr_vreg->process;
 	cpr_vreg_pvs_bin = cpr_vreg->pvs_bin;
-#endif /* CONFIG_MACH_MSM8226_W7_OPEN_CIS || CONFIG_MACH_MSM8226_W7_OPEN_EU || CONFIG_MACH_MSM8226_W7_GLOBAL_COM || CONFIG_MACH_MSM8226_W7_GLOBAL_SCA */
+#endif
 
 	return 0;
 }

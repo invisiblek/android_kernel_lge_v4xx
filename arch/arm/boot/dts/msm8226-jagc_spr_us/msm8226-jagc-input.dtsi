@@ -34,7 +34,7 @@
 			revision = "rev_b...";
 			status = "ok";
 			synaptics,fw_version_info = <0x30 0x05 0x01>;
-			synaptics,fw_image = "synaptics/jagc_spr_us/PLG364-V0.16-PR1606308-DS4.3.5.1.16_30050110.img";
+			synaptics,fw_image = "synaptics/jagc_spr_us/PLG364-V0.80-PR1674037-DS4.3.5.1.16_30050150.img";
 			synaptics,panel_spec = "synaptics/jagc_spr_us/jagc_spr_us_limit.txt";
 			lge,knock_on_type = <1>;
 			max_id = <5>;

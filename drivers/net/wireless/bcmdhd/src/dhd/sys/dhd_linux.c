@@ -5037,10 +5037,13 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #if defined(SOFTAP_TPUT_ENHANCE)
 	if (dhd->op_mode & DHD_FLAG_HOSTAP_MODE) {
 		dhd_bus_setidletime(dhd, (int)100);
+/* for bcm4335 or above
 		dhd_use_tcpack_suppress = FALSE;
+*/
 #if defined(DHD_TCP_WINSIZE_ADJUST)
 		dhd_use_tcp_window_size_adjust = TRUE;
 #endif
+/* for bcm4335 or above
 		memset(buf, 0, sizeof(buf));
 		bcm_mkiovar("bus:txglom_auto_control", 0, 0, buf, sizeof(buf));
 
@@ -5057,6 +5060,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 				dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 			}
 		}
+*/
 }
 #endif /* SOFTAP_TPUT_ENHANCE */
 	/* query for 'ver' to get version info from firmware */

@@ -14,18 +14,6 @@
 #include "../../broadcast_tdmb_typedef.h"
 #include "../../broadcast_tdmb_drv_ifdef.h"
 
-typedef struct
-{
-	void		(*tdmb_pwr_on)(void);
-	void		(*tdmb_pwr_off)(void);
-}broadcast_pwr_func;
-
-struct broadcast_tdmb_data
-{
-	void (*pwr_on)(void);
-	void (*pwr_off)(void);
-};
-
 extern int broadcast_fc8080_drv_if_power_on(void);
 extern int broadcast_fc8080_drv_if_power_off(void);
 extern int broadcast_fc8080_drv_if_init(void);
@@ -53,5 +41,6 @@ void tdmb_fc8080_interrupt_free(void);
 int tdmb_fc8080_spi_write_read(uint8* tx_data, int tx_length, uint8 *rx_data, int rx_length);
 void tdmb_fc8080_set_userstop(int mode);
 int tdmb_fc8080_tdmb_is_on(void);
+int tdmb_fc8080_power_on_retry(void);
 #endif
 

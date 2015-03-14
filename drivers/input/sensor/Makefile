@@ -13,12 +13,18 @@ EXTRA_CFLAGS += -DCONFIG_BMM_USE_PLATFORM_DATA
 
 ifeq ($(CONFIG_SENSORS_BMA2X2), y)
 	EXTRA_CFLAGS += -DBMA2X2_ACCEL_CALIBRATION
-endif 
+endif
+
+ifeq ($(CONFIG_SENSOR_K2DH), y)
+	EXTRA_CFLAGS += -DK3DH_ACCEL_CALIBRATION
+endif
 
 obj-$(CONFIG_SENSORS_BMA2X2)    += bma2x2_driver.o
 obj-$(CONFIG_SENSORS_BMM050)    += bmm050_driver.o bmm050.o
 obj-$(CONFIG_SENSORS_BMC150_COMMON)    += bst_sensor_common.o
 obj-$(CONFIG_SENSORS_K2DH)    += lis2dh_acc.o
+obj-$(CONFIG_SENSOR_K2DH)       += k3dh_acc.o
+obj-$(CONFIG_SENSOR_AK09911)    += akm09911.o
 obj-$(CONFIG_SENSOR_K303C)   += lsm303c_acc.o
 obj-$(CONFIG_SENSOR_APDS9130)   += apds9130.o
 obj-$(CONFIG_SENSOR_K303C)   += lsm303c_mag.o

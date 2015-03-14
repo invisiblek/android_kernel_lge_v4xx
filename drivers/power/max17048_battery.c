@@ -117,7 +117,9 @@ int lge_power_test_flag = 1;
 #endif
 #endif
 
-#if defined(CONFIG_MACH_MSM8974_G2_KR) || defined(CONFIG_MACH_MSM8974_VU3_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined (CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT)
+#if defined(CONFIG_MACH_MSM8974_G2_KR) || defined(CONFIG_MACH_MSM8974_VU3_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) \
+	|| defined (CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 /* using to cal rcomp */
 int cell_info = 0;
 #endif
@@ -229,7 +231,8 @@ static int max17048_get_capacity_from_soc(void)
 	batt_soc = batt_soc/94*100+10000000;
 #elif defined(CONFIG_MACH_MSM8974_B1_KR)
 	batt_soc = batt_soc/93*100;
-#elif defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT)
+#elif defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 	batt_soc = (batt_soc-((ref->model_data->empty)*100000))
 						/(9400-(ref->model_data->empty))*10000;
 #else
@@ -305,7 +308,9 @@ static uint16_t max17048_get_version(struct i2c_client *client)
 	return swab16(i2c_smbus_read_word_data(client, MAX17048_VER));
 }
 
-#if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined (CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT)
+#if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined (CONFIG_MACH_MSM8926_B2L_ATT) \
+	|| defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 static void max17048_get_ocv(struct i2c_client *client)
 {
 	u8 values[2];
@@ -343,7 +348,9 @@ static void max17048_low_polling_work(struct work_struct *work)
 		printk(KERN_INFO "%s : Called before init.\n", __func__);
 		return;
 	}
-#if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined (CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT)
+#if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined (CONFIG_MACH_MSM8926_B2L_ATT) \
+	|| defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 	max17048_get_ocv(chip->client);
 #endif
 	max17048_get_soc(chip->client);
@@ -506,7 +513,9 @@ static void max17048_work(struct work_struct *work)
 		printk(KERN_INFO "%s : error get status register.\n", __func__);
 #endif
 
-#if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined (CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT)
+#if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined (CONFIG_MACH_MSM8926_B2L_ATT) \
+	|| defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 	max17048_get_ocv(chip->client);
 #endif
 	/* Update recently VCELL, SOC and CAPACITY */
@@ -1049,7 +1058,8 @@ static int max17048_parse_dt(struct device *dev,
 		mdata->temp_co_cold = 4875;
 
 	}
-#elif defined (CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT)
+#elif defined (CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 	if(cell_info == LGC_LLL) {
 		rc = of_property_read_u32(dev_node, "max17048,rcomp_l",
 				&mdata->rcomp);
@@ -1091,7 +1101,9 @@ static int max17048_parse_dt(struct device *dev,
 		mdata->temp_co_cold,
 		mdata->alert_threshold,
 		mdata->full_design);
-#if defined(CONFIG_MACH_MSM8974_G2_KR) || defined(CONFIG_MACH_MSM8974_VU3_KR) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT)
+#if defined(CONFIG_MACH_MSM8974_G2_KR) || defined(CONFIG_MACH_MSM8974_VU3_KR) || defined(CONFIG_MACH_MSM8926_B2L_ATT) \
+	|| defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 	printk(KERN_INFO "[MAX17048] platform data : "\
 		"max17048,empty = %d\n",
 		mdata->empty);
@@ -1125,7 +1137,9 @@ static int __devinit max17048_probe(struct i2c_client *client,
 			return 0;
 		}
 
-#if defined(CONFIG_MACH_MSM8974_G2_KR) || defined(CONFIG_MACH_MSM8974_VU3_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined (CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT)
+#if defined(CONFIG_MACH_MSM8974_G2_KR) || defined(CONFIG_MACH_MSM8974_VU3_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) \
+	|| defined (CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 		else if(*batt_id == BATT_DS2704_L || *batt_id == BATT_ISL6296_C){
 			cell_info = LGC_LLL; /* LGC Battery */
 		}

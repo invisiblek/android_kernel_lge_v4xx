@@ -2703,6 +2703,7 @@ static int touch_probe(struct i2c_client *client, const struct i2c_device_id *id
 			goto err_assign_platform_data;
 		}
 	}
+#if 0
 
 	/* reset pin setting */
 	if (gpio_is_valid(ts_pdata->reset_pin)) {
@@ -2714,7 +2715,8 @@ static int touch_probe(struct i2c_client *client, const struct i2c_device_id *id
 		gpio_direction_output(ts_pdata->reset_pin, 1);
 	}
 
-#if 0
+
+
 	/* i2c_gpio_pin */
 	if (gpio_is_valid(ts_pdata->scl_pin)) {
 		ret = gpio_request(ts_pdata->scl_pin, "touch_i2c_scl");

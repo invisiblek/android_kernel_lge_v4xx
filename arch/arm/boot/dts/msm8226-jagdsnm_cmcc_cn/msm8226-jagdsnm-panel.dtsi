@@ -25,7 +25,6 @@
 };
 
 &dsi_lh500wx9_vid{
-		revision = "...rev_b";
 		qcom,cont-splash-enabled;
 		status= "ok";
 
@@ -41,19 +40,19 @@
 		39 00 00 00 00 00 06   /*display ctrl 1 */
 		B5 40 20 40 00 20
 		39 00 00 00 00 00 08   /*display ctrl 2 */
-		B6 00 14 0F 16 13 05 05
+		B6 00 14 0F 16 13 05 30
 		39 00 00 00 00 00 0A /*Positive Gamma Curve for Red*/
-		D0 10 00 55 36 00 04 51 22 03
+		D0 00 04 76 03 00 00 77 22 04
 		39 00 00 00 00 00 0A /*Negative Gamma Curve for Red*/
-		D1 10 00 55 36 00 04 51 22 03
+		D1 00 04 76 03 00 00 77 22 04
 		39 00 00 00 00 00 0A /*Positive Gamma Curve for Green*/
-		D2 10 00 55 36 00 04 51 22 03
+		D2 00 04 76 03 00 00 77 22 04
 		39 00 00 00 00 00 0A /*Negative Gamma Curve for Green*/
-		D3 10 00 55 36 00 04 51 22 03
+		D3 00 04 76 03 00 00 77 22 04
 		39 00 00 00 00 00 0A /*Positive Gamma Curve for Blue*/
-		D4 10 00 55 36 00 04 51 22 03
+		D4 00 04 76 03 00 00 44 22 04
 		39 00 00 00 00 00 0A /*Negative Gamma Curve for Blue*/
-		D5 10 00 55 36 00 04 51 22 03
+		D5 00 04 76 03 00 00 44 22 04
 
 		39 00 00 00 00 00 04 /* osc setting */
 		C0 00 0A 10
@@ -61,9 +60,11 @@
 		C3 00 88 13 05 00 11 FA
 		33 02 38 38 00
 		39 00 00 00 00 00 06 /* power setting 4 */
-		C4 22 24 11 11 3B
+		C4 22 24 0C 0C 54
 		39 00 00 00 00 00 04 /* power setting 5 */
 		C5 3B 3B 03
+		39 00 00 00 00 00 04 /* power setting 7 */
+		C7 00 00 14
 
 		15 00 00 00 00 00 02 /* write display brightness */
 		51 FF
@@ -74,17 +75,11 @@
 		15 00 00 00 00 00 02 /* write CABC min brightness */
 		5E 80
 		39 00 00 00 00 00 06 /* backlight control */
-		C8 44 44 44 27 00
+		C8 44 44 44 37 80
 		39 00 00 00 00 00 03 /* Sync disable */
 		F5 22 16
-		05 00 00 00 0A 00 01 /* Display ON*/
+		05 01 00 00 00 00 01 /* Display ON*/
 		29
-		15 00 00 00 0A 00 02 /* Sleep out */
-		C2 02
-		15 00 00 00 0A 00 02
-		C2 06
-		15 01 00 00 0A 00 02
-		C2 0E
 		];
 
 		lge,display-off-cmds = [
@@ -98,7 +93,6 @@
 };
 
 &dsi_lh500wx9_vid_b{
-		revision = "rev_c...";
 		qcom,cont-splash-enabled;
 		status = "ok";
 
@@ -114,19 +108,19 @@
 		39 00 00 00 00 00 06   /*display ctrl 1 */
 		B5 40 20 40 00 20
 		39 00 00 00 00 00 08   /*display ctrl 2 */
-		B6 00 14 0F 16 13 05 05
+		B6 00 14 0F 16 13 05 30
 		39 00 00 00 00 00 0A /*Positive Gamma Curve for Red*/
-		D0 60 03 52 06 00 00 46 22 02
+		D0 00 04 76 03 00 00 77 22 04
 		39 00 00 00 00 00 0A /*Negative Gamma Curve for Red*/
-		D1 60 03 52 06 00 00 46 22 02
+		D1 00 04 76 03 00 00 77 22 04
 		39 00 00 00 00 00 0A /*Positive Gamma Curve for Green*/
-		D2 60 03 52 06 00 00 46 22 02
+		D2 00 04 76 03 00 00 77 22 04
 		39 00 00 00 00 00 0A /*Negative Gamma Curve for Green*/
-		D3 60 03 52 06 00 00 46 22 02
+		D3 00 04 76 03 00 00 77 22 04
 		39 00 00 00 00 00 0A /*Positive Gamma Curve for Blue*/
-		D4 60 03 52 06 00 00 46 22 02
+		D4 00 04 76 03 00 00 44 22 04
 		39 00 00 00 00 00 0A /*Negative Gamma Curve for Blue*/
-		D5 60 03 52 06 00 00 46 22 02
+		D5 00 04 76 03 00 00 44 22 04
 
 		39 00 00 00 00 00 04 /* osc setting */
 		C0 00 0A 10
@@ -134,9 +128,11 @@
 		C3 00 88 13 05 00 11 FA
 		33 02 38 38 00
 		39 00 00 00 00 00 06 /* power setting 4 */
-		C4 22 24 0D 0D 55
+		C4 22 24 0C 0C 54
 		39 00 00 00 00 00 04 /* power setting 5 */
 		C5 3B 3B 03
+		39 00 00 00 00 00 04 /* power setting 7 */
+		C7 00 00 14
 
 		15 00 00 00 00 00 02 /* write display brightness */
 		51 FF
@@ -147,17 +143,11 @@
 		15 00 00 00 00 00 02 /* write CABC min brightness */
 		5E 80
 		39 00 00 00 00 00 06 /* backlight control */
-		C8 44 44 44 27 00
+		C8 44 44 44 37 80
 		39 00 00 00 00 00 03 /* Sync disable */
 		F5 22 16
-		05 00 00 00 0A 00 01 /* Display ON*/
+		05 01 00 00 00 00 01 /* Display ON*/
 		29
-		15 00 00 00 0A 00 02 /* Sleep out */
-		C2 02
-		15 00 00 00 0A 00 02
-		C2 06
-		15 01 00 00 0A 00 02
-		C2 0E
 		];
 
 		lge,display-off-cmds = [

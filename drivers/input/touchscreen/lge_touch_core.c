@@ -169,7 +169,7 @@ static enum hrtimer_restart touch_trigger_timer_handler(struct hrtimer *timer)
 	}
 	return HRTIMER_NORESTART;
 }
-#if !defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
+
 void trigger_usb_state_from_otg(int type)
 {
 	u8 buf=0;
@@ -185,6 +185,7 @@ void trigger_usb_state_from_otg(int type)
 	if (touch_test_dev && touch_test_dev->pdata->role->ghost_detection_enable) {
 		TOUCH_INFO_MSG("plug_in_type : %d \n", type);
 		/* INVALID:0, SDP:1, DCP:2, CDP:3 */
+
 
 	    if(plug_in == 0 || plug_in == 1)
 	    {
@@ -222,7 +223,7 @@ void trigger_usb_state_from_otg(int type)
 	mutex_unlock(&i2c_suspend_lock);
 
 }
-#endif
+
 
 #define ts_caps	(ts->pdata->caps)
 #define ts_role	(ts->pdata->role)
@@ -725,6 +726,7 @@ static void time_profile_result(struct lge_touch_data *ts)
  *
  * finger status report
  */
+
 static int touch_asb_input_report(struct lge_touch_data *ts, int status)
 {
 	u16 id = 0;
@@ -738,6 +740,13 @@ static int touch_asb_input_report(struct lge_touch_data *ts, int status)
 				continue;
 
 			if (ts->ts_data.curr_data[id].status == FINGER_PRESSED) {
+
+#if defined(CONFIG_MACH_MSM8926_JAGN_KR)
+				u16 temp = ts->ts_data.curr_data[id].pressure;
+				u16 temp2 = (u16)(temp * 9);
+				ts->ts_data.curr_data[id].pressure = (u16)(temp2 / 10);
+#endif
+
 #if !defined(MT_PROTOCOL_A)
 				input_mt_slot(ts->input_dev, id);
 				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
@@ -2516,7 +2525,10 @@ void get_section(struct section_info* sc, struct touch_platform_data *pdata)
 	sc->panel.right = pdata->caps->x_max;
 	sc->panel.top = 0;
 	sc->panel.bottom = pdata->caps->y_button_boundary;
-#if defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) // to avoid division by zero in kernel
+#if defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) \
+	|| defined(CONFIG_MACH_MSM8926_VFP_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) \
+	|| defined(CONFIG_MACH_MSM8926_JAGDSNM_CN)// to avoid division by zero in kernel
+
 	if(pdata->caps->number_of_button!=0)
 		sc->b_width  = pdata->caps->x_max / pdata->caps->number_of_button;
 	else
@@ -2928,7 +2940,10 @@ static ssize_t show_virtual_key(struct lge_touch_data *ts, char *buf)
 	u32 center_x = 0;
 	u32 center_y = 0;
 
-#if defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) // to avoid division by zero in kernel
+#if defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) \
+	|| defined(CONFIG_MACH_MSM8926_VFP_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) \
+	|| defined(CONFIG_MACH_MSM8926_JAGDSNM_CN)// to avoid division by zero in kernel
+
 	if(ts->pdata->caps->number_of_button != 0 ){
 		center_x = (ts->pdata->caps->x_max / (ts->pdata->caps->number_of_button * 2));
 	}

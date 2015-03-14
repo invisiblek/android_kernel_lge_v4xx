@@ -304,7 +304,7 @@
            1 &intc 0 221 0
            2 &msmgpio 37 0x3>;
    interrupt-names = "hc_irq", "pwr_irq", "status_irq";
-   cd-gpios = <&msmgpio 37 0x1>; /* card detect 1:Low-Active, 0:High-Active  */
+   cd-gpios = <&msmgpio 37 0x0>; /* card detect 1:Low-Active, 0:High-Active  */
 
    status = "ok";
 };
@@ -337,24 +337,17 @@
 	qcom,memory-reservation-size = <0x800000>;
 };
 
-&msm_gpu {
-		qcom,gpu-pwrlevels {
-			qcom,gpu-pwrlevel@0 {
-				qcom,gpu-freq = <200000000>;
-				qcom,bus-freq = <1>;
-				qcom,io-fraction = <100>;
-			};
-
-			qcom,gpu-pwrlevel@1 {
-				qcom,gpu-freq = <200000000>;
-				qcom,bus-freq = <1>;
-				qcom,io-fraction = <100>;
-			};
-
-			qcom,gpu-pwrlevel@2 {
-				qcom,gpu-freq = <200000000>;
-				qcom,bus-freq = <1>;
-				qcom,io-fraction = <100>;
-			};
-		};
+&pm8226_adc_tm {
+        usb-id-ext-pull-up;
+        chan@39 {
+                label = "usb_id";
+                reg = <0x39>;
+                qcom,decimation = <0>;
+                qcom,pre-div-channel-scaling = <0>;
+                qcom,calibration-type = "ratiometric";
+                qcom,scale-function = <2>;
+                qcom,hw-settle-time = <2>;
+                qcom,fast-avg-setup = <3>;
+                qcom,btm-channel-number = <0x88>;
+        };
 };

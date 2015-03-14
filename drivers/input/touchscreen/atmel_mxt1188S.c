@@ -298,8 +298,8 @@ struct t_data	 prev_finger_press_data;
 int finger_subtraction_check_cnt = 0;
 bool ghost_detected = 0;
 int ghost_detection_cnt = 0;
-bool thermal_status = 0;
-extern int touch_thermal_mode;
+//bool thermal_status = 0;
+//extern int touch_thermal_mode;
 #endif
 
 /* Each client has this additional data */

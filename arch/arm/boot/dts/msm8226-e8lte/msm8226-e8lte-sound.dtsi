@@ -26,7 +26,6 @@
 			"MIC BIAS2 External", "Headset Mic";
 
 		qcom,cdc-mclk-gpios = <&pm8226_gpios 1 0>;
-		qcom,cdc-boost-spkr-gpios = <&pm8226_gpios 2 0>;
-		qcom,cdc-vdd-spkr-gpios = <&msmgpio 8 0>;
+		qcom,cdc-vdd-spkr-gpios = <&pm8226_gpios 8 0>;
 	};
 };

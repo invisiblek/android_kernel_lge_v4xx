@@ -27,6 +27,10 @@
 #include "dsi_host_v2.h"
 #include "mdss_debug.h"
 
+#if defined(CONFIG_LGE_LCD_DYNAMIC_LOG)
+#include "lge_lcd_debug_log.h"
+#endif
+
 #define DSI_POLL_SLEEP_US 1000
 #define DSI_POLL_TIMEOUT_US 16000
 #define DSI_ESC_CLK_RATE 19200000
@@ -562,12 +566,15 @@ void msm_dsi_op_mode_config(int mode, struct mdss_panel_data *pdata)
 {
 	u32 dsi_ctrl;
 	unsigned char *ctrl_base = dsi_host_private->dsi_base;
+#if defined(CONFIG_MACH_MSM8X10_L70P)
+	struct mipi_panel_info *pinfo;
+	pinfo = &pdata->panel_info.mipi;
+#endif
 
 	pr_debug("msm_dsi_op_mode_config\n");
 
 	dsi_ctrl = MIPI_INP(ctrl_base + DSI_CTRL);
-	/*If Video enabled, Keep Video and Cmd mode ON */
-
+	
 
 	dsi_ctrl &= ~0x06;
 
@@ -575,6 +582,13 @@ void msm_dsi_op_mode_config(int mode, struct mdss_panel_data *pdata)
 		dsi_ctrl |= 0x02;
 	else
 		dsi_ctrl |= 0x04;
+
+#if defined(CONFIG_MACH_MSM8X10_L70P)
+	/*If Video enabled, Keep Video and Cmd mode ON */
+	if (pinfo->mode == DSI_VIDEO_MODE) {
+		dsi_ctrl |= 0x02;
+	}
+#endif
 
 	pr_debug("%s: dsi_ctrl=%x\n", __func__, dsi_ctrl);
 

@@ -873,9 +873,9 @@
 			atmel,numtouch = <10>;							/*multi-touch count*/
 			atmel,irqflags = <0x00000002>;
 			atmel,t15_num_keys = <0>;
-			atmel,fw_name = "atmel/E8_0422.fw";
+			atmel,fw_name = "atmel/E8_v30.fw";
 			atmel,panel_check = <0>;
-			atmel,extra_fw_name = "atmel/E8_0422.fw";
+			atmel,extra_fw_name = "atmel/E8_v30.fw";
 			atmel,accuracy_filter_enable = <0>;
 			atmel,knock_on_type = <1>;
 			atmel,auto_fw_update = <0>;
@@ -888,9 +888,10 @@
 			atmel,ghost_detection_card_enable = <0>;
 			atmel,ghost_detection_card_value = <10 10 100 25 250 10>;
                         atmel,ghost_detection_invalid_amplitude_enable = <1>;
-			atmel,ghost_detection_invalid_amplitude_value = <100 100 3 3 5 14>;
-                        atmel,ghost_detection_pattern_enable = <1>;
-                        atmel,ghost_detection_pattern_value = <100 100 3 10>;
+			// edge x, edge y, invalid count, monitor duration(sec), valid min amp. , valid max amp. , valid detect time, valid delta pen amp., valid delta finger amp., max amplitude
+			atmel,ghost_detection_invalid_amplitude_value = <100 100 5 2 5 18 3 14 240 255>;
+			atmel,ghost_detection_pattern_enable = <1>;
+			atmel,ghost_detection_pattern_value = <100 100 3>;
 		};
 	};
 };

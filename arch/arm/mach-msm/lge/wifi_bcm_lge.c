@@ -20,7 +20,7 @@
 #define WLAN_HOSTWAKE 56
 #elif defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) || defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) || defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN)
 #define WLAN_HOSTWAKE 35
-#elif defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGC_SPR)
+#elif defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_VFP_KR) || defined (CONFIG_MACH_MSM8926_JAGNM_RGS) || defined (CONFIG_MACH_MSM8926_JAGNM_TLS) || defined (CONFIG_MACH_MSM8926_JAGNM_VTR)
 #define WLAN_HOSTWAKE 54
 #elif defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM)
 #define WLAN_HOSTWAKE 35
@@ -192,7 +192,7 @@ int bcm_wifi_reinit_gpio( void )
         }
 #endif
 
-#if defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
+#if defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)|| defined (CONFIG_MACH_MSM8926_VFP_KR)|| defined (CONFIG_MACH_MSM8926_JAGNM_RGS) || defined (CONFIG_MACH_MSM8926_JAGNM_TLS) || defined (CONFIG_MACH_MSM8926_JAGNM_VTR)
 		if ( HW_REV_A <= hw_rev ) {
 			gpio_wlan_hostwake	= 54;
 		}
@@ -319,7 +319,7 @@ int __init bcm_wifi_init_gpio_mem( struct platform_device* platdev )
             gpio_wlan_hostwake      = 56;
         }
 #endif
-#if defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
+#if defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)|| defined (CONFIG_MACH_MSM8926_VFP_KR)|| defined (CONFIG_MACH_MSM8926_JAGNM_RGS) || defined (CONFIG_MACH_MSM8926_JAGNM_TLS) || defined (CONFIG_MACH_MSM8926_JAGNM_VTR)
 	if ( HW_REV_A <= hw_rev ) {
 		gpio_wlan_hostwake 	= 54;
 	}
@@ -328,7 +328,7 @@ int __init bcm_wifi_init_gpio_mem( struct platform_device* platdev )
 	}
 #endif
 
-#if defined (ONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM)
+#if defined (CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM)
         if ( HW_REV_A < hw_rev ) {
             gpio_wlan_hostwake      = 35;
         }

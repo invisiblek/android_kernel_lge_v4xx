@@ -231,8 +231,8 @@ static int kgsl_pwrctrl_thermal_pwrlevel_store(struct device *dev,
 	if (ret != 1)
 		return count;
 
-	if (ret)
-		return ret;
+	if (level < 0)
+		return count;
 
 	kgsl_mutex_lock(&device->mutex, &device->mutex_owner);
 
@@ -286,8 +286,8 @@ static int kgsl_pwrctrl_max_pwrlevel_store(struct device *dev,
 		return count;
 
 	/* If the use specifies a negative number, then don't change anything */
-	if (ret)
-		return ret;
+	if (level < 0)
+		return count;
 
 	kgsl_mutex_lock(&device->mutex, &device->mutex_owner);
 
@@ -341,8 +341,8 @@ static int kgsl_pwrctrl_min_pwrlevel_store(struct device *dev,
 		return count;
 
 	/* Don't do anything on obviously incorrect values */
-	if (ret)
-		return ret;
+	if (level < 0)
+		return count;
 
 	kgsl_mutex_lock(&device->mutex, &device->mutex_owner);
 	if (level > pwr->num_pwrlevels - 2)
@@ -422,8 +422,8 @@ static int kgsl_pwrctrl_max_gpuclk_store(struct device *dev,
 	pwr = &device->pwrctrl;
 
 	ret = sscanf(buf, "%ld", &val);
-	if (ret)
-		return ret;
+	if (ret != 1)
+		return count;
 
 	kgsl_mutex_lock(&device->mutex, &device->mutex_owner);
 	level = _get_nearest_pwrlevel(pwr, val);
@@ -474,8 +474,8 @@ static int kgsl_pwrctrl_gpuclk_store(struct device *dev,
 	pwr = &device->pwrctrl;
 
 	ret = sscanf(buf, "%ld", &val);
-	if (ret)
-		return ret;
+	if (ret != 1)
+		return count;
 
 	kgsl_mutex_lock(&device->mutex, &device->mutex_owner);
 	level = _get_nearest_pwrlevel(pwr, val);

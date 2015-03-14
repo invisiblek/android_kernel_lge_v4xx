@@ -62,6 +62,12 @@ config FB_MSM_MIPI_TIANMA_VIDEO_QHD_PT_PANEL
 	---help---
 	Support for TIANMA VIDEO QHD PT panel
 
+config FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL
+	bool "MIPI LGD VIDEO WVGA PT INCELL panel"
+	select FB_MSM_MIPI_LGD_INCELL_VIDEO_WVGA_PT
+	---help---
+	Support for LGD VIDEO WVGA PT INCELL panel
+
 config FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT_PANEL
 	bool "MIPI LG Display HD PT Panel"
 	---help---
@@ -77,3 +83,16 @@ config LGE_MIPI_DSI_LGD_LVDS_WXGA
 config LGE_MIPI_DSI_LGD_NT35521_WXGA 
 	bool "MIPI LGD NT35521 WXGA PANEL"
     default n
+
+config LGE_LCD_ESD
+	bool "Enable sysfs for LCD ESD Recovery"
+	default n
+
+config LGE_LCD_DYNAMIC_LOG
+	bool "MMC debugging - enable logs through adb"
+	default n
+	help
+		If you say Y here, developers can enable/disable lcd logs through adb
+		by accessing /sys/module/mdss_mdp3/parameters/debug_level 
+		ex. echo {debug_level} > /sys/module/mdss_mdp3/parameters/debug_level
+

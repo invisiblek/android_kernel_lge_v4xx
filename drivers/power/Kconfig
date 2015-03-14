@@ -526,6 +526,13 @@ config LGE_PM_BATTERY_ID_CHECKER
 	help
 	  Say Y here to enable LGE Battery ID Checker
 
+config LGE_PM_BATTERY_ID_RANIX_SILICON_WORKS
+	bool "Virtual Device for LGE Battery ID ranix n silicon works Checker"
+	depends on LGE_PM_BATTERY_ID_CHECKER
+	default n
+	help
+	  Say Y here to enable LGE Battery ID RANIX n SILICON WORKS
+
 config LGE_PM_BATTERY_4_2VOLT
 	bool "LGE Support 4.2V Battery"
 	depends on LGE_PM
@@ -561,6 +568,12 @@ config LGE_PM_CHARGING_TEMP_SCENARIO
 	depends on LGE_PM
 	help
 	  Say Y here to enable LGE Charging Temp Scenario
+
+config LGE_PM_CHARGING_TEMP_SCENARIO_V1_8
+	bool "LGE Charging Temp Scenario V1.8"
+	depends on LGE_PM_CHARGING_TEMP_SCENARIO
+	help
+	  Say Y here to enable LGE Charging Temp Scenario V1.8
 
 config LGE_PM_VZW_CHARGING_TEMP_SCENARIO
 	bool "VZW Charging Temp Scenario"
@@ -656,6 +669,13 @@ config LGE_PM_WORKAROUND_USB_VALID_BY_REVERSE_BOOST
 	help
 	  This code is workaround code for loss of UVD detection by reverse boost of PM8110 & PM8x26
 
+config LGE_PM_WORKAROUND_WEAK_CHARGER_REMOVAL_DETECTION
+  bool "Workaround code for faulty removal detection"
+  depends on LGE_PM
+  help
+    This code is workaround code for faulty removal detection
+    when CHG GONE interrupt is misled by weak charger
+
 config LGE_PM_WORKAROUND_PORT_OPEN_FAIL_IN_FACTORY_TEST
 	bool "Workaround code for port open fail in factory test"
 	depends on LGE_PM
@@ -705,4 +725,11 @@ config LGE_PM_DQSL
 	default n
 	help
 	   Say Y here to support VZW DQSL
+
+config LGE_PM_FIX_CEC_FAIL
+	bool "Fix CEC Fail"
+	depends on LGE_PM
+	default n
+	help
+	   Say Y here to support workaround code for cec fail
 endif # POWER_SUPPLY

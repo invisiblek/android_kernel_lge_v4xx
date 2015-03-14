@@ -438,19 +438,7 @@ void apr_cb_func(void *buf, int len, void *priv)
 
 	temp_port = ((data.src_port >> 8) * 8) + (data.src_port & 0xFF);
 
-	if (svc == APR_SVC_ASM) {
-		if ((!c_svc->port_cnt && c_svc->port_fn[temp_port]) ||
-		    (c_svc->port_cnt && !c_svc->port_fn[temp_port]) ||
-		    (!c_svc->port_cnt && !c_svc->port_fn[temp_port])) {
-
-			pr_err("%s() Notice. src_port=%d dest_port=%d"
-			" temp_port=%d svc->port_cnt=%u svc->port_fn[temp_port]=%p"
-			" svc->fn=%p hdr->opcode=0x%x\n", __func__,
-			data.src_port, data.dest_port, temp_port,
-			c_svc->port_cnt, c_svc->port_fn[temp_port],
-			c_svc->fn, hdr->opcode);
-		}
-	}
+	pr_debug("port = %d t_port = %d\n", data.src_port, temp_port); 
 
 	if (c_svc->port_cnt && c_svc->port_fn[temp_port])
 		c_svc->port_fn[temp_port](&data,  c_svc->port_priv[temp_port]);
@@ -521,13 +509,6 @@ int apr_deregister(void *handle)
 	dest_id = svc->dest_id;
 	client_id = svc->client_id;
 	clnt = &client[dest_id][client_id];
-
-	if (svc->id == APR_SVC_ASM)
-		pr_err("%s before :svc->port_cnt=%u svc->svc_cnt=%u"
-			" client->svc_cnt=%u\n",
-			__func__, svc->port_cnt,
-			svc->svc_cnt,clnt->svc_cnt);
-
 	if (svc->port_cnt > 0 || svc->svc_cnt > 0) {
 		if (svc->port_cnt)
 			svc->port_cnt--;
@@ -544,13 +525,6 @@ int apr_deregister(void *handle)
 			pr_debug("%s: service is reset %p\n", __func__, svc);
 		}
 	}
-
-	if (svc->id == APR_SVC_ASM)
-		pr_err("%s: After: svc->port_cnt=%u svc->svc_cnt=%u"
-			" client->svc_cnt=%u\n",
-			__func__, svc->port_cnt,
-			svc->svc_cnt,clnt->svc_cnt);
-
 	if (!svc->port_cnt && !svc->svc_cnt) {
 		svc->priv = NULL;
 		svc->id = 0;

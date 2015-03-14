@@ -683,6 +683,8 @@ int mmc_add_host(struct mmc_host *host)
 {
 	int err;
 
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
+
 	WARN_ON((host->caps & MMC_CAP_SDIO_IRQ) &&
 		!host->ops->enable_sdio_irq);
 
@@ -737,6 +739,8 @@ EXPORT_SYMBOL(mmc_add_host);
  */
 void mmc_remove_host(struct mmc_host *host)
 {
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
+
 	if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
 		unregister_pm_notifier(&host->pm_notify);
 

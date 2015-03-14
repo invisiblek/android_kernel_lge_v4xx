@@ -39,6 +39,18 @@ config SENSORS_K2DH
 	help
 	 acceleration sensor STM K2DH
 
+config SENSOR_K2DH
+    bool "K2DH support"
+    depends on I2C
+    help
+     Support K2DH as an input device.
+
+config SENSOR_AK09911
+   bool "AK09911 support"
+   depends on I2C
+   help
+     Support AK09911 as an input device.
+
 config SENSOR_APDS9130
        tristate "APDS9130 Proximity Sensor Driver"
        depends on I2C

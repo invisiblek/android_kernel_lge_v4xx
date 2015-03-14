@@ -34,6 +34,8 @@
 #include <mach/msm_smem.h>
 #include <mach/lge_handle_panic.h>
 
+#include <mach/board_lge.h>
+
 #include "peripheral-loader.h"
 #include "pil-q6v5.h"
 #include "pil-msa.h"
@@ -82,6 +84,9 @@ static void log_modem_sfr(void)
 
 	strlcpy(reason, smem_reason, min(size, sizeof(reason)));
 	pr_err("modem subsystem failure reason: %s.\n", reason);
+#if defined(CONFIG_PRE_SELF_DIAGNOSIS)
+	lge_pre_self_diagnosis((char *) "modem",3,(char *) "modem failed",(char *) reason, 20001);
+#endif
 
 //                                      
 	strlcpy(ssr_noti, smem_reason, min(size, sizeof(ssr_noti)));
@@ -137,6 +142,9 @@ static irqreturn_t modem_err_fatal_intr_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	pr_err("Fatal error on the modem.\n");
+#if defined(CONFIG_PRE_SELF_DIAGNOSIS)
+	lge_pre_self_diagnosis((char *) "modem",2,(char *) "modem fatal",(char *) "_", 20000);
+#endif
 	subsys_set_crash_status(drv->subsys, true);
 	restart_modem(drv);
 	return IRQ_HANDLED;
@@ -271,6 +279,10 @@ static irqreturn_t modem_wdog_bite_intr_handler(int irq, void *dev_id)
 	}
 
 	pr_err("Watchdog bite received from modem software!\n");
+#if defined(CONFIG_PRE_SELF_DIAGNOSIS)
+	lge_pre_self_diagnosis((char *) "modem",2,(char *) "Watchdog bite Intr",(char *) "_", 20000);
+#endif
+
 	subsys_set_crash_status(drv->subsys, true);
 	restart_modem(drv);
 	return IRQ_HANDLED;

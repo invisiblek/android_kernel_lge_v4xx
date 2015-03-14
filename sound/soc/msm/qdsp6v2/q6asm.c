@@ -1104,20 +1104,8 @@ static int32_t q6asm_srvc_callback(struct apr_client_data *data, void *priv)
 	sid = (data->token >> 8) & 0x0F;
 	ac = q6asm_get_audio_client(sid);
 	if (!ac) {
-		pr_err("%s() ERROR. session[%d] already freed\n", __func__, sid);
-		pr_err("%s() ERROR.. payload_size[%d]msg_type[%d]src[%d]dest_svc[%d]"
-			"src_port[%d]dest_port[%d]token[0x%x]]opcode[0x%x]\n",
-			__func__, data->payload_size, data->msg_type, data->src,
-			data->dest_svc, data->src_port, data->dest_port,
-			data->token, data->opcode);
-		if (data->opcode == APR_BASIC_RSP_RESULT)
-			pr_err("%s() ERROR. Opcode = APR_BASIC_RSP_RESULT"
-				"Payload(CMD) = [0x%x] status[0x%x]\n",
-				__func__, payload[0], payload[1]);
-
-		/*                                                        */
+		pr_debug("%s: session[%d] already freed\n", __func__, sid); 
 		panic("q6asm open at mmapcallback func. Contact WX-BSP-Audio@lge.com");
-
 		return 0;
 	}
 	pr_debug("%s:ptr0[0x%x]ptr1[0x%x]opcode[0x%x] token[0x%x]payload_s[%d] src[%d] dest[%d]sid[%d]dir[%d]\n",

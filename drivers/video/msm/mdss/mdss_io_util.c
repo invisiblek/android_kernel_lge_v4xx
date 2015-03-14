@@ -200,7 +200,7 @@ vreg_get_fail:
 	return rc;
 } /* msm_dss_config_vreg */
 
-#if defined (CONFIG_MACH_MSM8X10_W5) || defined (CONFIG_MACH_MSM8X10_W6)
+#if defined (CONFIG_MACH_MSM8X10_W5) || defined (CONFIG_MACH_MSM8X10_W6) || defined (CONFIG_MACH_MSM8X10_L70P)
 int is_first_booting = 0;
 #endif
 
@@ -235,7 +235,8 @@ int msm_dss_enable_vreg(struct dss_vreg *in_vreg, int num_vreg, int enable)
 					in_vreg[i].vreg_name);
 				goto disable_vreg;
 			}
-#if defined (CONFIG_MACH_MSM8X10_W5) || defined (CONFIG_MACH_MSM8X10_W6)
+
+#if defined (CONFIG_MACH_MSM8X10_W5) || defined (CONFIG_MACH_MSM8X10_W6) || defined (CONFIG_MACH_MSM8X10_L70P)
 			// VCI toggle for W5 Display (both for Tovis Shrink/Non-Shrink panel) 
 			if (strcmp(in_vreg[i].vreg_name, "vdda") == 0) 	
 			{
@@ -274,7 +275,8 @@ int msm_dss_enable_vreg(struct dss_vreg *in_vreg, int num_vreg, int enable)
                         msleep(in_vreg[i].post_off_sleep);
                 }
     }
-#if defined (CONFIG_MACH_MSM8X10_W5) || defined (CONFIG_MACH_MSM8X10_W6)
+
+#if defined (CONFIG_MACH_MSM8X10_W5) || defined (CONFIG_MACH_MSM8X10_W6) || defined (CONFIG_MACH_MSM8X10_L70P)
 	is_first_booting = 1;
 #endif
 	return rc;

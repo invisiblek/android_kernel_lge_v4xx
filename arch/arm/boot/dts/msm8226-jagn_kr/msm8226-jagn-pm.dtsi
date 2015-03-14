@@ -16,6 +16,15 @@
 
 &spmi_bus {
 	qcom,pm8226@0 {
+		qcom,power-on@800 {
+			compatible = "qcom,qpnp-power-on";
+			qcom,s3-debounce = <128>;
+			qcom,system-reset;
+			reg = <0x800 0x100>;
+			qcom,pon_3 {
+				qcom,support-reset = <0>;
+			};
+		};
 		qcom,leds@a100 {
 			status = "okay";
 			qcom,led_mpp_2 {
@@ -26,17 +35,40 @@
 				qcom,max-current = <40>;
 				qcom,current-setting = <5>;
 				qcom,id = <6>;
-				qcom,mode = "pwm";
+				/////////////////////
+//				qcom,mode = "pwm";
+				qcom,mode = "lpg";
 				qcom,pwm-us = <1000>;
+//				qcom,pwm-us = <5000>;
+//				qcom,duty-ms = <70>;
+				/////////////////////
 				qcom,source-sel = <8>;
 				qcom,mode-ctrl = <0x60>;
 				qcom,pwm-channel = <0>;
 				qcom,start-idx = <0>;
-				qcom,idx-len = <2>;
+				/////////////////////
+//				qcom,idx-len = <2>;
+				qcom,idx-len = <63>;
+				/////////////////////
 				qcom,ramp-step-ms = <1000>;
-				qcom,duty-pcts = [FF 00];
+				qcom,duty-pcts = [
+//					FF 00];
+					FF 00 00 00 00
+					00 00 00 15 2A
+					3F 2A 15 00 00
+					00 00 00 00 00
+					00 00 2C 57 5E
+					64 63 63 63 62
+					60 5F 5D 5A 58
+					53 4F 4A 41 37
+					2D 17 00 00 00
+					22 43 2C 16 00
+					00 00 00 00 00
+					09 10 21 31 21
+					10 09 00
+				];
 				qcom,use-blink;
-				};
+			};
 		};
 	};
 	qcom,pm8226@1 {
@@ -141,11 +173,7 @@
 		qcom,master-en = <1>;		/* Enable GPIO */
 	};
 
-	gpio@c200 { /* GPIO 3 */		/* NFC_CLK_REQ */
-		qcom,mode = <0>;			/* QPNP_PIN_MODE_DIG_IN */
-		qcom,pull = <4>;			/* QPNP_PIN_PULL_DN - Not Fixed */
-		qcom,vin-sel = <3>;			/* QPNP_PIN_VIN2 */
-		qcom,src-sel = <2>;			/* QPNP_PIN_SEL_FUNC_1 */
+	gpio@c200 { /* GPIO 3 */		/* Not used */
 	};
 
 	gpio@c300 { /* GPIO 4 */		/* BATT_UIM_ALARM - TBD */
@@ -168,12 +196,7 @@
 	gpio@c600 { /* GPIO 7 */		/* TX_GTR_THRES */
 	};
 
-	gpio@c700 { /* GPIO 8 */		/* WIRELESS CHARGER CHARGING COMPLETE IRQ */
-		qcom,mode = <0>;			/* QPNP_PIN_MODE_DIG_OUT */
-		qcom,pull = <5>;			/* QPNP_PIN_PULL_NO */
-		qcom,vin-sel = <3>;			/* QPNP_PIN_VIN2 */
-		qcom,src-sel = <2>;			/* QPNP_PIN_SEL_FUNC_1 */
-		qcom,master-en = <1>;		/* Enable GPIO */
+	gpio@c700 { /* GPIO 8 */		/* Not used */
 	};
 };
 
@@ -309,16 +332,14 @@
 
 
 &pm8226_chg {
-       qcom,vddmax-mv = <4350>;
+	qcom,vddmax-mv = <4350>;
 	qcom,vddsafe-mv = <4380>;
 	qcom,vinmin-mv = <4350>;
 	qcom,ibatmax-ma = <900>;
 	qcom,ibatterm-ma = <150>;
 	qcom,vbatdet-delta-mv = <100>;
 	qcom,tchg-mins = <480>;
-	qcom,ext-ovp-present = <1>;
-
-	lge,ext_ovp_gpio = <&msmgpio 31 0x00>;
+	qcom,btc-disabled = <1>;
 };
 &pm8226_bms{
 

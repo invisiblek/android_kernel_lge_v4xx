@@ -270,6 +270,9 @@ void mdss_dsi_host_init(struct mipi_panel_info *pinfo,
 		data |= ((pinfo->traffic_mode & 0x03) << 8);
 		data |= ((pinfo->dst_format & 0x03) << 4); /* 2 bits */
 		data |= (pinfo->vc & 0x03);
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+		data |= BIT(31);
+#endif
 		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0x0010, data);
 
 		data = 0;
@@ -326,8 +329,16 @@ void mdss_dsi_host_init(struct mipi_panel_info *pinfo,
 	if (ctrl_pdata->shared_pdata.broadcast_enable)
 		MIPI_OUTP(ctrl_pdata->ctrl_base + 0x3C, 0x94000000);
 	else
+#if defined(CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL)
+		MIPI_OUTP(ctrl_pdata->ctrl_base + 0x3C, 0x10000000);
+#else
 		MIPI_OUTP(ctrl_pdata->ctrl_base + 0x3C, 0x14000000);
+#endif
 
+#if defined(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA_PT_INCELL_PANEL)
+	MIPI_OUTP(ctrl_pdata->ctrl_base + 0xBC, 0xFFFFF);
+	MIPI_OUTP(ctrl_pdata->ctrl_base + 0xC0, 0x111);
+#endif
 	data = 0;
 	if (pinfo->te_sel)
 		data |= BIT(31);

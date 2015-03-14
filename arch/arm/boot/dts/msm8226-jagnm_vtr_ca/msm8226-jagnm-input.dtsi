@@ -25,7 +25,7 @@
 		atmel_s336@4a {
 			revision = "rev_0...rev_a";
 			status = "ok";
-			atmel,fw_name = "atmel/jagnm_att_us/Jaguar02.fw";
+			atmel,fw_name = "atmel/jagnm_vtr_ca/Jaguar02.fw";
 			atmel,panel_check = <0>;
 			atmel,reset-gpio = <&msmgpio 16 0x00>;
 		};
@@ -34,8 +34,8 @@
 			revision = "rev_b...";
 			status = "ok";
 			synaptics,fw_version_info = <0x30 0x05 0x01>;
-			synaptics,fw_image = "synaptics/jagnm_att_us/PLG364-V0.03-PR1606308-DS4.3.5.1.16_30050103.img";
-			synaptics,panel_spec = "synaptics/jagnm_att_us/jagnm_att_us_limit.txt";
+			synaptics,fw_image = "synaptics/jagnm_vtr_ca/PLG364-V0.16-PR1606308-DS4.3.5.1.16_30050110.img";
+			synaptics,panel_spec = "synaptics/jagnm_vtr_ca/jagnm_vtr_ca_limit.txt";
 			lge,knock_on_type = <1>;
 			max_id = <5>;
 			synaptics,platform_data	{

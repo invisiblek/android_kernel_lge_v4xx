@@ -43,8 +43,12 @@
 #include <linux/syscalls.h>
 #include <linux/file.h>
 
+#ifdef MXT_FACTORY
+static bool factorymode = false;
+static bool patch_factorymode = false;
+#endif
+
 #ifdef TSP_PATCH
-#include "mxts_patch.c"
 static u8 patch_bin[] = {
 	#include "mxts_patch_bin.h"
 };
@@ -65,10 +69,15 @@ static unsigned char power_block_mask = 0;
 #define MXT_PATCH_FTM_TA_MODE_EVENT	11
 #define MXT_PATCH_QUICKCOVER_CLOSED_MODE_EVENT	12
 #define MXT_DEEPSLEEP_MODE		13
+
+#include "mxts_patch.c"
 #else
 #include "atmel_s540_config.h"
 #endif
 
+#ifndef CONFIG_MACH_MSM8926_B2LN_KR
+#define ISIS 		1
+#endif
 #define DEBUG_ABS	1
 #define FIRMUP_ON_PROBE
 
@@ -122,9 +131,6 @@ int use_quick_window = 0;
 int outside_touch = 0;
 #ifdef MXT_WIRELESS
 bool wireless = 0;
-#endif
-#ifdef MXT_FACTORY
-static bool factorymode = false;
 #endif
 bool mxt_mfts = false;
 bool mxt_mfts_30 = false;
@@ -2090,13 +2096,21 @@ retry:
 		y = (buf[cnt + 3] << 8) | buf[cnt + 2];
 		g_tci_press[i].x = x;
 		g_tci_press[i].y = y;
+#ifdef ISIS
+		TOUCH_INFO_MSG("%d tap press x: ***, y: *** (%d)\n", i, cnt);
+#else
 		TOUCH_INFO_MSG("%d tap press x: %5u, y: %5u (%d)\n", i, x, y, cnt);
+#endif
 
 		x = (buf[cnt + 5] << 8) | buf[cnt + 4];
 		y = (buf[cnt + 7] << 8) | buf[cnt + 6];
 		g_tci_report[i].x = x;
 		g_tci_report[i].y = y;
+#ifdef ISIS
+		TOUCH_INFO_MSG("%d tap release x: ***, y: *** (%d)\n", i, cnt);
+#else
 		TOUCH_INFO_MSG("%d tap release x: %5u, y: %5u (%d)\n", i, x, y, cnt);
+#endif
 	}
 
 	kfree(buf);
@@ -2168,13 +2182,21 @@ retry:
 		y = (buf[cnt + 3] << 8) | buf[cnt + 2];
 		g_tci_press[i].x = x;
 		g_tci_press[i].y = y;
+#ifdef ISIS
+		TOUCH_INFO_MSG("%d tap press x: ***, y: *** (%d)\n", i, cnt);
+#else
 		TOUCH_INFO_MSG("%d tap press x: %5u, y: %5u (%d)\n", i, x, y, cnt);
+#endif
 
 		x = (buf[cnt + 5] << 8) | buf[cnt + 4];
 		y = (buf[cnt + 7] << 8) | buf[cnt + 6];
 		g_tci_report[i].x = x;
 		g_tci_report[i].y = y;
+#ifdef ISIS
+		TOUCH_INFO_MSG("%d tap release x: ***, y: *** (%d)\n", i, x, y, cnt);
+#else
 		TOUCH_INFO_MSG("%d tap release x: %5u, y: %5u (%d)\n", i, x, y, cnt);
+#endif
 	}
 
 	kfree(buf);
@@ -2326,19 +2348,31 @@ static void mxt_proc_t24_messages(struct mxt_data *data, u8 *message)
 			if(!((x > 440 ) && (x < 1760) && (y > 80) && (y < 1780)))
 #endif
 			{
+#ifdef ISIS
+				dev_info(dev, "Out Of Quick Window Boundary Double_Tap!!     ***  	*** \n");
+#else
 				dev_info(dev, "Out Of Quick Window Boundary Double_Tap!!     %d     %d \n",x,y);
+#endif
 				wake_unlock(&touch_wake_lock);
 				return;
 			}
 		}else{
 			if(!((x > 110 ) && (x < 970) && (y > 135) && (y < 1785)))
 			{
+#ifdef ISIS
+				dev_info(dev, "Out Of Boundary Double_Tap!!    ***    *** \n");
+#else
 				dev_info(dev, "Out Of Boundary Double_Tap!!     %d     %d \n",x,y);
+#endif
 				wake_unlock(&touch_wake_lock);
 				return;
 			}
 		}
+#ifdef ISIS
+		dev_info(dev, "Double_Tap!!     ***    *** \n");
+#else
 		dev_info(dev, "Double_Tap!!     %d     %d \n",x,y);
+#endif
 		send_uevent(knockon_event);
 	}
 }
@@ -2744,12 +2778,18 @@ static void mxt_process_messages_t44(struct work_struct *work)
 #if DEBUG_ABS
 		if (data->ts_data.curr_data[i].status == FINGER_PRESSED) {
 			tool_type = get_tool_type(data, data->ts_data.curr_data[i]);
+#ifdef ISIS
+			dev_info(dev, "%d %s Pressed <%d> : x:*** y:***, z:**\n",
+					data->ts_data.total_num, tool_type,
+					data->ts_data.curr_data[i].id);
+#else
 			dev_info(dev, "%d %s Pressed <%d> : x[%4d] y[%4d], z[%3d]\n",
 					data->ts_data.total_num, tool_type,
 					data->ts_data.curr_data[i].id,
 					data->ts_data.curr_data[i].x_position,
 					data->ts_data.curr_data[i].y_position,
 					data->ts_data.curr_data[i].pressure);
+#endif
 		} else if (data->ts_data.curr_data[i].status == FINGER_RELEASED
 						&& data->ts_data.prev_data[i].status != FINGER_RELEASED) {
 			if(likely(!outside_touch)){
@@ -5148,7 +5188,7 @@ static ssize_t mxt_mfts_enable_store(struct mxt_data *data, const char *buf, siz
 	TOUCH_INFO_MSG("%s = %d \n", __func__, value);
 
 	data->mfts_enable = value;
-	if(data->mfts_enable && data->pdata->mfts_used) {
+	if(data->mfts_enable) {
 		ret = __mxt_read_reg(data->client, 0x02, 1, &fw_version);
 		if(ret) {
 			dev_err(&data->client->dev, "Fail read version info\n");
@@ -5726,7 +5766,11 @@ static ssize_t show_lpwg_data(struct mxt_data *data, char *buf)
 	for (i = 0; i < MAX_POINT_SIZE_FOR_LPWG; i++) {
 		if (lpwg_data[i].x == -1 && lpwg_data[i].y == -1)
 			break;
+#ifdef ISIS
+		TOUCH_INFO_MSG("%s, x[***] y[***]\n", __func__);
+#else
 		TOUCH_INFO_MSG("%s, x[%3d] y[%3d]\n", __func__, lpwg_data[i].x, lpwg_data[i].y);
+#endif
 		ret += sprintf(buf+ret, "%d %d\n", lpwg_data[i].x, lpwg_data[i].y);
 	}
 	return ret;
@@ -6062,6 +6106,7 @@ static int gesture_control(struct mxt_data *data, int on)
 				dev_info(&data->client->dev," wake up! factroy charging mode!!!!!!!!!!!\n");
 				dev_info(&data->client->dev, "  FTM_TA_MODE %d\n", MXT_PATCH_FTM_TA_MODE_EVENT);
 				data->ta_status = MXT_PATCH_FTM_TA_MODE_EVENT;
+				patch_factorymode = factorymode;
 				mxt_patch_test_event(data, MXT_PATCH_FTM_TA_MODE_EVENT);
 				goto mode_change;
 			} else
@@ -6092,6 +6137,7 @@ static int gesture_control(struct mxt_data *data, int on)
 				dev_info(&data->client->dev," wake up! factroy battery  mode!!!!!!!!!!!\n");
 				dev_info(&data->client->dev, "  FTM_BAT_MODE %d\n", MXT_PATCH_FTM_BAT_MODE_EVENT);
 				data->ta_status = MXT_PATCH_FTM_BAT_MODE_EVENT;
+				patch_factorymode = factorymode;
 				mxt_patch_test_event(data, MXT_PATCH_FTM_BAT_MODE_EVENT);
 				goto mode_change;
 			} else
@@ -6231,7 +6277,13 @@ static void mxt_start(struct mxt_data *data)
 
 	data->enable_reporting = true;
 #ifdef WAITED_UDF
+#ifdef MXT_FACTORY
+	if(!factorymode){ /* remain Disable Screen Status bit (T100[0] bit2 = 1) for disable patch in FTM mode */
+		write_partial_configs(data, UDF_off_configs_resume);
+	}
+#else
 	write_partial_configs(data, UDF_off_configs_resume);
+#endif
 	wake_unlock(&touch_wake_lock);
 #endif
 	config_crc_mfts = 0;
@@ -6274,7 +6326,13 @@ static void mxt_stop(struct mxt_data *data)
 		default:
 			data->ta_status = MXT_DEEPSLEEP_MODE;
 			break;
-		}
+	}
+	if(factorymode) {
+		data->mxt_knock_on_enable= 0;
+		data->mxt_password_enable = 0;
+		data->is_lpwg_report_enable = 0;
+		gesture_control(data, 0);
+	}
 #else
 	gesture_control(data, 1);
 #endif

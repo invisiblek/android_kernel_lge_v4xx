@@ -296,6 +296,8 @@
 #define SELF_DIAGNOSTIC_STATUS_COMPLETE	0
 #define SELF_DIAGNOSTIC_STATUS_RUNNING	1
 
+#define HALL_IC_GPIO 4
+
 /* MXT_GEN_POWER_T7 field */
 struct t7_config {
 	u8 idle;

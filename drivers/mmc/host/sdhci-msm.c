@@ -2584,6 +2584,9 @@ static void sdhci_msm_disable_data_xfer(struct sdhci_host *host)
 	u32 value;
 	int ret;
 	u32 version;
+#ifdef CONFIG_MACH_MSM8926_X5_SPR
+	int i;
+#endif
 
 	version = readl_relaxed(msm_host->core_mem + CORE_MCI_VERSION);
 	/* Core version 3.1.0 doesn't need this workaround */
@@ -2602,6 +2605,20 @@ static void sdhci_msm_disable_data_xfer(struct sdhci_host *host)
 			+ CORE_SDCC_DEBUG_REG, value,
 			!(value & CORE_DEBUG_REG_AHB_HTRANS),
 			CORE_AHB_DATA_DELAY_US, 1);
+#ifdef CONFIG_MACH_MSM8926_X5_SPR
+	if(ret){
+		for(i=0; i<500; i++){
+			pr_err("%s: %s: can't stop ongoing AHB bus access by ADMA. retry : %d\n",
+					mmc_hostname(host->mmc), __func__, i);
+			ret = readl_poll_timeout_noirq(msm_host->core_mem
+				+ CORE_SDCC_DEBUG_REG, value,
+				!(value & CORE_DEBUG_REG_AHB_HTRANS),
+				CORE_AHB_DATA_DELAY_US, 1);
+			if(!ret)
+				break;
+		}
+	}			 
+#endif 
 	if (ret) {
 		pr_err("%s: %s: can't stop ongoing AHB bus access by ADMA\n",
 				mmc_hostname(host->mmc), __func__);

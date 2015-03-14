@@ -36,6 +36,8 @@
 #include <linux/syscalls.h>
 //641t porting S
 #include <linux/async.h>
+#include <mach/board_lge.h>
+
 #include "atmel_t641.h"
 #include "atmel_t641_patch.h"
 //641t porting E
@@ -1050,24 +1052,22 @@ static int mxt_read_all_diagnostic_data(struct mxt_data *data, u8 dbg_mode, char
 	//   
 	mxt_prepare_debug_data(data);
 
-	*len += snprintf(buf + *len, write_page - *len, "\n===============================================");
-	*len += snprintf(buf + *len, write_page - *len, "===============================================");
-
-	end_page = (data->channel_size.size_x * data->channel_size.size_y) / NODE_PER_PAGE;
+	end_page = (data->channel_size.size_x * data->channel_size.size_y) / NODE_PER_PAGE + 1;
 	*len += snprintf(buf + *len , write_page - *len, "\n       ");
 	for(i=0; i<data->channel_size.size_y; i++)
 		*len += snprintf(buf + *len , write_page - *len, "[Y%02d] ", i);
-
-
-	*len += snprintf(buf + *len, write_page - *len, "\n===============================================");
-	*len += snprintf(buf + *len, write_page - *len, "===============================================");
 
 	/* read the dbg data */
 	for (read_page = 0 ; read_page < end_page; read_page++) {
 		for (node = 0; node < NODE_PER_PAGE; node++) {
 
-			if (cnt%data->channel_size.size_y == 0)
+			if (cnt%data->channel_size.size_y == 0) {
 				*len += snprintf(buf + *len , write_page - *len, "\n[X%02d] ", cnt/data->channel_size.size_y);
+				if (cnt/data->channel_size.size_y == data->channel_size.size_x) {
+					*len += snprintf(buf + *len , write_page - *len, "\n");
+					break;
+				}
+			}
 			read_point = (node * DATA_PER_NODE) + 2;
 
 			if (!mxt_check_xy_range(data, cnt++)) {
@@ -1075,7 +1075,6 @@ static int mxt_read_all_diagnostic_data(struct mxt_data *data, u8 dbg_mode, char
 			}
 
 			value = mxt_treat_dbg_data(data, dbg_object, dbg_mode, read_point, num);
-
 			*len += snprintf(buf + *len , write_page - *len, "%6d", value);
 
 			if(dbg_mode == MXT_DIAG_REFERENCE_MODE && data->full_cap != NULL )
@@ -1096,8 +1095,6 @@ static int mxt_read_all_diagnostic_data(struct mxt_data *data, u8 dbg_mode, char
 			}
 		} while (cur_page != read_page + 1);
 	}
-	*len += snprintf(buf + *len, write_page - *len, "\n===============================================");
-	*len += snprintf(buf + *len, write_page - *len, "===============================================\n");
 
 	if (data->rawdata) {
 		if (data->rawdata->reference) {
@@ -1239,12 +1236,14 @@ static void mxt_proc_t6_messages(struct mxt_data *data, u8 *msg)
 	}
 
 	/* Set KnockCode Delay after RESET */
-	if (status & MXT_T6_STATUS_RESET && data->is_knockCodeDelay) {
-		mxt_write_object(data, MXT_PROCI_TOUCH_SEQUENCE_LOGGER_T93, 19, 43);
-		TOUCH_INFO_MSG("Set Knock Code delay after RESET (700ms)\n");
-	} else if (status & MXT_T6_STATUS_RESET && !data->is_knockCodeDelay) {
-		mxt_write_object(data, MXT_PROCI_TOUCH_SEQUENCE_LOGGER_T93, 19, 0);
-		TOUCH_INFO_MSG("Set Knock Code delay after RESET (0ms)\n");
+	if (!data->mfts_enable) {
+		if (status & MXT_T6_STATUS_RESET && data->is_knockCodeDelay) {
+			mxt_write_object(data, MXT_PROCI_TOUCH_SEQUENCE_LOGGER_T93, 19, 43);
+			TOUCH_INFO_MSG("Set Knock Code delay after RESET (700ms)\n");
+		} else if (status & MXT_T6_STATUS_RESET && !data->is_knockCodeDelay) {
+			mxt_write_object(data, MXT_PROCI_TOUCH_SEQUENCE_LOGGER_T93, 19, 0);
+			TOUCH_INFO_MSG("Set Knock Code delay after RESET (0ms)\n");
+		}
 	}
 
 #if 0//641t porting
@@ -1371,7 +1370,7 @@ static void mxt_palm_unlock_func(struct work_struct *work_palm_unlock)
 	data->palm = false;
 	mutex_unlock(&data->input_dev->mutex);
 }
-
+#if 0
 static void mxt_deepsleep_func(struct work_struct *work_deepsleep)
 {
 	struct mxt_data *data = container_of(to_delayed_work(work_deepsleep), struct mxt_data, work_deepsleep);
@@ -1380,7 +1379,7 @@ static void mxt_deepsleep_func(struct work_struct *work_deepsleep)
 	mxt_set_t7_power_cfg(data, MXT_POWER_CFG_DEEPSLEEP);
 	mutex_unlock(&data->input_dev->mutex);
 }
-
+#endif
 int mxt_get_self_delta_chk(struct mxt_data *data)
 {
 	u16 num = 0;
@@ -1390,7 +1389,7 @@ int mxt_get_self_delta_chk(struct mxt_data *data)
 	int ret = 0;
 	int i = 0;
 	u8 ret_buf[NODE_PER_PAGE * DATA_PER_NODE] = {0};
-	u8 comms_chk[2];
+	u8 comms_chk[2] = {0};
 	u8 loop_chk = 0;
 
       u8 touch_anti_tot_cnt =0, proc_anti_tot_cnt = 0;
@@ -2666,7 +2665,9 @@ void trigger_usb_state_from_otg(int usb_type)
 #else
 					mxt_patch_event(global_mxt_data, CHARGER_KNOCKON_WAKEUP);
 #endif
-				} else {
+				}
+#if 0
+				else {
 					if (global_mxt_data->suspended == true) {
 						if (global_mxt_data->work_deepsleep_enabled) {
 							cancel_delayed_work_sync(&global_mxt_data->work_deepsleep);
@@ -2675,6 +2676,7 @@ void trigger_usb_state_from_otg(int usb_type)
 						queue_delayed_work(touch_wq, &global_mxt_data->work_deepsleep, msecs_to_jiffies(2000));
 					}
 				}
+#endif
 				global_mxt_data->charging_mode = 0;
 				mxt_patch_event(global_mxt_data, CHARGER_UNplugged);
 				mxt_patchevent_unset(PATCH_EVENT_TA);
@@ -2855,6 +2857,11 @@ static irqreturn_t mxt_process_messages_t44(struct mxt_data *data)
 
 	int report_num = 0;
 	int i;
+
+	if (!regulator_is_enabled(data->vcc_i2c)) {
+		TOUCH_INFO_MSG( "I2C Regulator Already Disabled.\n");
+		return IRQ_NONE;
+	}
 
 	/* Read T44 and T5 together */
 	ret = __mxt_read_reg(data->client, data->T44_address,
@@ -3234,8 +3241,8 @@ recheck:
 			goto recheck;
 		} else {
 		    TOUCH_INFO_MSG("T7 cfg zero after reset, overriding\n");
-		    data->t7_cfg.active = 20;
-		    data->t7_cfg.idle = 100;
+		    data->t7_cfg.active = 8;
+		    data->t7_cfg.idle = 24;
 		    return mxt_set_t7_power_cfg(data, MXT_POWER_CFG_RUN);
 		}
 	} else {
@@ -4804,17 +4811,6 @@ static ssize_t mxt_run_delta_show(struct mxt_data *data, char *buf)
 
 	mxt_power_block(POWERLOCK_SYSFS);
 
-	if (data->pdata->panel_on == POWER_OFF) {
-		wake_lock_timeout(&touch_wake_lock, msecs_to_jiffies(2000));
-		len += snprintf(buf + len, PAGE_SIZE - len, "************************\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "*** LCD STATUS : OFF ***\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "************************\n");
-	} else if (data->pdata->panel_on == POWER_ON) {
-		len += snprintf(buf + len, PAGE_SIZE - len, "************************\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "*** LCD STATUS : O N ***\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "************************\n");
-	}
-
 	run_delta_read(data, buf, &len);
 	msleep(30);
 
@@ -5062,6 +5058,12 @@ static ssize_t mxt_mfts_enable_store(struct mxt_data *data, const char *buf, siz
 
 	data->mfts_enable = value;
 
+	/* Touch IC Reset for Initial configration. */
+	mxt_soft_reset(data);
+
+	/* Calibrate for Active touch IC */
+	mxt_t6_command(data, MXT_COMMAND_CALIBRATE, 1, false);
+
 	return count;
 }
 
@@ -5085,6 +5087,11 @@ static void mxt_lpwg_enable(struct mxt_data *data, u32 value)
 		TOUCH_INFO_MSG("Multi Tap Enable\n");
 	}else{
 		TOUCH_INFO_MSG("Unknown Value. Not Setting\n");
+		return;
+	}
+
+	if (data->suspended && gpio_get_value(HALL_IC_GPIO)) {
+		TOUCH_INFO_MSG("%s : Wake Up from Quick Cover.\n", __func__);
 		return;
 	}
 
@@ -5685,12 +5692,16 @@ static void mxt_start(struct mxt_data *data)
 	if (!data->mxt_knock_on_enable && !data->mfts_enable) {
 #endif
 		mxt_regulator_enable(data);
+	} else {
+		TOUCH_INFO_MSG("%s : After Quick Cover Opened.\n", __func__);
+		mxt_regulator_enable(data);
 	}
 
 	// mxt_set_t7_power_cfg(data, MXT_POWER_CFG_RUN);
+/*
 	if (!mxt_patchevent_get(PATCH_EVENT_KNOCKON))
 		mxt_patch_event(global_mxt_data, DEEP_SLEEP_WAKEUP);
-
+*/
 	mxt_active_mode_start(data);
 
 	/* Recalibrate since chip has been in deep sleep */
@@ -7181,7 +7192,7 @@ static int __devinit mxt_probe(struct i2c_client *client, const struct i2c_devic
 #endif
 	INIT_DELAYED_WORK(&data->work_button_lock, mxt_button_lock_func);
 	INIT_DELAYED_WORK(&data->work_palm_unlock, mxt_palm_unlock_func);
-	INIT_DELAYED_WORK(&data->work_deepsleep, mxt_deepsleep_func);
+//	INIT_DELAYED_WORK(&data->work_deepsleep, mxt_deepsleep_func);
 
 	data->fb_notif.notifier_call = fb_notifier_callback;
 
@@ -7194,6 +7205,9 @@ static int __devinit mxt_probe(struct i2c_client *client, const struct i2c_devic
 	error = __mxt_read_reg(data->client, data->T100_address + 9, 1, &data->channel_size.size_x);
 	error = __mxt_read_reg(data->client, data->T100_address + 19, 1, &data->channel_size.start_y);
 	error = __mxt_read_reg(data->client, data->T100_address + 20, 1, &data->channel_size.size_y);
+
+	data->channel_size.size_y += 1;
+
 
 	if (!error)
 		TOUCH_INFO_MSG("Succeed to read channel_size %d %d %d %d \n", data->channel_size.start_x, data->channel_size.start_y, data->channel_size.size_x, data->channel_size.size_y);
@@ -7225,7 +7239,10 @@ static int __devinit mxt_probe(struct i2c_client *client, const struct i2c_devic
 	/* disabled report touch event to prevent unnecessary event.
 	* it will be enabled in open function
 	*/
-	mxt_stop(data);
+//	mxt_stop(data);
+
+	data->suspended = true;
+	data->enable_reporting = false;
 
 	/* Register sysfs for making fixed communication path to framework layer */
 	error = sysdev_class_register(&lge_touch_sys_class);
@@ -7391,12 +7408,12 @@ static int mxt_fb_resume(struct mxt_data *data)
 	}
 
 	mutex_lock(&input_dev->mutex);
-
+#if 0
 	if (data->work_deepsleep_enabled) {
 		data->work_deepsleep_enabled = false;
 		cancel_delayed_work_sync(&data->work_deepsleep);
 	}
-
+#endif
 	data->pdata->panel_on = POWER_ON;
 	data->palm = false;
 
@@ -7449,7 +7466,7 @@ static int mxt_fb_resume(struct mxt_data *data)
 			kfree(package_name);
 		}
 
-		mxt_hw_reset(data);
+//		mxt_hw_reset(data);
 
 		TOUCH_INFO_MSG("MFTS : IC Init complete \n");
 

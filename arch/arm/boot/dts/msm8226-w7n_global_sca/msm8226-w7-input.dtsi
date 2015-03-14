@@ -64,6 +64,7 @@
 			atmel,extra_fw_name = "atmel/E2A47P1_2_04.fw";
 			atmel,ghost_detection_enable = <1>;
 			atmel,butt_check_enable = <1>;
+			atmel,panel_delta_value = <292 229 0>;
 		};
 		
 		lge_touch@48 {

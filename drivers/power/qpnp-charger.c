@@ -53,7 +53,8 @@
 #include <mach/board_lge.h>
 #endif
 #ifdef CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO
-#if defined(CONFIG_MACH_MSM8926_X5_SPR) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US) || defined(CONFIG_MACH_MSM8926_JAGC_SPR)
+#if defined(CONFIG_MACH_MSM8926_X5_SPR) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US) || \
+    defined(CONFIG_MACH_MSM8926_JAGC_SPR)
 #include <mach/lge_charging_scenario_sprint.h>
 #else
 #include <mach/lge_charging_scenario.h>
@@ -312,9 +313,17 @@ struct qpnp_chg_regulator {
 	struct regulator_desc			rdesc;
 	struct regulator_dev			*rdev;
 };
-
+#if defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined (CONFIG_MACH_MSM8926_JAGN_KR)
+int count_count = 0 ;
+#define VBUS_USB_THRESHOLD  2500
+#endif
 /* Charging information Debugging Log */
-#if defined (CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR) || defined (CONFIG_MACH_MSM8926_JAGN_KR) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined (CONFIG_MACH_MSM8926_VFP_KR) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8226_E8LTE) //|| defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+#if defined (CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR) || \
+    defined (CONFIG_MACH_MSM8926_JAGN_KR) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || \
+    defined (CONFIG_MACH_MSM8926_VFP_KR) || defined (CONFIG_MACH_MSM8226_E8WIFI) || \
+    defined (CONFIG_MACH_MSM8226_E8LTE) || defined (CONFIG_MACH_MSM8226_E7WIFI) || \
+    defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || \
+    defined (CONFIG_MACH_MSM8926_E8LTE)
 #define CIDL
 #endif
 
@@ -485,8 +494,11 @@ struct qpnp_chg_chip {
 #ifdef CIDL
 	struct delayed_work		charging_inform_work;
 #endif
-
-#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_LGE_PM_CHARGING_DEBUG_LOG)
+#if defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined (CONFIG_MACH_MSM8926_JAGN_KR)
+	struct delayed_work     usbin_valid_work;
+#endif
+#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_LGE_PM_CHARGING_DEBUG_LOG) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 	struct delayed_work		charging_check_work;
 #endif
 
@@ -566,9 +578,13 @@ struct qpnp_chg_chip {
 	struct work_struct	wlc_enable_work;
 	struct work_struct	wlc_disable_work;
 #endif
+#ifdef CONFIG_LGE_PM_VZW_LLK
+	struct delayed_work		vzw_llk_stop_chg_work;
+#endif
 };
 
-#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT)
+#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 extern int max17048_get_voltage(void);
 extern int max17048_get_capacity(void);
 #endif
@@ -579,7 +595,8 @@ static struct of_device_id qpnp_charger_match_table[] = {
 };
 
 #ifdef CONFIG_LGE_PM_FACTORY_PSEUDO_BATTERY
-#if defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE)
+#if defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || \
+    defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE)
 #define PSEUDO_BATT_MAX 1500
 #elif defined (CONFIG_MACH_MSM8226_E7WIFI)
 #define PSEUDO_BATT_MAX 1100
@@ -614,7 +631,10 @@ static int qpnp_chg_tchg_max_set(struct qpnp_chg_chip *chip, int minutes);
 static int qpnp_chg_ibatmax_set(struct qpnp_chg_chip *chip, int chg_current);
 
 #endif
-
+#ifdef CONFIG_LGE_PM_WORKAROUND_WEAK_CHARGER_REMOVAL_DETECTION
+static int
+get_prop_battery_voltage_now(struct qpnp_chg_chip *chip);
+#endif
 /*                                          */
 /*                                                                      */
 #ifdef CONFIG_LGE_PM_USB_ID
@@ -640,7 +660,8 @@ extern void lge_pm_set_usb_id_handle(struct qpnp_vadc_chip *);
 /*                                        */
 /*              */
 
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || \
+    defined (CONFIG_MACH_MSM8926_E8LTE)
 #define FACTORY_IUSB_MAX_FOR_EMBEDDED_BATTERY 500
 #endif
 #if defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
@@ -648,7 +669,9 @@ extern void lge_pm_set_usb_id_handle(struct qpnp_vadc_chip *);
 #endif
 #define FACTORY_IBAT_MAX_FOR_EMBEDDED_BATTERY 100
 
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) ||defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || \
+    defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || \
+    defined (CONFIG_MACH_MSM8226_E9WIFIN)
 static bool is_56k_910k_factory_cable(void)
 {
 	unsigned int cable_info;
@@ -674,8 +697,12 @@ enum
 
 static void lge_pm_set_ext_ovp(int ext_ovp_gpio, bool on)
 {
-#if defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined (CONFIG_MACH_MSM8926_JAGN_KR)
+#if defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) \
+	|| defined (CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 		gpio_direction_output(31, on);
+#elif defined (CONFIG_MACH_MSM8926_E2_MPCS_US)
+		gpio_direction_output(33, on);
 #endif
 	if (gpio_is_valid(ext_ovp_gpio))
 		gpio_set_value(ext_ovp_gpio, on);
@@ -1158,12 +1185,6 @@ qpnp_chg_iusb_trim_get(struct qpnp_chg_chip *chip)
 	return trim_reg;
 }
 
-#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_JAGMN_ATT)
-#define SET_MIN 0
-#define SET_OVER_400MA 1
-#define SET_OVER_600MA 2
-#endif
-
 static int
 qpnp_chg_iusb_trim_set(struct qpnp_chg_chip *chip, int trim)
 {
@@ -1243,7 +1264,13 @@ qpnp_chg_iusbmax_set(struct qpnp_chg_chip *chip, int mA)
 			chip->buck_base + CHGR_BUCK_COMPARATOR_OVRIDE_3,
 			0x0C, 0x00, 1);
 	}
-
+#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT)
+	if (!qpnp_chg_is_usb_chg_plugged_in(chip))
+		mA = 0;
+	
+	if (!qpnp_chg_is_dc_chg_plugged_in(chip))
+		mA = 0;
+#endif
 	return rc;
 }
 
@@ -1479,15 +1506,127 @@ qpnp_chg_set_appropriate_vbatdet(struct qpnp_chg_chip *chip)
 			- chip->resume_delta_mv);
 }
 
+#ifdef CONFIG_LGE_PM_WORKAROUND_WEAK_CHARGER_REMOVAL_DETECTION
+static int
+qpnp_chg_ovpfet_on(struct qpnp_chg_chip *chip,bool on)
+{
+	int rc = 0;
+
+	rc = qpnp_chg_masked_write(chip,
+		chip->usb_chgpth_base + SEC_ACCESS,
+		0xFF,
+		0xA5, 1);
+
+	if (rc)
+		pr_err("[WCRD] failed to write SEC_ACCESS rc=%d\n", rc);
+
+	if (on) {
+		pr_info("[WCRD] Set 0x1350 as 0x00 ------------- \n");
+		rc = qpnp_chg_masked_write(chip,
+			chip->usb_chgpth_base + 0x50,
+			0xFF,
+			0x00, 1);
+		if (rc)
+			pr_err("[WCRD] failed to write hidden_reg rc=%d\n", rc);
+	} else {
+		pr_info("[WCRD] Set 0x1350 as 0x02 ------------- \n");
+		rc = qpnp_chg_masked_write(chip,
+			chip->usb_chgpth_base + 0x50,
+			0xFF,
+			0x02, 1);
+		if (rc)
+			pr_err("[WCRD] failed to write hidden_reg rc=%d\n", rc);
+	}
+
+	return rc;
+}
+
+static int
+qpnp_chg_ovpfet_get(struct qpnp_chg_chip *chip)
+{
+	int rc = 0;
+	u8 hidden_reg;
+
+	rc = qpnp_chg_read(chip, &hidden_reg,
+			chip->usb_chgpth_base + 0x50, 1);
+	if (rc) {
+		pr_err("[WCRD] failed to read hidden_reg rc=%d\n", rc);
+		return rc;
+	}
+
+	return hidden_reg;
+}
+
+#endif
 static void
 qpnp_arb_stop_work(struct work_struct *work)
 {
+#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT)
+	bool check_usb_ta = false;
+#endif
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct qpnp_chg_chip *chip = container_of(dwork,
 				struct qpnp_chg_chip, arb_stop_work);
 
+#ifdef CONFIG_LGE_PM_WORKAROUND_WEAK_CHARGER_REMOVAL_DETECTION
+	int rc;
+	u8 usb_sts;
+	int vbat_mv;
+	int ovp_sts;
+
+	rc = qpnp_chg_read(chip, &usb_sts,
+			INT_RT_STS(chip->usb_chgpth_base), 1);
+	if (rc)
+		pr_err("[WCRD] failed to read usb_chgpth_sts rc=%d\n", rc);
+
+
+	//see if USBIN is still valid and chg_gone is still true
+	if(qpnp_chg_is_usb_chg_plugged_in(chip)&& (usb_sts & CHG_GONE_IRQ))
+	{
+		ovp_sts = qpnp_chg_ovpfet_get(chip);
+		if(ovp_sts != 0x02)
+			// test if it's the weak charger by opening the ovp_fet
+			qpnp_chg_ovpfet_on(chip,false);
+
+		if(qpnp_chg_is_usb_chg_plugged_in(chip))
+		{
+			// weak charger connected because USBIN is still valid after OVP_FET is open
+			pr_info("[WCRD] weak charger detected, please replace it\n");
+
+			// periodical check until the weak charger is removed
+			schedule_delayed_work(&chip->arb_stop_work,
+					msecs_to_jiffies(3000));
+
+			vbat_mv = get_prop_battery_voltage_now(chip) / 1000;
+			// periodical battery voltage check for recharging
+			if (vbat_mv > (chip->max_voltage_mv - chip->resume_delta_mv))
+				return;
+			pr_info("[WCRD] vbat_mv = %d -> close FET \n",vbat_mv );
+		}
+		msleep(500);
+	}
+
+	ovp_sts = qpnp_chg_ovpfet_get(chip);
+	if(ovp_sts != 0x00)
+	{
+		qpnp_chg_ovpfet_on(chip,true);
+		pr_info("[WCRD] close ovp_fet\n");
+		msleep(500);
+	}
+#endif //                                                       
+
+#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT)
+	if (qpnp_chg_is_usb_chg_plugged_in(chip) || qpnp_chg_is_dc_chg_plugged_in(chip))
+		check_usb_ta = true;
+	else
+		check_usb_ta = false;
+
+	if (check_usb_ta && !chip->chg_done)
+#else
 	if (!chip->chg_done)
+#endif
 		qpnp_chg_charge_en(chip, !chip->charging_disabled);
+		
 	qpnp_chg_force_run_on_batt(chip, chip->charging_disabled);
 }
 
@@ -1526,6 +1665,14 @@ qpnp_chg_vbatdet_lo_irq_handler(int irq, void *_chip)
 
 	pr_err("chg_done chg_sts: 0x%x triggered\n", chg_sts);
 	if (!chip->charging_disabled && (chg_sts & FAST_CHG_ON_IRQ)) {
+#if defined (CONFIG_MACH_MSM8226_E8WIFI) ||defined (CONFIG_MACH_MSM8926_E8LTE)
+	if(lge_get_boot_mode() == LGE_BOOT_MODE_CHARGERLOGO){
+		if(chip->ac_online && !chip->chg_done){
+			pr_err("DEBUG : Resume on EOC state. Turns on EXT OVP FET\n");
+			lge_set_chg_path_to_external();
+		}
+	}
+#endif
 		schedule_delayed_work(&chip->eoc_work,
 			msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
 		pm_stay_awake(chip->dev);
@@ -1866,6 +2013,206 @@ qpnp_chg_regulator_batfet_set(struct qpnp_chg_chip *chip, bool enable)
 void trigger_early_baseline_state_machine(int plug_in);
 #endif
 #define ENUM_T_STOP_BIT		BIT(0)
+#if defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined (CONFIG_MACH_MSM8926_JAGN_KR)
+static irqreturn_t
+qpnp_chg_usb_usbin_valid_irq_handler(int irq, void *_chip)
+{
+	struct qpnp_chg_chip *chip = _chip;
+	int usb_present, host_mode;
+#ifdef CONFIG_LGE_PM
+	if ( (chip->uevent_wake_lock.ws.name) != NULL )
+		wake_lock_timeout(&chip->uevent_wake_lock, HZ*2);
+#endif
+
+	usb_present = qpnp_chg_is_usb_chg_plugged_in(chip);
+	host_mode = qpnp_chg_is_otg_en_set(chip);
+	printk("usbin-valid triggered: %d host_mode: %d\n",
+		usb_present, host_mode);
+	/* In host mode notifications cmoe from USB supply */
+	if (host_mode)
+		return IRQ_HANDLED;
+
+	schedule_delayed_work(&chip->usbin_valid_work,
+                 msecs_to_jiffies(0));
+return IRQ_HANDLED;
+}
+static int
+qpnp_chg_get_vbus_level_uv(struct qpnp_chg_chip *chip)
+{
+	int rc = 0;
+	struct qpnp_vadc_result results;
+
+	rc = qpnp_vadc_read(chip->vadc_dev, USBIN, &results);
+	if (rc) {
+		pr_err("Unable to read vbat rc=%d\n", rc);
+		return 0;
+	}
+	return results.physical;
+}
+static void
+qpnp_usbin_valid_work(struct work_struct *work)
+{
+
+    struct delayed_work *dwork = to_delayed_work(work);
+    struct qpnp_chg_chip *chip = container_of(dwork,
+                 struct qpnp_chg_chip, usbin_valid_work);
+
+    int usb_present,  usbin_health;
+	int vbus_usb_level_uv = 0 ;
+	int vbus_usb_level_mv = 0 ;
+	u8 psy_health_sts;
+	usb_present = qpnp_chg_is_usb_chg_plugged_in(chip);
+
+	vbus_usb_level_uv = qpnp_chg_get_vbus_level_uv(chip);
+	if ( 0 == vbus_usb_level_uv ) {
+		printk("Unable to read vbus_usb_level_uv=%d\n", vbus_usb_level_uv);
+	}
+
+	vbus_usb_level_mv = ( vbus_usb_level_uv / 1000 ) ;
+	printk("usbin_valid_work triggered: pre_usb_present: %d cur_usb_present: %d count_count: %d vbus_usb_level_mv: %d\n",
+         chip->usb_present, usb_present, count_count, vbus_usb_level_mv );
+
+	if (( usb_present == 1 ) && ( vbus_usb_level_mv < VBUS_USB_THRESHOLD ) )
+	{
+		usb_present = 0 ;
+		printk("usbin_valid_work retry: pre_usb_present: %d cur_usb_present: %d count_count: %d vbus_usb_level_mv: %d\n",
+			chip->usb_present, usb_present, count_count, vbus_usb_level_mv );
+	}
+
+	if (chip->usb_present ^ usb_present) {
+		count_count = 0 ;
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_S540
+		trigger_early_baseline_state_machine(usb_present);
+#endif
+#ifdef CONFIG_LGE_WIRELESS_CHARGER_RT9536
+		schedule_work(&chip->wlc_disable_work);
+#endif
+		chip->usb_present = usb_present;
+#ifdef CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO
+		chip->is_charger_changed_from_irq = true;
+		schedule_delayed_work(&chip->battemp_work, HZ*1);
+#endif
+#ifdef CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO
+		chip->is_charger_changed_from_irq = true;
+
+		if(wake_lock_active(&chip->lcs_wake_lock))
+			wake_unlock(&chip->lcs_wake_lock);
+#endif
+		if (!usb_present) {
+#ifdef CONFIG_LGE_PM_VZW_FAST_CHG
+			if (usb_chg_state == IS_OPEN_TA || chg_state == VZW_NOT_CHARGING || chg_state == VZW_USB_DRIVER_UNINSTALLED) {
+				lge_usb_config_finish = 0;
+				usb_chg_state = IS_USB_DRIVER_UNINSTALLED;
+				chg_state = VZW_NO_CHARGER;
+				vzw_chg_present = NOT_PRESENT;
+#ifdef CONFIG_LGE_PM_VZW_LLK
+				temp_state = 0;
+				llk_monitor_soc_flag = false;
+				llk_stop_chg_flag = false;
+#endif
+				power_supply_changed(&chip->batt_psy);
+			}
+			/* input_current_check_work should be cancelled if charger is removed before checking input current by AICL */
+			schedule_work(&chip->cancel_input_current_check_work);
+#endif
+			/* when a valid charger inserted, and increase the
+			 *  charger voltage to OVP threshold, then
+			 *  usb_in_valid falling edge interrupt triggers.
+			 *  So we handle the OVP monitor here, and ignore
+			 *  other health state changes */
+			qpnp_chg_disable_irq(&chip->chg_vbatdet_lo);
+			if (chip->ovp_monitor_enable &&
+				       (chip->usb_valid_check_ovp)) {
+				usbin_health =
+					qpnp_chg_check_usbin_health(chip);
+				if ((chip->usbin_health != usbin_health)
+					&& (usbin_health == USBIN_OVP)) {
+					chip->usbin_health = usbin_health;
+					psy_health_sts =
+					POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+					power_supply_set_health_state(
+						chip->usb_psy,
+						psy_health_sts);
+					power_supply_changed(chip->usb_psy);
+				}
+			}
+			if (!qpnp_chg_is_dc_chg_plugged_in(chip)) {
+				chip->delta_vddmax_mv = 0;
+				qpnp_chg_set_appropriate_vddmax(chip);
+				chip->chg_done = false;
+			}
+			qpnp_chg_usb_suspend_enable(chip, 0);
+			qpnp_chg_iusbmax_set(chip, QPNP_CHG_I_MAX_MIN_100);
+			chip->prev_usb_max_ma = -EINVAL;
+			chip->aicl_settled = false;
+		} else {
+			/* when OVP clamped usbin, and then decrease
+			 * the charger voltage to lower than the OVP
+			 * threshold, a usbin_valid rising edge
+			 * interrupt triggered. So we change the usb
+			 * psy health state back to good */
+			if (chip->ovp_monitor_enable &&
+				       (chip->usb_valid_check_ovp)) {
+				usbin_health =
+					qpnp_chg_check_usbin_health(chip);
+				if ((chip->usbin_health != usbin_health)
+					&& (usbin_health == USBIN_OK)) {
+					chip->usbin_health = usbin_health;
+					psy_health_sts =
+						POWER_SUPPLY_HEALTH_GOOD;
+					power_supply_set_health_state(
+						chip->usb_psy,
+						psy_health_sts);
+					power_supply_changed(chip->usb_psy);
+				}
+			}
+
+			if (!qpnp_chg_is_dc_chg_plugged_in(chip)) {
+				chip->delta_vddmax_mv = 0;
+				qpnp_chg_set_appropriate_vddmax(chip);
+			}
+			schedule_delayed_work(&chip->eoc_work,
+				msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
+#ifndef CONFIG_LGE_PM_4_25V_CHARGING_START
+			schedule_work(&chip->soc_check_work);
+#endif
+
+#ifdef CONFIG_LGE_PM_4_25V_CHARGING_START
+			schedule_work(&chip->resume_check_work);
+
+			//pr_err("entered qpnp_chg_usb_usbin_valid_irq_handler\n");
+#endif
+
+#ifdef CONFIG_LGE_PM_VZW_FAST_CHG
+			if (lge_get_boot_mode() == LGE_BOOT_MODE_CHARGERLOGO)
+				schedule_delayed_work(&chip->input_current_check_work, HZ*30);
+			else
+				schedule_delayed_work(&chip->input_current_check_work, HZ*10);
+			chip->is_vzw_slow_charging = false;
+#endif
+		}
+		power_supply_set_present(chip->usb_psy, chip->usb_present);
+		schedule_work(&chip->batfet_lcl_work);
+	}
+	else if ( (chip->usb_present == 1) && ( usb_present == 1 ) && ( count_count <= 2 ) )
+	{
+			count_count += 1 ;
+			schedule_delayed_work(&chip->usbin_valid_work,
+                 msecs_to_jiffies(50));
+	}
+	else if (  (chip->usb_present == 1) && ( usb_present == 1 ) && ( count_count == 3 ) )
+	{
+			count_count += 1 ;
+			schedule_delayed_work(&chip->usbin_valid_work,
+                 msecs_to_jiffies(300));
+	}
+	else if ( count_count == 4 )
+	{
+			count_count = 0 ;
+			printk ("count_count is 4 = %d\n", count_count );
+	}
+}
+#else
 static irqreturn_t
 qpnp_chg_usb_usbin_valid_irq_handler(int irq, void *_chip)
 {
@@ -2014,6 +2361,7 @@ qpnp_chg_usb_usbin_valid_irq_handler(int irq, void *_chip)
 
 	return IRQ_HANDLED;
 }
+#endif
 
 #define TEST_EN_SMBC_LOOP		0xE5
 #define IBAT_REGULATION_DISABLE		BIT(2)
@@ -2147,14 +2495,18 @@ qpnp_chg_chgr_chg_failed_irq_handler(int irq, void *_chip)
 	}
 #endif
 
-// For the CHG Stop
+#if defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGN_KR)
+		pr_info("=========== Safety Timer Expired~! BUT DON'T [CHG STOP] ==============\n");
+#else
 #ifdef CONFIG_LGE_PM
+// For the CHG Stop
 	if (!pseudo_batt_info.mode){
 		pr_info("=========== [CHG STOP] ==============\n");
 
 		chip->chg_fail_irq_happen = true;
 	    qpnp_chg_charge_en(chip, 0);
 	}
+#endif
 #endif
 
 	rc = qpnp_chg_masked_write(chip,
@@ -2243,8 +2595,10 @@ qpnp_chg_chgr_chg_fastchg_irq_handler(int irq, void *_chip)
 		chip->from_temp_monitor_vbat_det_high = false;
 	}
 #endif
-
+#if defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined (CONFIG_MACH_MSM8926_JAGN_KR)
+#else
 	qpnp_chg_enable_irq(&chip->chg_vbatdet_lo);
+#endif
 	if (chgr_sts & FAST_CHG_ON_IRQ) {
 #ifdef CONFIG_LGE_PM_CHARGING_EXTERNAL_OVP
 		pr_debug("======= [FAST CHG IRQ] DCP = %d, SDP = %d ========\n", chip->ac_online, qpnp_chg_is_usb_chg_plugged_in(chip));
@@ -2663,7 +3017,7 @@ get_prop_battery_voltage_now(struct qpnp_chg_chip *chip)
 	int rc = 0;
 	struct qpnp_vadc_result results;
 
-#ifdef CONFIG_MACH_MSM8926_JAGNM_ATT
+#if 0
 	int batt_volt = 0;
 	int use_fuelgauge = 0;
 
@@ -2699,18 +3053,17 @@ get_prop_battery_voltage_now(struct qpnp_chg_chip *chip)
 			pr_err("unable to read vbat rc in voltage_now = %d\n", rc);
 			return 0;
 		}
-#ifdef CONFIG_MACH_MSM8926_JAGNM_ATT
+#if 0
 		batt_volt = (int)results.physical;
     }
 	}
 	}
 	return batt_volt;
 }
-#else
+#endif
 		return results.physical;
 	}
 }
-#endif
 
 #define BATT_PRES_BIT BIT(7)
 static int
@@ -3347,7 +3700,14 @@ qpnp_chg_resume_check_work(struct work_struct *work)
 	{
 		//pr_err("start charing in monitor temp, vbatt=%d\n", req.batt_volt);
 		qpnp_chg_vbatdet_set(chip, chip->max_voltage_mv + chip->resume_delta_mv);
+#if defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGC_SPR)
+		if (charger_inserted)
+			qpnp_chg_charge_en(chip, !chip->charging_disabled);
+		else
+			qpnp_chg_charge_en(chip, 0);
+#else
 		qpnp_chg_charge_en(chip, !chip->charging_disabled);
+#endif
 		//chip->from_usbin_valid_irq = false;
 		chip->from_temp_monitor_vbat_det_high = true;
 	}
@@ -3358,7 +3718,7 @@ qpnp_chg_resume_check_work(struct work_struct *work)
 #ifdef CONFIG_LGE_PM_VZW_LLK
 int32_t vzw_llk_enable_charging(bool enable)
 {
-	int ret;
+	int ret=0;
 	struct qpnp_chg_chip *chip = qpnp_chg;
 
 	pr_err("enable=%d.\n", enable);
@@ -3367,14 +3727,14 @@ int32_t vzw_llk_enable_charging(bool enable)
 		schedule_delayed_work(&chip->battemp_work,HZ*5);
 		schedule_delayed_work(&chip->eoc_work,
 				msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
+		cancel_delayed_work_sync(&chip->vzw_llk_stop_chg_work);
+		ret = qpnp_chg_charge_en(chip, enable);
 	}
 	else {
-		cancel_delayed_work_sync(&chip->battemp_work);
-		cancel_delayed_work_sync(&chip->eoc_work);
-		schedule_work(&chip->cancel_input_current_check_work);
-		pm_relax(qpnp_chg->dev);
+		schedule_delayed_work(&chip->vzw_llk_stop_chg_work,
+		        	msecs_to_jiffies(1000*4));
 	}
-	ret = qpnp_chg_charge_en(chip, enable);
+	
 
 	if (ret) {
 		pr_err("Failed to set CHG_ENABLE_BIT rc=%d\n", ret);
@@ -3593,6 +3953,26 @@ static void wireless_charging_disable_work(struct work_struct *work)
 
 #endif
 
+#ifdef CONFIG_LGE_PM_VZW_LLK
+static void
+vzw_llk_stop_chg(struct work_struct *work)
+{
+	struct qpnp_chg_chip *chip = container_of(work,
+				struct qpnp_chg_chip, vzw_llk_stop_chg_work.work);
+	int ret;
+	cancel_delayed_work_sync(&chip->battemp_work);
+	cancel_delayed_work_sync(&chip->eoc_work);
+	schedule_work(&chip->cancel_input_current_check_work);
+	pm_relax(qpnp_chg->dev);
+	ret = qpnp_chg_charge_en(chip, 0);
+
+	if (ret) {
+		pr_err("Failed to set CHG_ENABLE_BIT rc=%d\n", ret);
+		return;
+	}
+}
+#endif
+
 static void
 qpnp_batt_external_power_changed(struct power_supply *psy)
 {
@@ -3610,7 +3990,9 @@ qpnp_batt_external_power_changed(struct power_supply *psy)
 /*                                                                                       */
 #ifdef CONFIG_LGE_PM
 	if(is_factory_cable()){
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || \
+    defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || \
+    defined (CONFIG_MACH_MSM8226_E9WIFIN)
 		if(get_prop_batt_present(chip) && is_56k_910k_factory_cable()){
 			 pr_info("Factory cable is connected (56K, 910K)\n");
 			 qpnp_chg_iusbmax_set(chip, FACTORY_IUSB_MAX_FOR_EMBEDDED_BATTERY);
@@ -3676,8 +4058,8 @@ qpnp_batt_external_power_changed(struct power_supply *psy)
 		if (store_demo_enabled == 1) {
 			if ((get_prop_capacity(chip) > 34) || (llk_stop_chg_flag == true)) {
 				vzw_llk_enable_charging(0);
-				pr_info("VZW LLK Charging Stop!!, CHG_STATE : %d\n", chg_state);
-			}
+				pr_info("VZW LLK Charging Stop!!, CHG_STATE : %d, llk_stop_chg_flag : %d\n", chg_state,llk_stop_chg_flag);
+			} 
 		}
 #endif
 
@@ -4702,6 +5084,12 @@ qpnp_eoc_work(struct work_struct *work)
 	int ibat_ma, vbat_mv, rc = 0;
 	u8 batt_sts = 0, buck_sts = 0, chg_sts = 0;
 	bool vbat_lower_than_vbatdet;
+#ifdef CONFIG_LGE_PM_FIX_CEC_FAIL
+	union power_supply_propval prop_val = {0,};
+#endif
+#ifdef CONFIG_LGE_PM_WORKAROUND_WEAK_CHARGER_REMOVAL_DETECTION
+	u8 usb_sts = 0;
+#endif
 
 #ifdef CONFIG_LGE_PM_PWR_KEY_FOR_CHG_LOGO
     is_eoc_work_stop = false;
@@ -4721,7 +5109,14 @@ qpnp_eoc_work(struct work_struct *work)
 #endif
 
 	pm_stay_awake(chip->dev);
+#if defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGC_SPR)
+	if (qpnp_chg_is_usb_chg_plugged_in(chip) || qpnp_chg_is_dc_chg_plugged_in(chip))
+		qpnp_chg_charge_en(chip, !chip->charging_disabled);
+	else
+		qpnp_chg_charge_en(chip, 0);
+#else
 	qpnp_chg_charge_en(chip, !chip->charging_disabled);
+#endif
 
 	rc = qpnp_chg_read(chip, &batt_sts, INT_RT_STS(chip->bat_if_base), 1);
 	if (rc) {
@@ -4759,8 +5154,11 @@ qpnp_eoc_work(struct work_struct *work)
 				ibat_ma, vbat_mv, chip->term_current);
 
 		vbat_lower_than_vbatdet = !(chg_sts & VBAT_DET_LOW_IRQ);
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) ||defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
-		if (vbat_lower_than_vbatdet && vbat_mv <4330) {
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) ||defined (CONFIG_MACH_MSM8226_E9WIFI) || \
+    defined (CONFIG_MACH_MSM8226_E9WIFIN)
+		if (vbat_lower_than_vbatdet && vbat_mv < 4330) {
+#elif defined (CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8226_E8LTE)
+		if (vbat_lower_than_vbatdet && vbat_mv < 4180) {
 #else
 		if (vbat_lower_than_vbatdet && vbat_mv <
 				(chip->max_voltage_mv - chip->resume_delta_mv
@@ -4774,7 +5172,10 @@ qpnp_eoc_work(struct work_struct *work)
 					vbat_low_count);
 			if (vbat_low_count >= CONSECUTIVE_COUNT) {
 				pr_debug("woke up too early stopping\n");
+#if defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined (CONFIG_MACH_MSM8926_JAGN_KR)
+#else
 				qpnp_chg_enable_irq(&chip->chg_vbatdet_lo);
+#endif
 #ifdef CONFIG_LGE_PM
 // This code is given by Qualcomm.
 // During CC charging , the device does not go to power collapse by this code.
@@ -4825,6 +5226,21 @@ qpnp_eoc_work(struct work_struct *work)
 				if (!chip->bat_is_cool && !chip->bat_is_warm) {
 					pr_info("End of Charging\n");
 					chip->chg_done = true;
+#if defined (CONFIG_MACH_MSM8226_E8WIFI) ||defined (CONFIG_MACH_MSM8926_E8LTE)
+					if((lge_get_boot_mode() == LGE_BOOT_MODE_CHARGERLOGO) && chip->ac_online){
+						pr_err("DEBUG : EOC state. Turns off EXT OVP FET\n");
+						lge_set_chg_path_to_internal();
+					}
+#endif
+#ifdef CONFIG_LGE_PM_FIX_CEC_FAIL
+					prop_val.intval = 0;
+					if (!chip->bms_psy)
+						chip->bms_psy = power_supply_get_by_name("bms");
+					if (chip->bms_psy) {
+							chip->bms_psy->set_property(chip->bms_psy,
+										POWER_SUPPLY_PROP_RELEASE_CV_LOCK, &prop_val);
+					}
+#endif
 				} else {
 					pr_info("stop charging: battery is %s, vddmax = %d reached\n",
 						chip->bat_is_cool
@@ -4866,7 +5282,20 @@ stop_eoc:
 	if(lge_get_boot_mode() != LGE_BOOT_MODE_CHARGERLOGO)
 	{
 		pr_info("===== [qpnp_eoc_work] PM RELAX !!! ======\n");
+#ifdef CONFIG_LGE_PM_WORKAROUND_WEAK_CHARGER_REMOVAL_DETECTION
+        if(!is_factory_cable()){
+            rc = qpnp_chg_read(chip, &usb_sts,
+                INT_RT_STS(chip->usb_chgpth_base), 1);
+            if(!(usb_sts & CHG_GONE_IRQ)){
+                pm_relax(chip->dev);
+                pr_info("[WCRD] Suspend is blocked due to CHG gone sts\n");
+            }
+        } else {
+            pm_relax(chip->dev);
+        }
+#else
 		pm_relax(chip->dev);
+#endif
 	}
 #else
     pm_relax(chip->dev);
@@ -5136,7 +5565,9 @@ qpnp_chg_power_stage_set(struct qpnp_chg_chip *chip, bool reduce)
 	return rc;
 }
 #ifdef CIDL
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8226_E8WIFI)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFI) || \
+    defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8226_E8WIFI) || \
+    defined (CONFIG_MACH_MSM8926_E8LTE)
 static int
 qpnp_chg_get_pa_therm(struct qpnp_chg_chip *chip)
 {
@@ -6262,14 +6693,10 @@ qpnp_charger_read_dt_props(struct qpnp_chg_chip *chip)
 	}
 
 	/* Get the use-external-rsense property */
-#if defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
-	/*To tune the BMS to apply this code soc match the battery voltage*/
-	chip->use_external_rsense = false;
-#else
 	chip->use_external_rsense = of_property_read_bool(
 			chip->spmi->dev.of_node,
 			"qcom,use-external-rsense");
-#endif
+
 	/* Get the btc-disabled property */
 	chip->btc_disabled = of_property_read_bool(chip->spmi->dev.of_node,
 					"qcom,btc-disabled");
@@ -6297,13 +6724,10 @@ qpnp_charger_read_dt_props(struct qpnp_chg_chip *chip)
 	/* Disable charging when faking battery values */
 	if (chip->use_default_batt_values)
 		chip->charging_disabled = true;
-#if defined (CONFIG_MACH_MSM8226_E7WIFI)  || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US)
-	chip->power_stage_workaround_enable = true;
-#else
+
 	chip->power_stage_workaround_enable =
 			of_property_read_bool(chip->spmi->dev.of_node,
 					"qcom,power-stage-reduced");
-#endif
 	chip->ibat_calibration_enabled =
 			of_property_read_bool(chip->spmi->dev.of_node,
 					"qcom,ibat-calibration-enabled");
@@ -6350,15 +6774,16 @@ static void qpnp_monitor_batt_temp(struct work_struct *work)
 	struct charging_rsp res;
 	union power_supply_propval ret = {0,};
 
-    if(lge_get_boot_mode() == LGE_BOOT_MODE_CHARGERLOGO && !is_enter_first)
-    {
+	if(lge_get_boot_mode() == LGE_BOOT_MODE_CHARGERLOGO && !is_enter_first)
+	{
 		pr_info("===== [qpnp_monitor_batt_temp] PM STAY AWAKE !!! ======\n");
 		pm_stay_awake(chip->dev);
 	}
 	chip->batt_psy.get_property(&(chip->batt_psy),
-			  POWER_SUPPLY_PROP_TEMP, &ret);
+			POWER_SUPPLY_PROP_TEMP, &ret);
 	req.batt_temp = ret.intval;
-#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT)
+#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 	get_prop_batt_health(chip);
 #endif
 	chip->batt_psy.get_property(&(chip->batt_psy),
@@ -6385,7 +6810,7 @@ static void qpnp_monitor_batt_temp(struct work_struct *work)
 		(res.force_update == true)) {
 		if (res.change_lvl == STS_CHE_NORMAL_TO_DECCUR ||
 			(res.force_update == true && res.state == CHG_BATT_DECCUR_STATE &&
-#ifdef CONFIG_LGE_PM_VZW_CHARGING_TEMP_SCENARIO
+#if defined(CONFIG_LGE_PM_VZW_CHARGING_TEMP_SCENARIO) || defined(CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO_V1_8)
 			res.dc_current != DC_CURRENT_DEF && res.change_lvl != STS_CHE_STPCHG_TO_DECCUR)) {
 #else
 			res.dc_current != DC_CURRENT_DEF)) {
@@ -6422,7 +6847,7 @@ static void qpnp_monitor_batt_temp(struct work_struct *work)
 			qpnp_chg_charge_en(chip, !res.disable_chg);
 			wake_unlock(&chip->lcs_wake_lock);
 		}
-#ifdef CONFIG_LGE_PM_VZW_CHARGING_TEMP_SCENARIO
+#if defined(CONFIG_LGE_PM_VZW_CHARGING_TEMP_SCENARIO) || defined(CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO_V1_8)
 		else if (res.change_lvl == STS_CHE_STPCHG_TO_DECCUR) {
 #ifdef CONFIG_LGE_PM_THERMAL
 			qpnp_chg_ibatmax_set(chip,res.dc_current);
@@ -6483,6 +6908,9 @@ static int prev_key_code = 0;
 void
 qpnp_goto_suspend_for_chg_logo(void)
 {
+#ifdef CONFIG_LGE_PM_WORKAROUND_WEAK_CHARGER_REMOVAL_DETECTION
+    u8 usb_sts = 0;
+#endif
     if(lge_get_boot_mode() == LGE_BOOT_MODE_CHARGERLOGO && !is_enter_first)
     {
         pr_info("===== [qpnp_goto_suspend_for_chg_logo] PM RELAX !!! ======\n");
@@ -6491,7 +6919,16 @@ qpnp_goto_suspend_for_chg_logo(void)
 	    key_filter_end = true;
 
 		if (qpnp_chg != NULL) {
+#ifdef CONFIG_LGE_PM_WORKAROUND_WEAK_CHARGER_REMOVAL_DETECTION
+			qpnp_chg_read(qpnp_chg, &usb_sts,
+				INT_RT_STS(qpnp_chg->usb_chgpth_base), 1);
+			if(!(usb_sts & CHG_GONE_IRQ)){
+				pm_relax(qpnp_chg->dev);
+				pr_info("[WCRD] Suspend is blocked due to CHG gone sts\n");
+			}
+#else
 			pm_relax(qpnp_chg->dev);
+#endif
 		}
     }
 }
@@ -6571,7 +7008,8 @@ qpnp_pwr_key_action_set_for_chg_logo(struct input_dev *dev, unsigned int code, i
 EXPORT_SYMBOL(qpnp_pwr_key_action_set_for_chg_logo);
 #endif
 
-#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_LGE_PM_CHARGING_DEBUG_LOG)
+#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_LGE_PM_CHARGING_DEBUG_LOG) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 #define SBMM_BAT_FET				0x0B
 #define CHECK_STATUS_PERIOD        10000
 
@@ -6579,22 +7017,39 @@ static void devices_state_monitor_work (struct work_struct *work) {
 	int rc = 0;		int ret = 0;
 	int usb_in = 0; int usb_in_volt = 0;	int usb_in_volt_avg = 0;	int usb_in_volt_min_mv = 0;
 	int batt_volt = 0;	int batt_soc = 0;		int iusb_max = 0;		int ibat_max = 0; 	int ibat_cur = 0;
-	u8 chg_ctrl = 0;	u8 bat_fet_sts = 0;		u8 bat_if_sts = 0;
-	int bat_temp = 0;	u8 chg_sts = 0;		int cable_info = 0;
+	u8 chg_ctrl = 0;	u8 bat_fet_sts = 0;		u8 bat_if_sts = 0;		int pseudo_batt_check = 0;
+	int batt_temp = 0;	u8 chg_sts = 0;		int cable_info = 0;
+	char *charging_state = "Discharging";	int counter = 5;	char *check_chg_done = "Discharging";
+	static int checked_usb_in;
 #if  defined (CONFIG_MAX17048_FUELGAUGE)
 	int fuel_soc = 0; int fuel_volt = 0;
 #endif
 
 	struct delayed_work		*dwork = to_delayed_work(work);
 	struct qpnp_chg_chip		*chip = container_of(dwork,struct qpnp_chg_chip, charging_check_work);
+	struct qpnp_vadc_result temp_results;
 #if  defined (CONFIG_MAX17048_FUELGAUGE)
 	struct qpnp_vadc_result v_results;
 	union power_supply_propval val = {0,};
 #endif
-	usb_in = qpnp_chg_is_usb_chg_plugged_in(chip);
+	usb_in = qpnp_chg_is_usb_chg_plugged_in(chip) || qpnp_chg_is_dc_chg_plugged_in(chip);
 	usb_in_volt = qpnp_chg_get_vusbin_uv(chip) / 1000;
-	usb_in_volt_avg =  get_vusb_averaged(chip, 5);			//Check usbin voltage
 
+	if (checked_usb_in != usb_in && usb_in == 1)
+		counter = 5;
+	else 
+		counter = 1;
+
+	usb_in_volt_avg =  get_vusb_averaged(chip, counter) / 1000;			//Check usbin voltage
+	if (usb_in) {
+		if (chip->chg_done)
+			check_chg_done = "Charging_complete";
+		else
+			check_chg_done = "Not_complete";
+	} else {
+		check_chg_done = "Discharging";
+	}
+	checked_usb_in = usb_in;
 #if  defined (CONFIG_MAX17048_FUELGAUGE)
 	fuel_soc = max17048_get_capacity();
 	fuel_volt = max17048_get_voltage();
@@ -6611,26 +7066,49 @@ static void devices_state_monitor_work (struct work_struct *work) {
 	batt_volt = get_prop_battery_voltage_now(chip)/1000;
 	batt_soc = get_prop_capacity(chip);
 #endif
-
+	pseudo_batt_check = pseudo_batt_info.mode;
 	iusb_max = qpnp_chg_usb_iusbmax_get(chip);
 	ibat_cur = get_prop_current_now(chip) / 1000;
 	usb_in_volt_min_mv = qpnp_chg_vinmin_get(chip);
-	bat_temp = get_prop_batt_temp(chip) / 10;
+	rc = qpnp_vadc_read(chip->vadc_dev, LR_MUX1_BATT_THERM,
+			&temp_results);
+
+	batt_temp = (int)temp_results.physical;
 
 	cable_info = lge_pm_get_cable_type();
 
 	rc = qpnp_chg_ibatmax_get(chip, &ibat_max);
 	rc = qpnp_chg_read(chip, &chg_ctrl, chip->chgr_base + CHGR_CHG_CTRL, 1);
+#ifdef CONFIG_LGE_PM
+	bat_fet_sts = qpnp_chg_is_batfet_closed(chip);
+#else
 	rc = qpnp_chg_read(chip, &bat_fet_sts, chip->bat_if_base + SBMM_BAT_FET, 1);
+#endif
 	rc = qpnp_chg_read(chip, &chg_sts, INT_RT_STS(chip->chgr_base), 1);
-	rc = qpnp_chg_read(chip, &bat_if_sts, INT_RT_STS(chip->bat_if_base), 1);
+	if (chg_sts == 0x20)
+		charging_state = "CC_Charging";
+	else if (chg_sts == 0x21)
+		charging_state = "CV_Charging";
+	else if (chg_sts == 0x0)
+		if (usb_in == 0x1)
+			charging_state = "Charging";
+		else
+			charging_state = "Discharging";
+	else
+		charging_state = "Discharging";
 
-	printk("[STATUS] USB_IN : %d,  USB_IN_VOL : %d, USB_IN_AVG. : %d, USB_IN_MIN. : %d, Cable_info : %d(11), IUSB_MAX : %d\n", usb_in, usb_in_volt, usb_in_volt_avg, usb_in_volt_min_mv, cable_info, iusb_max);
-	printk("[STATUS] BATT_VOL : %d , BATT_SOC : %d , IBAT_MAX : %d , IBAT_NOW : %d BATT_TEMP : %d\n", batt_volt, batt_soc, ibat_max, ibat_cur, bat_temp);
+	printk("[STATUS] USB_IN : %d, USB_IN_VOL : %d, USB_IN_AVG. : %d, USB_IN_MIN. : %d, Cable_info : %d(%s), IUSB_MAX : %d\n", usb_in, usb_in_volt, usb_in_volt_avg, usb_in_volt_min_mv, cable_info, chip->ac_online ? "AC" : usb_in ? "USB" : "None",  iusb_max);
+	printk("[STATUS] BATT_VOL : %d , BATT_SOC : %d , IBAT_MAX : %d , IBAT_NOW : %d BATT_TEMP : %d, pseudo_battery : %d\n", batt_volt, batt_soc, ibat_max, ibat_cur, batt_temp, pseudo_batt_check);
 #if defined(CONFIG_MAX17048_FUELGAUGE)
 	printk("[STATUS] FUEL_VOL : %d , FUEL_SOC : %d \n", fuel_volt, fuel_soc);
 #endif
-	printk("[STATUS] CHG_CTRL :  0x%x, BAT_FET_STS : 0x%x, CHG_STS : 0x%x, BAT_IF_STS : 0x%x\n", chg_ctrl, bat_fet_sts, chg_sts, bat_if_sts);
+
+#ifdef CONFIG_LGE_PM
+	printk("[STATUS] CHG_STS : %s, Charging_complete : %s, BAT_FET_STS : %s, BAT_IF_STS : 0x%x, CHG_TIMEOUT : %d\n", charging_state, check_chg_done, bat_fet_sts > 0 ? "Closed" : "Open", bat_if_sts, chip->chg_fail_irq_happen);
+//	printk("[STATUS] CHG_CTRL : 0x%02x, BAT_FET_STS : %s, CHG_STS : %s, BAT_IF_STS : 0x%x, CHG_TIMEOUT : %d, Charging_complete : %s\n", chg_ctrl, bat_fet_sts > 0 ? "Closed" : "Open", charging_state, bat_if_sts, chip->chg_fail_irq_happen, check_chg_done);
+#else
+	printk("[STATUS] CHG_CTRL : 0x%x, BAT_FET_STS : 0x%x, CHG_STS : 0x%x, BAT_IF_STS : 0x%x\n", chg_ctrl, bat_fet_sts, chg_sts, bat_if_sts);
+#endif
 
 	ret = schedule_delayed_work(&chip->charging_check_work,
 		round_jiffies_relative(msecs_to_jiffies(CHECK_STATUS_PERIOD)));
@@ -6655,7 +7133,9 @@ static void charging_information(struct work_struct *work)
 	int usb_in=0;	int qpnp_volt=0;	int qpnp_soc=0;		int iusb_max=0;		int ibat_max=0;
 	int ibat=0;		u8 chg_ctrl=0;	u8 bat_fet_sts=0;		u8 bat_if_sts=0;
 	int bat_temp=0;	u8 chg_sts=0;		int cable_info=0;	int vin_min_mv=0;
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || \
+    defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || \
+    defined (CONFIG_MACH_MSM8226_E9WIFIN)
 	int pa_therm=0; int vinput=0;
 #endif
 	struct delayed_work		*dwork = to_delayed_work(work);
@@ -6675,7 +7155,9 @@ static void charging_information(struct work_struct *work)
 	cable_info = lge_pm_get_cable_type();
 	vin_min_mv = qpnp_chg_vinmin_get(chip);
 
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || \
+    defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || \
+    defined (CONFIG_MACH_MSM8226_E9WIFIN)
 	vinput = qpnp_chg_get_vusbin_uv(chip);
 	pa_therm = qpnp_chg_get_pa_therm(chip);
 /*
@@ -6695,7 +7177,9 @@ static void charging_information(struct work_struct *work)
 	pr_info("[I], %d , %d , %d , %d , %d , %d , %d , 0x%x , 0x%x , 0x%x , 0x%x , %d , %d(11)\n",
 				usb_in,qpnp_volt,qpnp_soc, vin_min_mv,iusb_max,ibat_max,ibat,chg_ctrl,bat_fet_sts,chg_sts,bat_if_sts,bat_temp,cable_info);
 #endif
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || \
+    defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || \
+    defined (CONFIG_MACH_MSM8226_E9WIFIN)
 	ret = schedule_delayed_work(&chip->charging_inform_work,
 		round_jiffies_relative(msecs_to_jiffies(15000)));
 #else
@@ -6952,8 +7436,11 @@ qpnp_charger_probe(struct spmi_device *spmi)
 						subtype, rc);
 				goto fail_chg_enable;
 			}
-#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined (CONFIG_MACH_MSM8926_JAGN_KR)
+#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 			gpio_request(31, "ext_ovp");
+#elif defined (CONFIG_MACH_MSM8926_E2_MPCS_US)
+			gpio_request(33, "ext_ovp");
 #endif
 			break;
 		case SMBB_DC_CHGPTH_SUBTYPE:
@@ -7002,7 +7489,9 @@ qpnp_charger_probe(struct spmi_device *spmi)
 /*                                                                                       */
 #ifdef CONFIG_LGE_PM
 	if(is_factory_cable()){
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || \
+    defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || \
+    defined (CONFIG_MACH_MSM8226_E9WIFIN)
 		if(get_prop_batt_present(chip) && is_56k_910k_factory_cable()){
 			 pr_info("Factory cable is connected (56K, 910K)\n");
 			 qpnp_chg_iusbmax_set(chip, FACTORY_IUSB_MAX_FOR_EMBEDDED_BATTERY);
@@ -7044,7 +7533,9 @@ qpnp_charger_probe(struct spmi_device *spmi)
 		INIT_WORK(&chip->adc_disable_work,
 			qpnp_bat_if_adc_disable_work);
 	}
-
+#if defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined (CONFIG_MACH_MSM8926_JAGN_KR)
+	INIT_DELAYED_WORK(&chip->usbin_valid_work, qpnp_usbin_valid_work);
+#endif
 	INIT_DELAYED_WORK(&chip->eoc_work, qpnp_eoc_work);
 	INIT_DELAYED_WORK(&chip->arb_stop_work, qpnp_arb_stop_work);
 	INIT_DELAYED_WORK(&chip->usbin_health_check,
@@ -7082,7 +7573,9 @@ qpnp_charger_probe(struct spmi_device *spmi)
 	INIT_WORK(&chip->wlc_enable_work, wireless_charging_enable_work);
 	INIT_WORK(&chip->wlc_disable_work, wireless_charging_disable_work);
 #endif
-
+#ifdef CONFIG_LGE_PM_VZW_LLK
+	INIT_DELAYED_WORK(&chip->vzw_llk_stop_chg_work, vzw_llk_stop_chg);
+#endif
     /*               */
     /*                                                */
 #ifdef  CONFIG_LGE_PM
@@ -7218,16 +7711,28 @@ qpnp_charger_probe(struct spmi_device *spmi)
         }
 #endif
 
-#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_LGE_PM_CHARGING_DEBUG_LOG)
+#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_LGE_PM_CHARGING_DEBUG_LOG) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 		charging_check_probe(chip);
 #endif
 
 #ifdef CIDL
 		charging_information_probe(chip);
 #endif
-
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || \
+		defined (CONFIG_MACH_MSM8926_E8LTE)|| defined (CONFIG_MACH_MSM8226_E9WIFI) || \
+		defined (CONFIG_MACH_MSM8226_E9WIFIN)
+	if(is_56k_910k_factory_cable()){
+		pr_info("DEBUG : 56K, 910K factory cable is inserted, not check input current\n");
+	}
+	else{
+		schedule_delayed_work(&chip->aicl_check_work,
+			msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
+	}
+#else
 	schedule_delayed_work(&chip->aicl_check_work,
 		msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
+#endif
 	pr_info("success chg_dis = %d, bpd = %d, usb = %d, dc = %d b_health = %d batt_present = %d\n",
 			chip->charging_disabled,
 			chip->bpd_detection,
@@ -7279,7 +7784,9 @@ qpnp_charger_remove(struct spmi_device *spmi)
 	cancel_work_sync(&chip->insertion_ocv_work);
 	cancel_work_sync(&chip->reduce_power_stage_work);
 	alarm_cancel(&chip->reduce_power_stage_alarm);
-
+#if defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined (CONFIG_MACH_MSM8926_JAGN_KR)
+	cancel_delayed_work_sync(&chip->usbin_valid_work);
+#endif
 	mutex_destroy(&chip->batfet_vreg_lock);
 	mutex_destroy(&chip->jeita_configure_lock);
 
@@ -7316,7 +7823,8 @@ static int qpnp_chg_resume(struct device *dev)
 	schedule_delayed_work(&chip->charging_inform_work, HZ*20);
 #endif
 
-#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_LGE_PM_CHARGING_DEBUG_LOG)
+#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_LGE_PM_CHARGING_DEBUG_LOG) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 	schedule_delayed_work(&chip->charging_check_work, HZ*20);
 #endif
 
@@ -7337,7 +7845,9 @@ static int qpnp_chg_suspend(struct device *dev)
 			pr_debug("failed to set FSM VREF_BAT_THM rc=%d\n", rc);
 	}
 
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || \
+    defined (CONFIG_MACH_MSM8926_E8LTE)|| defined (CONFIG_MACH_MSM8226_E9WIFI) || \
+    defined (CONFIG_MACH_MSM8226_E9WIFIN)
 	if(chip->ac_online && chip->chg_done){
 		pr_info("DEBUG: EOC state, ChargerSuspend\n");
 	}
@@ -7349,8 +7859,11 @@ static int qpnp_chg_suspend(struct device *dev)
 #ifdef CIDL
 	cancel_delayed_work_sync(&chip->charging_inform_work);
 #endif
-
-#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_LGE_PM_CHARGING_DEBUG_LOG)
+#if defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined (CONFIG_MACH_MSM8926_JAGN_KR)
+	cancel_delayed_work_sync(&chip->usbin_valid_work);
+#endif
+#if defined (CONFIG_MACH_MSM8926_JAGC_SPR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) || defined (CONFIG_LGE_PM_CHARGING_DEBUG_LOG) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 	cancel_delayed_work_sync(&chip->charging_check_work);
 #endif
 

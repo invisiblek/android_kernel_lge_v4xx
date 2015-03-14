@@ -26,6 +26,9 @@
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
+#ifdef CONFIG_LEDS_PM8226_EMOTIONAL
+#include "leds-qpnp.h"
+#endif
 
 #define WLED_MOD_EN_REG(base, n)	(base + 0x60 + n*0x10)
 #define WLED_IDAC_DLY_REG(base, n)	(WLED_MOD_EN_REG(base, n) + 0x01)
@@ -500,6 +503,15 @@ struct qpnp_led_data {
 static int num_kpbl_leds_on;
 #ifdef CONFIG_MACH_LGE
 extern const char *platform_name;
+#ifdef CONFIG_LEDS_PM8226_EMOTIONAL
+struct qpnp_led_data *red_led = NULL;
+static int prev_rgb = 0;
+#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGC_SPR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGDSNM_CN)
+extern void change_led_mode(void);
+#endif
+extern void change_led_pattern(int pattern);
+void rgb_luts_set(struct qpnp_led_data *led);
+#endif
 #endif
 
 static int
@@ -709,6 +721,8 @@ static int qpnp_mpp_set(struct qpnp_led_data *led)
 	int rc, val;
 	int duty_us;
 
+	printk("%s() mode:%d, blinking:%d\n",
+			__func__,led->mpp_cfg->pwm_mode, led->mpp_cfg->pwm_cfg->blinking);
 	if (led->cdev.brightness) {
 		if (led->cdev.brightness < led->mpp_cfg->min_brightness) {
 			dev_warn(&led->spmi_dev->dev,
@@ -2227,6 +2241,18 @@ static ssize_t blink_store(struct device *dev,
 	return count;
 }
 
+#ifdef CONFIG_LEDS_PM8226_EMOTIONAL
+extern void change_led_mode(void)
+{
+	// LPG_MODE ->  PWM_MODE, To control LED BRIGHTNESS
+	red_led->mpp_cfg->pwm_cfg->default_mode = PWM_MODE;
+	red_led->mpp_cfg->pwm_cfg->mode = red_led->mpp_cfg->pwm_cfg->default_mode;
+	red_led->mpp_cfg->pwm_mode = red_led->mpp_cfg->pwm_cfg->default_mode;
+	pwm_free(red_led->mpp_cfg->pwm_cfg->pwm_dev);
+	qpnp_pwm_init(red_led->mpp_cfg->pwm_cfg, red_led->spmi_dev, red_led->cdev.name);
+}
+#endif
+
 #if defined(CONFIG_LGE_X10_VZW_LED) || defined(CONFIG_LGE_JAG_LED) || defined(CONFIG_LGE_B2L_ATT_LED) || defined (CONFIG_LGE_B2LN_LGU_LED)
 static int g_type = 0;
 static void red_led_blink(struct qpnp_led_data *led,
@@ -2235,6 +2261,10 @@ static void red_led_blink(struct qpnp_led_data *led,
 
 	printk(KERN_INFO "%s(), LINE:%d type:%d, offMS:%d, onMS:%d, brightness:%d, flag:%d\n"
 			,__func__, __LINE__, type, offMS, onMS, led->cdev.brightness, led->cdev.flags);
+#ifdef CONFIG_LEDS_PM8226_EMOTIONAL
+			pwm_cfg->default_mode = PWM_MODE;
+#endif
+
 	if (pwm_cfg->use_blink) {
 		if (led->cdev.brightness) {
 			pwm_cfg->blinking = true;
@@ -2267,14 +2297,27 @@ static void red_led_blink(struct qpnp_led_data *led,
 			qpnp_led_set(&led->cdev, led->cdev.brightness);
 		}
 		else {
-			pwm_free(pwm_cfg->pwm_dev);
-			pwm_cfg->lut_params.start_idx = 0;
-			pwm_cfg->lut_params.idx_len = 2;
-			pwm_cfg->lut_params.lut_pause_hi = offMS;
-			pwm_cfg->lut_params.ramp_step_ms = 0;
-			pwm_cfg->lut_params.flags = 91;
-			pwm_cfg->lut_params.lut_pause_lo = onMS;
-			qpnp_pwm_init(pwm_cfg, led->spmi_dev, led->cdev.name);
+			struct lut_params rgb_lut_params;
+			int duty_pcts_red[2] = {0xFF, 0x00};
+			pwm_disable(led->mpp_cfg->pwm_cfg->pwm_dev);
+			rgb_lut_params.start_idx = 0;
+			rgb_lut_params.idx_len = 2;
+			rgb_lut_params.lut_pause_hi = offMS;
+			rgb_lut_params.flags = 91;
+			rgb_lut_params.lut_pause_lo = onMS;
+
+#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGC_SPR) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) \
+        || defined(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGDSNM_CN) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_B2LN_KR)
+                        if(rgb_lut_params.lut_pause_hi >= 7000)
+                                  rgb_lut_params.ramp_step_ms = 2500;
+			else
+#endif
+			rgb_lut_params.ramp_step_ms = 0;
+
+			pwm_lut_config(led->mpp_cfg->pwm_cfg->pwm_dev, 200, duty_pcts_red, rgb_lut_params);
+
+			pwm_enable(led->mpp_cfg->pwm_cfg->pwm_dev);
 			qpnp_led_set(&led->cdev, led->cdev.brightness);
 		}
 		g_type = type;
@@ -2997,14 +3040,17 @@ static int __devinit qpnp_get_config_pwm(struct pwm_config_data *pwm_cfg,
 	else
 		return rc;
 
+#ifndef CONFIG_LEDS_PM8226_EMOTIONAL
 	if (pwm_cfg->mode == PWM_MODE) {
+#endif
 		rc = of_property_read_u32(node, "qcom,pwm-us", &val);
 		if (!rc)
 			pwm_cfg->pwm_period_us = val;
 		else
 			return rc;
+#ifndef CONFIG_LEDS_PM8226_EMOTIONAL
 	}
-
+#endif
 	pwm_cfg->use_blink =
 		of_property_read_bool(node, "qcom,use-blink");
 
@@ -3018,6 +3064,42 @@ static int __devinit qpnp_get_config_pwm(struct pwm_config_data *pwm_cfg,
 			rc = -ENOMEM;
 			goto bad_lpg_params;
 		}
+
+#ifdef CONFIG_LEDS_PM8226_EMOTIONAL
+		pwm_cfg->duty_cycles->num_duty_pcts = leds_pwm_duty_cycles.num_duty_pcts;
+		pwm_cfg->duty_cycles->duty_pcts0 = leds_pwm_duty_cycles.duty_pcts0;
+		pwm_cfg->duty_cycles->duty_pcts1 = leds_pwm_duty_cycles.duty_pcts1;
+		pwm_cfg->duty_cycles->duty_pcts2 = leds_pwm_duty_cycles.duty_pcts2;
+		pwm_cfg->duty_cycles->duty_pcts3 = leds_pwm_duty_cycles.duty_pcts3;
+		pwm_cfg->duty_cycles->duty_pcts4 = leds_pwm_duty_cycles.duty_pcts4;
+		pwm_cfg->duty_cycles->duty_pcts5 = leds_pwm_duty_cycles.duty_pcts5;
+		pwm_cfg->duty_cycles->duty_pcts6 = leds_pwm_duty_cycles.duty_pcts6;
+		pwm_cfg->duty_cycles->duty_pcts7 = leds_pwm_duty_cycles.duty_pcts7;
+		pwm_cfg->duty_cycles->duty_pcts8 = leds_pwm_duty_cycles.duty_pcts8;
+		pwm_cfg->duty_cycles->duty_pcts12 = leds_pwm_duty_cycles.duty_pcts12;
+		pwm_cfg->duty_cycles->duty_pcts13 = leds_pwm_duty_cycles.duty_pcts13;
+		pwm_cfg->duty_cycles->duty_pcts14 = leds_pwm_duty_cycles.duty_pcts14;
+		pwm_cfg->duty_cycles->duty_pcts17 = leds_pwm_duty_cycles.duty_pcts17;
+		pwm_cfg->duty_cycles->duty_pcts18 = leds_pwm_duty_cycles.duty_pcts18;
+		pwm_cfg->duty_cycles->duty_pcts19 = leds_pwm_duty_cycles.duty_pcts19;
+		pwm_cfg->duty_cycles->duty_pcts20 = leds_pwm_duty_cycles.duty_pcts20;
+		pwm_cfg->duty_cycles->duty_pcts29 = leds_pwm_duty_cycles.duty_pcts29;
+		pwm_cfg->duty_cycles->duty_pcts30 = leds_pwm_duty_cycles.duty_pcts30;
+		pwm_cfg->duty_cycles->duty_pcts31 = leds_pwm_duty_cycles.duty_pcts31;
+		pwm_cfg->duty_cycles->duty_pcts32 = leds_pwm_duty_cycles.duty_pcts32;
+		pwm_cfg->duty_cycles->duty_pcts37 = leds_pwm_duty_cycles.duty_pcts37;
+		pwm_cfg->duty_cycles->duty_pcts39 = leds_pwm_duty_cycles.duty_pcts39;
+		pwm_cfg->duty_cycles->duty_pcts40 = leds_pwm_duty_cycles.duty_pcts40;
+		pwm_cfg->duty_cycles->duty_pcts41 = leds_pwm_duty_cycles.duty_pcts41;
+		pwm_cfg->duty_cycles->duty_pcts42 = leds_pwm_duty_cycles.duty_pcts42;
+		pwm_cfg->duty_cycles->duty_pcts43 = leds_pwm_duty_cycles.duty_pcts43;
+		pwm_cfg->duty_cycles->duty_pcts44 = leds_pwm_duty_cycles.duty_pcts44;
+		pwm_cfg->duty_cycles->duty_pcts45 = leds_pwm_duty_cycles.duty_pcts45;
+		pwm_cfg->duty_cycles->duty_pcts46 = leds_pwm_duty_cycles.duty_pcts46;
+		pwm_cfg->duty_cycles->duty_pcts47 = leds_pwm_duty_cycles.duty_pcts47;
+		pwm_cfg->duty_cycles->duty_pcts101 = leds_pwm_duty_cycles.duty_pcts101;
+		pwm_cfg->duty_cycles->duty_pcts102 = leds_pwm_duty_cycles.duty_pcts102;
+#endif
 
 		prop = of_find_property(node, "qcom,duty-pcts",
 			&pwm_cfg->duty_cycles->num_duty_pcts);
@@ -3243,6 +3325,276 @@ static int __devinit qpnp_get_config_rgb(struct qpnp_led_data *led,
 
 	return 0;
 }
+#ifdef CONFIG_LEDS_PM8226_EMOTIONAL
+void change_led_pattern (int pattern)
+{
+	int *duty_pcts_red = NULL;
+	struct lut_params rgb_lut_params;
+	int preview_pause_lo = 0;
+
+	red_led->mpp_cfg->pwm_cfg->default_mode = LPG_MODE;
+	red_led->mpp_cfg->pwm_cfg->mode = red_led->mpp_cfg->pwm_cfg->default_mode;
+	red_led->mpp_cfg->pwm_mode = red_led->mpp_cfg->pwm_cfg->default_mode;
+
+	// 1. set led brightness to 0
+	red_led->cdev.brightness = 0;
+
+	if (pattern >= 1000) {
+		pattern = pattern - 1000;
+		preview_pause_lo = 1000;
+	}
+
+	// 2. change LUT structure in platform device.
+	switch (pattern) {
+	case 0:
+		duty_pcts_red	= red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts0;
+		break;
+	case 1:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts1;
+		break;
+	case 2:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts2;
+		break;
+	case 3:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts3;
+		break;
+	case 4:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts4;
+		break;
+	case 5:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts5;
+		break;
+	case 6:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts6;
+		break;
+	case 7:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts7;
+		break;
+	case 8:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts8;
+		break;
+	case 12:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts12;
+		break;
+	case 13:
+		duty_pcts_red	= red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts13;
+		break;
+	case 14:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts14;
+		break;
+	case 17:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts17;
+		break;
+	case 18:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts18;
+		break;
+	case 19:
+		duty_pcts_red	= red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts19;
+		break;
+	case 20:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts20;
+		break;
+	case 29:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts29;
+		break;
+	case 30:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts30;
+		break;
+	case 31:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts31;
+		break;
+	case 32:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts32;
+		break;
+	case 37:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts37;
+		break;
+	case 39:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts39;
+		break;
+	case 40:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts40;
+		break;
+	case 41:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts41;
+		break;
+	case 42:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts42;
+		break;
+	case 43:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts43;
+		break;
+	case 44:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts44;
+		break;
+	case 45:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts45;
+		break;
+	case 46:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts46;
+		break;
+	case 47:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts47;
+		break;
+	case 101:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts101;
+		break;
+	case 102:
+		duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts102;
+		break;
+	default:
+		return;
+	}
+
+	// 3. lut disable, so we can edit LUT table after done this.
+	pwm_disable(red_led->mpp_cfg->pwm_cfg->pwm_dev);
+
+	// 4. lut config(red led).
+	rgb_lut_params.start_idx = duty_pcts_red[63];
+	rgb_lut_params.idx_len = duty_pcts_red[64];
+	rgb_lut_params.lut_pause_hi = duty_pcts_red[66];
+	rgb_lut_params.ramp_step_ms = duty_pcts_red[78];
+	rgb_lut_params.flags = duty_pcts_red[75];
+
+	if (rgb_lut_params.flags & 0x10) { /* for first missed noti delay */
+		rgb_lut_params.lut_pause_lo = 1000;
+	}
+	pwm_lut_config(red_led->mpp_cfg->pwm_cfg->pwm_dev, 200,
+		&duty_pcts_red[duty_pcts_red[63]], rgb_lut_params);
+
+	// 5. lut enable, so we can run led after done this.
+	pwm_enable(red_led->mpp_cfg->pwm_cfg->pwm_dev);
+
+	// 6. set led brightness to 255
+	red_led->cdev.brightness = 255;
+
+	if (duty_pcts_red[65] == 0)
+		red_led->cdev.brightness = 0;
+
+// 7. run work-function, as brightness 255, red led turn on
+	qpnp_mpp_set(red_led);
+
+}
+
+void make_input_led_pattern(int patterns[],
+			int red_start, int red_length, int red_duty,
+			int red_pause, int green_start, int green_length,
+			int green_duty, int green_pause, int blue_start,
+			int blue_length, int blue_duty, int blue_pause,
+			int red_flag, int green_flag,
+			int blue_flag, int period)
+{
+	int *duty_pcts_red = NULL;
+	int input_patterns[79];
+	int i;
+
+	struct lut_params rgb_lut_params;
+
+	for (i = 0; i < 63; i++)
+		input_patterns[i] = patterns[i];
+	input_patterns[i++] = red_start;
+	input_patterns[i++] = red_length;
+	input_patterns[i++] = red_duty;
+	input_patterns[i++] = red_pause;
+	input_patterns[i++] = green_start;
+	input_patterns[i++] = green_length;
+	input_patterns[i++] = green_duty;
+	input_patterns[i++] = green_pause;
+	input_patterns[i++] = blue_start;
+	input_patterns[i++] = blue_length;
+	input_patterns[i++] = blue_duty;
+	input_patterns[i++] = blue_pause;
+	input_patterns[i++] = red_flag;
+	input_patterns[i++] = green_flag;
+	input_patterns[i++] = blue_flag;
+	input_patterns[i++] = period;
+
+	/* 1. set all leds brightness to 0 */
+	red_led->cdev.brightness = 0;
+
+	/* 2. change LUT structure in platform device. */
+	red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts0 = (int *)&input_patterns;
+
+	duty_pcts_red   = red_led->mpp_cfg->pwm_cfg->duty_cycles->duty_pcts0;
+
+	/* 3. lut disable, so we can edit LUT table after done this. */
+	pwm_disable(red_led->mpp_cfg->pwm_cfg->pwm_dev);
+
+	/* 4. lut config(red led). */
+	rgb_lut_params.start_idx = red_start;
+	rgb_lut_params.idx_len = red_length;
+	rgb_lut_params.lut_pause_hi = red_pause;
+	rgb_lut_params.lut_pause_lo = 0;
+	rgb_lut_params.ramp_step_ms = period;
+	rgb_lut_params.flags = red_flag;
+
+	pwm_lut_config(red_led->mpp_cfg->pwm_cfg->pwm_dev, 200,
+		&duty_pcts_red[red_start], rgb_lut_params);
+
+	/* 5. lut enable, so we can run led after done this. */
+	pwm_enable(red_led->mpp_cfg->pwm_cfg->pwm_dev);
+
+	/* 6. set leds brightness to 255 */
+	red_led->cdev.brightness = 255;
+	if (red_duty == 0)
+		red_led->cdev.brightness = 0;
+
+	/* 7. run work-function, as brightness 255, led turn on */
+	qpnp_mpp_set(red_led);
+}
+
+
+void make_onoff_led_pattern(int rgb)
+{
+	int onoff_pattern[6] = {100, 100, 100, 100, 100, 100};
+	struct lut_params rgb_lut_params;
+
+	red_led->cdev.brightness = 0;
+
+	pwm_disable(red_led->mpp_cfg->pwm_cfg->pwm_dev);
+
+	rgb_lut_params.idx_len = 2;
+	rgb_lut_params.lut_pause_hi = 0;
+	rgb_lut_params.lut_pause_lo = 0;
+	rgb_lut_params.ramp_step_ms = 0;
+	rgb_lut_params.flags = 65;
+
+	/* tuning RGB input from framework.
+	     PM8921 can use 512 resolution
+	     R : (rgb*1.4)/3     G : (rgb*2)/3     B : rgb/3
+	*/
+	onoff_pattern[0] = (((rgb >> 16) & 0xFF)*2*7/10)/3;
+	onoff_pattern[1] = onoff_pattern[0];
+	onoff_pattern[2] = (((rgb >> 8) & 0xFF)*2)/3;
+	onoff_pattern[3] = onoff_pattern[2];
+	onoff_pattern[4] = (rgb & 0xFF)/3;
+	onoff_pattern[5] = onoff_pattern[4];
+
+	rgb_lut_params.start_idx = 0;
+	pwm_lut_config(red_led->mpp_cfg->pwm_cfg->pwm_dev, 200,
+		onoff_pattern, rgb_lut_params);
+
+	pwm_enable(red_led->mpp_cfg->pwm_cfg->pwm_dev);
+
+	red_led->cdev.brightness = (rgb >> 16) & 0xFF;
+
+	qpnp_mpp_set(red_led);
+
+}
+
+/* below function is for aat... */
+void rgb_luts_set(struct qpnp_led_data *led)
+{
+	if (led->id == 3){
+		prev_rgb = prev_rgb & 0x00FFFF;
+		prev_rgb |= led->cdev.brightness << 16;
+	}
+
+	printk("[RGB LED] prev_rgb: 0x%06x\n", prev_rgb);
+	make_onoff_led_pattern(prev_rgb);
+}
+
+#endif
 
 static int __devinit qpnp_get_config_mpp(struct qpnp_led_data *led,
 		struct device_node *node)
@@ -3326,6 +3678,9 @@ static int __devinit qpnp_get_config_mpp(struct qpnp_led_data *led,
 	rc = qpnp_get_config_pwm(led->mpp_cfg->pwm_cfg, led->spmi_dev, node);
 	if (rc < 0)
 		return rc;
+#ifdef CONFIG_LEDS_PM8226_EMOTIONAL
+	red_led = led;
+#endif
 
 	return 0;
 }

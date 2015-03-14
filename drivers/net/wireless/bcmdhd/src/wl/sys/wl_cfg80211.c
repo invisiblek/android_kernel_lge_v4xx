@@ -2708,8 +2708,11 @@ scan_out:
 					MAC2STRDBG(bssid.octet)));
 			else
 				WL_ERR(("GET BSSID failed with %d\n", ret));
-
+#ifdef CUSTOMER_HW10
+			wl_cfg80211_disconnect(wiphy, ndev,DOT11_RC_DISASSOC_LEAVING);
+#else
 			wl_cfg80211_scan_abort(wl);
+#endif
 		}
 	} else {
 		busy_count = 0;
@@ -5908,7 +5911,8 @@ wl_cfg80211_change_bss(struct wiphy *wiphy,
 	s32 ap_isolate = 0;
 #if defined(SUPPORT_HOSTAPD_BGN_MODE)
 	dhd_pub_t *dhd;
-	s32 gmode = -1, nmode = -1;
+	s32 gmode = -1, nmode = -1, gmode_prev = -1, nmode_prev = -1;
+
 	struct wl_priv *wl = wiphy_priv(wiphy);
 	if (wl->p2p_net == dev)
 	{
@@ -5927,14 +5931,19 @@ wl_cfg80211_change_bss(struct wiphy *wiphy,
 
 	if (params->basic_rates) {
 #if defined(SUPPORT_HOSTAPD_BGN_MODE)
+		switch((int)(params->basic_rates[params->basic_rates_len -1])) {
+			case 22: // B only , rate 11
+				gmode = 0;
+				nmode = 0;
+				break;
+			case 108: // G only , rate 54
+				gmode = 2;
 		nmode = 0;
-		if (params->basic_rates[params->basic_rates_len -1] <= 4)
-		{
-			gmode = 0;
-		}
-		else
-		{
-			gmode = 1;
+				break;
+			default:
+				gmode = -1;
+				nmode = -1;
+				break;
 		}
 #endif /* SUPPORT_HOSTAPD_BGN_MODE */
 	}
@@ -5958,6 +5967,21 @@ wl_cfg80211_change_bss(struct wiphy *wiphy,
 	}
 
 #if defined(SUPPORT_HOSTAPD_BGN_MODE)
+	err = wldev_iovar_getint(dev, "nmode", &nmode_prev);
+        if (unlikely(err)) {
+                WL_ERR(("error reading nmode (%d)\n", err));
+        }
+	if (nmode == nmode_prev) {
+		nmode = -1;
+	}
+	err = wldev_ioctl(dev, WLC_GET_GMODE, &gmode_prev, sizeof(gmode_prev), 0);
+        if (unlikely(err)) {
+                WL_ERR(("error reading gmode (%d)\n", err));
+        }
+	if (gmode == gmode_prev) {
+		gmode = -1;
+	}
+
 	if (((dhd->op_mode & DHD_FLAG_HOSTAP_MODE) == DHD_FLAG_HOSTAP_MODE) &&
 		((gmode > -1) || (nmode > -1))) {
 		s32 val = 0;
@@ -6758,7 +6782,7 @@ wl_cfg80211_bcn_validate_sec(
 				ies->wpa2_ie->len + WPA_RSN_IE_TAG_FIXED_LEN,
 				GFP_KERNEL);
 		}
-		else
+		else {
 #endif /* SUPPORT_SOFTAP_WPAWPA2_MIXED */
 		if ((ies->wpa2_ie || ies->wpa_ie) &&
 			((wl_validate_wpa2ie(dev, ies->wpa2_ie, bssidx)  < 0 ||
@@ -6794,6 +6818,9 @@ wl_cfg80211_bcn_validate_sec(
 				GFP_KERNEL);
 		}
 
+#if defined(CUSTOMER_HW10) && defined(SUPPORT_SOFTAP_WPAWPA2_MIXED)
+		}
+#endif
 		if (!ies->wpa2_ie && !ies->wpa_ie) {
 			wl_validate_opensecurity(dev, bssidx);
 			wl->ap_info->security_mode = false;
@@ -8853,6 +8880,12 @@ wl_bss_roaming_done(struct wl_priv *wl, struct net_device *ndev,
 	u32 freq;
 #endif /* LINUX_VERSION > 2.6.39 || WL_COMPAT_WIRELESS */
 
+#ifdef WLFBT
+     uint32 data_len = 0;
+     if (data)
+          data_len = ntoh32(e->datalen);
+#endif /* WLFBT */
+
 	wl_get_assoc_ies(wl, ndev);
 	wl_update_prof(wl, ndev, NULL, (void *)(e->addr.octet), WL_PROF_BSSID);
 	curbssid = wl_read_prof(wl, ndev, WL_PROF_BSSID);
@@ -8874,7 +8907,7 @@ wl_bss_roaming_done(struct wl_priv *wl, struct net_device *ndev,
 	 * currently not checking the FBT is enabled for current BSS in DHD,
 	 * because the supplicant decides to take it or not.
 	 */
-	if (data) {
+	if (data && (data_len == FBT_KEYLEN)) {
 		memcpy(wl->fbt_key, data, FBT_KEYLEN);
 	}
 #endif /* WLFBT */

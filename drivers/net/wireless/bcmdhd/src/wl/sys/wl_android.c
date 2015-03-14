@@ -1716,10 +1716,36 @@ wl_android_set_auto_channel(struct net_device *dev, const char* string_num,
 	int chosen = 0;
 	int retry = 0;
 	int ret = 0;
+#ifdef CUSTOMER_HW10
+#if defined(BCM4330_CHIP) || defined(BCM4334_CHIP)
+	int ap = 1;
+	wlc_ssid_t null_ssid;
+#endif
+#endif
 	u32 req_buf[7] = {0};
 
 	channel = bcm_atoi(string_num);
 	DHD_INFO(("%s : HAPD_AUTO_CHANNEL = %d\n", __FUNCTION__, channel));
+
+#ifdef CUSTOMER_HW10
+#if defined(BCM4330_CHIP) || defined(BCM4334_CHIP)
+	ret = wldev_ioctl(dev, WLC_SET_AP, &ap, sizeof(s32), true);
+	if (ret < 0) {
+		DHD_ERROR(("%s: can't set AP, err = %d\n", __FUNCTION__, ret));
+		channel = 1;
+		goto done;
+	}
+
+	memset(&null_ssid, 0, sizeof(wlc_ssid_t));
+	null_ssid.SSID_len = 4;
+	ret = wldev_ioctl(dev, WLC_SET_SSID, &null_ssid, sizeof(wlc_ssid_t), true);
+	if (ret < 0) {
+		DHD_ERROR(("%s: can't set null ssid, err = %d\n", __FUNCTION__, ret));
+		channel = 1;
+		goto done;
+	}
+#endif
+#endif
 
 	if (channel == 20) {
 		/* Restrict channel to 1 - 6: 2GHz, 20MHz BW, No SB */
@@ -1778,6 +1804,18 @@ wl_android_set_auto_channel(struct net_device *dev, const char* string_num,
 	}
 
 done:
+#ifdef CUSTOMER_HW10
+#if defined(BCM4330_CHIP) || defined(BCM4334_CHIP)
+	null_ssid.SSID_len = 0;
+	ret = wldev_ioctl(dev, WLC_SET_SSID, &null_ssid, sizeof(wlc_ssid_t), true);
+	if (ret < 0) {
+		DHD_ERROR(("%s: can't set null ssid, err = %d\n", __FUNCTION__, ret));
+		channel = 1;
+		goto done;
+	}
+#endif
+#endif
+
 	snprintf(command, 4, "%d", channel);
 	DHD_INFO(("%s: command result is %s\n", __FUNCTION__, command));
 

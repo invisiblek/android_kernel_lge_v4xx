@@ -31,6 +31,8 @@
 #define T100_AREA_W_H_IN_2BYTES
 #endif
 
+#define MXT_FACTORY
+
 #define MXT_FW_MAGIC			0x4D3C2B1A
 
 #define REF_OFFSET_VALUE		16384
@@ -140,6 +142,13 @@
 
 #define MXT_POWER_CFG_RUN		0
 #define MXT_POWER_CFG_DEEPSLEEP		1
+
+/* MXT_GEN_COMMAND_T8 field */
+#define MXT_T8_TCHAUTOCAL		4
+#define MXT_T8_ATCHCALST		6
+#define MXT_T8_ATCHCALSTHR		7
+#define MXT_T8_ATCHFRCCALTHR	8
+#define MXT_T8_ATCHFRCCALRATIO	9
 
 /* MXT_TOUCH_MULTI_T9 field */
 #define MXT_T9_ORIENT		9
@@ -277,6 +286,10 @@
 #define NOCHARGER_KNOCKON_WAKEUP	6
 
 #define PATCH_EVENT_PAIR_NUM 4
+
+#define PATCH_EVENT_AAT	11
+#define CHARGER_PLUGGED_AAT			12
+
 #else
 /* patch Event */
 #define CHARGER_PLUGGED             0
@@ -300,6 +313,8 @@
 #define SELF_DIAGNOSTIC_FILE_PATH "/mnt/sdcard/touch_self_test.txt"
 #define SELF_DIAGNOSTIC_STATUS_COMPLETE	0
 #define SELF_DIAGNOSTIC_STATUS_RUNNING	1
+
+#define HALL_IC_GPIO 4
 
 /* MXT_GEN_POWER_T7 field */
 struct t7_config {
@@ -828,6 +843,7 @@ struct mxt_data {
 
 
 	struct quickcover_size *qwindow_size;
+	bool quickcover_enabled;
 
 	struct hrtimer multi_tap_timer;
 	struct work_struct	multi_tap_work;

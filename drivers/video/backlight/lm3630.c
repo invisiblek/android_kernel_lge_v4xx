@@ -236,7 +236,7 @@ void lm3630_backlight_on(int level)
 		pr_info("%s with level %d\n", __func__, level);
 		lm3630_hw_reset();
 
-#if defined(CONFIG_MACH_MSM8226_E7WIFI) || defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE) || defined ( CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+#if defined(CONFIG_MACH_MSM8226_E7WIFI) || defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE) || defined ( CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 		lm3630_write_reg(main_lm3630_dev->client, 0x02, 0x50); //OVP 32V, OCP 1.0A Boost Freq. 500Khz
 
 		if( lm3630_pwm_enable ) {

@@ -730,7 +730,7 @@ static void __exit pn544_dev_exit(void)
 module_exit(pn544_dev_exit);
 
 /*                                                                    */
-MODULE_DEVICE_TABLE(i2c, pn544_id);
+//MODULE_DEVICE_TABLE(i2c, pn544_id);
 /*                                                                    */
 MODULE_AUTHOR("Sylvain Fonteneau");
 MODULE_DESCRIPTION("NFC PN544 driver");

@@ -1373,6 +1373,8 @@ int mxt_get_reference_chk(struct mxt_data *data)
 	static int last_call_statue = 0;
 	static u8 time_reset_chk_cnt = 0;
 	static struct timeval previous_cal_interval_check = {0,};
+	int err_chk_positive_limit_value = 0;
+	int err_chk_negative_limit_value = 0;
 
 	data->patch.src_item[MXT_PATCH_ITEM_USER6] = 0;
 	data->ref_chk = 0;
@@ -1498,17 +1500,46 @@ int mxt_get_reference_chk(struct mxt_data *data)
 				} else {
 					diff_v = buf[num] - pre_v;
 					//if (diff_v < 0) diff_v = diff_v * -1;
-					if ((diff_v > (data->ref_limit.y_line_dif[cury] * global_mxt_data->ref_limit.diff_scaling) + (data->ref_limit.err_weight) * 8) ||
-						(diff_v < (data->ref_limit.y_line_dif[cury] * global_mxt_data->ref_limit.diff_scaling) - (data->ref_limit.err_weight) * 8)) {
-						TOUCH_INFO_MSG("Err Node(%d, %d) buf<%d> pre_v<%d> diff_v<%d> (ref_max - ref_min) <%d>",
+					err_chk_positive_limit_value = (data->ref_limit.y_line_dif[cury] * global_mxt_data->ref_limit.diff_scaling) + (data->ref_limit.err_weight) * 8;
+					err_chk_negative_limit_value = (data->ref_limit.y_line_dif[cury] * global_mxt_data->ref_limit.diff_scaling) - (data->ref_limit.err_weight) * 8;
+					if ((diff_v > err_chk_positive_limit_value) || (diff_v < err_chk_negative_limit_value)) {
+						if ((curx == 10 && cury == 12) && data->pdata->panel_delta_value[ELK_PANEL] != 0) {
+							if ((diff_v > (err_chk_positive_limit_value + data->panel_offset_value)) ||
+							    (diff_v < (err_chk_negative_limit_value - data->panel_offset_value))) {
+								TOUCH_INFO_MSG("Err Node(%d, %d) buf<%d> pre_v<%d> diff_v<%d> (ref_max - ref_min) <%d>",
+								curx, cury, buf[num], pre_v, diff_v, (ref_max - ref_min));
+								TOUCH_INFO_MSG("Weight Node(%d, %d, %d)\n",
+								(int)data->ref_limit.y_line_dif[cury],
+								err_chk_positive_limit_value + data->panel_offset_value,
+								err_chk_negative_limit_value - data->panel_offset_value);
+								err_cnt++;
+								++err_tot_x[curx];
+								++err_tot_y[cury];
+							}
+						} else if((curx == 10 && cury == 1) && data->pdata->panel_delta_value[SUNTEL_PANEL] != 0){
+							if ((diff_v > (err_chk_positive_limit_value + data->panel_offset_value)) ||
+							    (diff_v < (err_chk_negative_limit_value - data->panel_offset_value))) {
+								TOUCH_INFO_MSG("Err Node(%d, %d) buf<%d> pre_v<%d> diff_v<%d> (ref_max - ref_min) <%d>",
+								curx, cury, buf[num], pre_v, diff_v, (ref_max - ref_min));
+								TOUCH_INFO_MSG("Weight Node(%d, %d, %d)\n",
+								(int)data->ref_limit.y_line_dif[cury],
+								err_chk_positive_limit_value + data->panel_offset_value,
+								err_chk_negative_limit_value - data->panel_offset_value);
+								err_cnt++;
+								++err_tot_x[curx];
+								++err_tot_y[cury];
+							}
+						} else {
+							TOUCH_INFO_MSG("Err Node(%d, %d) buf<%d> pre_v<%d> diff_v<%d> (ref_max - ref_min) <%d>",
 							curx, cury, buf[num], pre_v, diff_v, (ref_max - ref_min));
-						TOUCH_INFO_MSG("Weight Node(%d, %d, %d)\n",
+							TOUCH_INFO_MSG("Weight Node(%d, %d, %d)\n",
 							(int)data->ref_limit.y_line_dif[cury],
-							(int)(data->ref_limit.y_line_dif[cury] * global_mxt_data->ref_limit.diff_scaling) + (data->ref_limit.err_weight) * 8,
-							(int)(data->ref_limit.y_line_dif[cury] * global_mxt_data->ref_limit.diff_scaling) - (data->ref_limit.err_weight) * 8);
-						err_cnt++;
-						++err_tot_x[curx];
-						++err_tot_y[cury];
+							(int)err_chk_positive_limit_value,
+							(int)err_chk_negative_limit_value);
+							err_cnt++;
+							++err_tot_x[curx];
+							++err_tot_y[cury];
+						}
 					}
 					pre_v = buf[num];
 
@@ -2230,7 +2261,8 @@ out:
 	return 1;
 }
 
-#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGNM_RGS) && !defined(CONFIG_MACH_MSM8926_JAGNM_TLS) && !defined(CONFIG_MACH_MSM8926_JAGNM_VTR) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN) && !defined(CONFIG_MACH_MSM8926_JAGN_KR)
+#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGNM_RGS) && !defined(CONFIG_MACH_MSM8926_JAGNM_TLS) && !defined(CONFIG_MACH_MSM8926_JAGNM_VTR) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN) \
+&& !defined(CONFIG_MACH_MSM8926_JAGN_KR) && !defined (CONFIG_MACH_MSM8926_VFP_KR) && !defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) && !defined(CONFIG_MACH_MSM8926_E2_SPR_US)
 void trigger_usb_state_from_otg(int usb_type)
 {
 
@@ -3963,7 +3995,8 @@ exit:
 	}
 
 	if (mxt_patchevent_get(PATCH_EVENT_TA)) {
-#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGNM_RGS) && !defined(CONFIG_MACH_MSM8926_JAGNM_TLS) && !defined(CONFIG_MACH_MSM8926_JAGNM_VTR) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN) && !defined(CONFIG_MACH_MSM8926_JAGN_KR)
+#if !defined(CONFIG_MACH_MSM8926_JAGC_SPR) && !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGNM_RGS) && !defined(CONFIG_MACH_MSM8926_JAGNM_TLS) && !defined(CONFIG_MACH_MSM8926_JAGNM_VTR) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) && !defined(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN) \
+&& !defined(CONFIG_MACH_MSM8926_JAGN_KR) && !defined (CONFIG_MACH_MSM8926_VFP_KR) && !defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) && !defined(CONFIG_MACH_MSM8926_E2_SPR_US)
 		trigger_usb_state_from_otg(1);
 #else
 
@@ -4680,8 +4713,6 @@ static void lpwg_late_resume(struct mxt_data *data)
 {
 	TOUCH_INFO_MSG("%s Start\n", __func__);
 
-	memset(g_tci_press, 0, sizeof(g_tci_press));
-	memset(g_tci_report, 0, sizeof(g_tci_report));
 	TOUCH_INFO_MSG("%s End\n", __func__);
 }
 
@@ -4800,6 +4831,10 @@ static ssize_t show_lpwg_data(struct mxt_data *data, char *buf)
 			break;
 		ret += sprintf(buf+ret, "%d %d\n", lpwg_data[i].x, lpwg_data[i].y);
 	}
+
+	memset(g_tci_press, -1, sizeof(g_tci_press));
+	memset(g_tci_report, -1, sizeof(g_tci_report));
+
 	return ret;
 }
 
@@ -5337,6 +5372,21 @@ static int mxt_parse_dt(struct device *dev, struct mxt_platform_data *pdata)
 			TOUCH_INFO_MSG("DT : extra_fw_name : %s \n", pdata->extra_fw_name);
 	} else {
 		pdata->extra_fw_name = NULL;
+	}
+
+	prop = of_find_property(node, "atmel,panel_delta_value", NULL);
+	if (prop) {
+		temp_val = prop->length / sizeof(temp_val);
+		if (temp_val <= MAX_PANEL) {
+			rc = of_property_read_u32_array(node, "atmel,panel_delta_value", temp_array, temp_val);
+			if (rc) {
+				TOUCH_INFO_MSG("DT : Unable to read panel_delta_value\n");
+			}
+			for (i = 0; i < temp_val; i++) {
+				pdata->panel_delta_value[i] = temp_array[i];
+				TOUCH_INFO_MSG("DT : panel_delta_value[%d] = %d \n", i, temp_array[i]);
+			}
+		}
 	}
 
 	rc = of_property_read_u32(node, "atmel,knock_on_type",  &temp_val);
@@ -6724,6 +6774,17 @@ static int __devinit mxt_probe(struct i2c_client *client, const struct i2c_devic
 		} else {
 			TOUCH_INFO_MSG("success get panel id\n");
 		}
+	}
+
+	data->panel_offset_value = 0;
+	if (panel_id == 0) {
+		if (data->pdata->panel_delta_value[ELK_PANEL] != 0) {
+			data->panel_offset_value = data->pdata->panel_delta_value[ELK_PANEL];
+		} else if(data->pdata->panel_delta_value[SUNTEL_PANEL] != 0) {
+			data->panel_offset_value = data->pdata->panel_delta_value[SUNTEL_PANEL];
+		}
+	} else if (panel_id == 1 && data->pdata->panel_delta_value[LGIT_PANEL] != 0) {
+		data->panel_offset_value = data->pdata->panel_delta_value[LGIT_PANEL];
 	}
 
 	if (data->pdata->fw_name[panel_id]) {

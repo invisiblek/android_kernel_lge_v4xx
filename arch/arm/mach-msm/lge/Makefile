@@ -8,8 +8,8 @@ obj-$(CONFIG_MACH_MSM8226_W7DSN_GLOBAL_COM) += board-8226-w7dsn-global-com.o boa
 obj-$(CONFIG_MACH_MSM8226_W7N_GLOBAL_COM) += board-8226-w7n-global-com.o board-8226-w7n-global-com-gpiomux.o
 obj-$(CONFIG_MACH_MSM8226_W7N_GLOBAL_SCA) += board-8226-w7n-global-sca.o board-8226-w7n-global-sca-gpiomux.o
 obj-$(CONFIG_MACH_MSM8226_W7_TMO_US) += board-8226-w7-tmo-us.o board-8226-w7-tmo-us-gpiomux.o
-obj-$(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) += board-8226-jag3gds-global-com.o board-8226-jag3gds-global-com-gpiomux.o board-8226-jag3gds-global-com-rfkill.o
-obj-$(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) += board-8226-jag3gss-global-com.o board-8226-jag3gss-global-com-gpiomux.o board-8226-jag3gss-global-com-rfkill.o
+obj-$(CONFIG_MACH_MSM8226_JAG3GDS_GLOBAL_COM) += board-8226-jag3gds-global-com.o board-8226-jag3gds-global-com-gpiomux.o bluetooth-pm.o
+obj-$(CONFIG_MACH_MSM8226_JAG3GSS_GLOBAL_COM) += board-8226-jag3gss-global-com.o board-8226-jag3gss-global-com-gpiomux.o bluetooth-pm.o
 obj-$(CONFIG_MACH_MSM8226_G2MDS_OPEN_CIS) += board-8226-g2mds-open-cis.o board-8226-g2mds-open-cis-gpiomux.o
 obj-$(CONFIG_MACH_MSM8226_G2MDS_GLOBAL_COM) += board-8226-g2mds-global-com.o board-8226-g2mds-global-com-gpiomux.o
 obj-$(CONFIG_MACH_MSM8226_G2MSS_GLOBAL_COM) += board-8226-g2mss-global-com.o board-8226-g2mss-global-com-gpiomux.o
@@ -19,14 +19,22 @@ obj-$(CONFIG_MACH_MSM8226_E8WIFI) += board-8226-e8wifi.o board-8226-e8wifi-gpiom
 obj-$(CONFIG_MACH_MSM8926_E8LTE) += board-8926-e8lte.o board-8926-e8lte-gpiomux.o
 obj-$(CONFIG_MACH_MSM8226_E7WIFI) += board-8226-e7wifi.o board-8226-e7wifi-gpiomux.o
 obj-$(CONFIG_MACH_MSM8926_E7LTE_ATT_US) += board-8926-e7lte-att-us.o board-8926-e7lte-att-us-gpiomux.o
+obj-$(CONFIG_MACH_MSM8926_E7LTE_USC_US) += board-8926-e7lte-usc-us.o board-8926-e7lte-usc-us-gpiomux.o
 obj-$(CONFIG_MACH_MSM8926_E7LTE_VZW_US) += board-8926-e7lte-vzw.o board-8926-e7lte-vzw-gpiomux.o
 obj-$(CONFIG_MACH_MSM8926_X5_VZW) += board-8926-x5-vzw.o board-8926-x5-vzw-gpiomux.o
+obj-$(CONFIG_MACH_MSM8926_E2_SPR_US) += board-8926-e2-spr.o board-8926-e2-spr-gpiomux.o
+obj-$(CONFIG_MACH_MSM8926_E2_MPCS_US) += board-8926-e2-mpcs.o board-8926-e2-mpcs-gpiomux.o
+obj-$(CONFIG_MACH_MSM8926_E2_BELL_CA) += board-8926-e2-bell.o board-8926-e2-bell-gpiomux.o
+obj-$(CONFIG_MACH_MSM8926_E2_RGS_CA) += board-8926-e2-rgs.o board-8926-e2-rgs-gpiomux.o
+obj-$(CONFIG_MACH_MSM8926_E2_VTR_CA) += board-8926-e2-vtr.o board-8926-e2-vtr-gpiomux.o
+obj-$(CONFIG_MACH_MSM8926_E2_VZW) += board-8926-e2-vzw.o board-8926-e2-vzw-gpiomux.o
 obj-$(CONFIG_MACH_MSM8926_X5_LRA) += board-8926-x5-lra.o board-8926-x5-lra-gpiomux.o
 obj-$(CONFIG_MACH_MSM8926_X3C_TRF_US) += board-8926-x3c-trf-us.o board-8926-x3c-trf-us-gpiomux.o
 obj-$(CONFIG_MACH_MSM8926_X3N_OPEN_EU) += board-8926-x3n-open-eu.o board-8926-x3n-open-eu-gpiomux.o
 obj-$(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) += board-8926-x3n-global-sca.o board-8926-x3n-global-sca-gpiomux.o
 obj-$(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) += board-8926-x3n-global-com.o board-8926-x3n-global-com-gpiomux.o
 obj-$(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) += board-8926-f70n-global-com.o board-8926-f70n-global-com-gpiomux.o
+obj-$(CONFIG_MACH_MSM8926_F70N_GLOBAL_AME) += board-8926-f70n-global-ame.o board-8926-f70n-global-ame-gpiomux.o
 obj-$(CONFIG_MACH_MSM8926_F70_GLOBAL_COM) += board-8926-f70-global-com.o board-8926-f70-global-com-gpiomux.o
 obj-$(CONFIG_MACH_MSM8926_X3_TRF_US) += board-8926-x3-trf-us.o board-8926-x3-trf-us-gpiomux.o
 obj-$(CONFIG_MACH_MSM8926_X3N_KR) += board-8926-x3n-kr.o board-8926-x3n-kr-gpiomux.o
@@ -48,6 +56,7 @@ obj-$(CONFIG_MACH_MSM8926_JAGNM_TLS) += board-8926-jagnm-tls_ca.o board-8926-jag
 obj-$(CONFIG_MACH_MSM8926_JAGNM_VTR) += board-8926-jagnm-vtr_ca.o board-8926-jagnm-vtr_ca-gpiomux.o board-8926-jagnm-vtr_ca-rfkill.o
 obj-$(CONFIG_MACH_MSM8926_JAGN_KR) += board-8926-jagn-kr.o board-8926-jagn-kr-gpiomux.o board-8926-jagn-kr-rfkill.o
 obj-$(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) += board-8926-jagnm-global-com.o board-8926-jagnm-global-com-gpiomux.o bluetooth-pm.o
+obj-$(CONFIG_MACH_MSM8926_VFP_KR) += board-8926-vfp-kr.o board-8926-vfp-kr-gpiomux.o board-8926-vfp-kr-rfkill.o
 obj-$(CONFIG_MACH_MSM8X10_LGPS15) += board-8610-lgps15.o board-8610-lgps15-gpiomux.o
 obj-$(CONFIG_MACH_MSM8X10_W3C_VZW) += board-8610-w3c-vzw.o board-8610-w3c-vzw-gpiomux.o
 obj-$(CONFIG_MACH_MSM8X10_W3C_TRF_US) += board-8610-w3c-trf-us.o board-8610-w3c-trf-us-gpiomux.o
@@ -92,9 +101,13 @@ obj-$(CONFIG_MACH_MSM8X10_W6DS_GLOBAL_SCA) += board-8610-w6ds-global-sca.o board
 obj-$(CONFIG_MACH_MSM8X10_W6DS_TIM_BR) += board-8610-w6ds-tim-br.o board-8610-w6ds-tim-br-gpiomux.o
 obj-$(CONFIG_MACH_MSM8X10_W65_GLOBAL_COM) += board-8610-w65-global-com.o board-8610-w65-global-com-gpiomux.o
 obj-$(CONFIG_MACH_MSM8X10_W65DS_GLOBAL_COM) += board-8610-w65ds-global-com.o board-8610-w65ds-global-com-gpiomux.o
-obj-$(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) += board-8926-jagdsnm.o board-8926-jagdsnm-gpiomux.o board-8926-jagdsnm-rfkill.o
-obj-$(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) += board-8926-jagdsnm.o board-8926-jagdsnm-gpiomux.o board-8926-jagdsnm-rfkill.o
-obj-$(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN) += board-8926-jagdsnm.o board-8926-jagdsnm-gpiomux.o board-8926-jagdsnm-rfkill.o
+obj-$(CONFIG_MACH_MSM8926_JAGDSNM_CMCC_CN) += board-8926-jagdsnm.o board-8926-jagdsnm-gpiomux.o bluetooth-pm.o
+obj-$(CONFIG_MACH_MSM8926_JAGDSNM_CUCC_CN) += board-8926-jagdsnm.o board-8926-jagdsnm-gpiomux.o bluetooth-pm.o
+obj-$(CONFIG_MACH_MSM8926_JAGDSNM_CTC_CN) += board-8926-jagdsnm.o board-8926-jagdsnm-gpiomux.o bluetooth-pm.o
+
+obj-$(CONFIG_MACH_MSM8X10_L70P_GLOBAL_COM) += board-8610-l70p-global-com.o board-8610-l70p-global-com-gpiomux.o
+obj-$(CONFIG_MACH_MSM8X10_L70PN_GLOBAL_COM) += board-8610-l70pn-global-com.o board-8610-l70pn-global-com-gpiomux.o
+obj-$(CONFIG_MACH_MSM8X10_L70PDS_GLOBAL_COM) += board-8610-l70pds-global-com.o board-8610-l70pds-global-com-gpiomux.o
 
 obj-$(CONFIG_LGE_BOOTLOADER_LOG) += lge_bootloader_log.o
 obj-$(CONFIG_LGE_HANDLE_PANIC) += lge_handle_panic.o
@@ -102,10 +115,10 @@ obj-$(CONFIG_LGE_BOOTLOADER_TIME_CHECKER) += lge_bootloader_time_checker.o
 
 ifdef CONFIG_MACH_MSM8926_X5_SPR
 obj-$(CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO) += lge_charging_scenario_sprint.o
-else 
+else
 ifdef CONFIG_MACH_MSM8X10_W5C_SPR_US
 obj-$(CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO) += lge_charging_scenario_sprint.o
-else 
+else
 ifdef CONFIG_MACH_MSM8926_JAGC_SPR
 obj-$(CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO) += lge_charging_scenario_sprint.o
 else
@@ -125,13 +138,18 @@ obj-$(CONFIG_LGE_ENABLE_MMC_STRENGTH_CONTROL) += lge_mmc_strength_control.o
 ifneq ($(CONFIG_MACH_MSM8926_X10_VZW),)
 EXTRA_CFLAGS += -DCONFIG_MACH_MSM8926_X10_VZW
 endif
-#[Power] Battery Data 
+#[Power] Battery Data
 ifdef CONFIG_LGE_PM_BATTERY_PROFILE_DATA
 #This is for default setting / remove later
 obj-$(CONFIG_MACH_LGE) += bms-batterydata-LGE_BL_54SH_2540mAh_LG_Chem_Final.o
 obj-$(CONFIG_LGE_PM_BATTERY_CAPACITY_1540mAh) += bms-batterydata-LGC_BL44JR_1540.o
+ifdef CONFIG_MACH_MSM8926_VFP_KR
+obj-$(CONFIG_LGE_PM_BATTERY_CAPACITY_1700mAh) += bms-batterydata-LGE_BL_44JH_1700mAh_LG_Chem_Final.o
+else
 obj-$(CONFIG_LGE_PM_BATTERY_CAPACITY_1700mAh) += bms-batterydata-LGC_BL44JH_1700.o bms-batterydata-LGC_BL44JH_1700_Dallas.o bms-batterydata-Tocad_BL44JH_1700_Intersil.o
-obj-$(CONFIG_LGE_PM_BATTERY_CAPACITY_2100mAh) += bms-batterydata-LGE_LGC_2040mAh_Final.o bms-batterydata-LGE_Tocad_2040mAh_Final.o bms-batterydata-LGE_Hitaci_2040mAh_Final.o
+endif
+obj-$(CONFIG_LGE_PM_BATTERY_CAPACITY_1900mAh) += bms-batterydata-LGE_L70_CHEM_1900mAh_Final.o bms-batterydata-LGE_L70_TOCAD_1900mAh_Final.o
+obj-$(CONFIG_LGE_PM_BATTERY_CAPACITY_2100mAh) += bms-batterydata-LGE_LGC_2040mAh_Final.o bms-batterydata-LGE_Tocad_2040mAh_Final.o bms-batterydata-LGE_Hitaci_2040mAh_Final.o bms-batterydata-LGE_BL41A1H_1527783_2100mAh_Final.o
 obj-$(CONFIG_LGE_PM_BATTERY_CAPACITY_2440mAh) += bms-batterydata-LGE_BL_59UH_2440mAh_LG_Chem_Final.o bms-batterydata-LGE_BL_59UH_2440mAh_TOCAD_Final.o
 obj-$(CONFIG_LGE_PM_BATTERY_CAPACITY_2540mAh) += bms-batterydata-LGE_BL_54SH_2540mAh_LG_Chem_Final.o bms-batterydata-LGE_BL_54SH_2540mAh_Sanyo_Final.o
 obj-$(CONFIG_LGE_PM_BATTERY_CAPACITY_3000mAh) += bms-batterydata-LGE_BL_64SH_3000mAh_LG_Chem_Final.o bms-batterydata-LGE_BL_64SH_3000mAh_Technohill_Final.o
@@ -143,3 +161,6 @@ obj-$(CONFIG_LGE_PM_BATTERY_CAPACITY_8000mAh) += bms-batterydata_LGE_BL_T13_8000
 endif
 
 CFLAGS_devices_lge.o += -Idrivers/staging/android
+
+obj-$(CONFIG_PRE_SELF_DIAGNOSIS) += lge_pre_selfd.o
+

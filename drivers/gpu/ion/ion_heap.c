@@ -141,7 +141,6 @@ int ion_heap_pages_zero(struct page **pages, int num_pages)
 		if (!ptr)
 			return -ENOMEM;
 
-		memset(ptr, 0, npages_to_vmap * PAGE_SIZE);
 		/*
 		 * invalidate the cache to pick up the zeroing
 		 */

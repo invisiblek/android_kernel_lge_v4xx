@@ -1344,6 +1344,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
+
 	/* Set correct bus mode for MMC before attempting init */
 	if (!mmc_host_is_spi(host))
 		mmc_set_bus_mode(host, MMC_BUSMODE_OPENDRAIN);
@@ -1726,6 +1728,8 @@ static void mmc_remove(struct mmc_host *host)
 	BUG_ON(!host);
 	BUG_ON(!host->card);
 
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
+
 	unregister_reboot_notifier(&host->card->reboot_notify);
 	mmc_remove_card(host->card);
 
@@ -1752,6 +1756,8 @@ static int mmc_detect(struct mmc_host *host)
 
 	BUG_ON(!host);
 	BUG_ON(!host->card);
+
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
 
 	mmc_rpm_hold(host, &host->card->dev);
 	mmc_claim_host(host);
@@ -1827,6 +1833,8 @@ static int mmc_resume(struct mmc_host *host)
 	BUG_ON(!host);
 	BUG_ON(!host->card);
 
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
+
 	mmc_claim_host(host);
 	err = mmc_init_card(host, host->ocr, host->card);
 	mmc_release_host(host);
@@ -1844,6 +1852,8 @@ static int mmc_resume(struct mmc_host *host)
 static int mmc_power_restore(struct mmc_host *host)
 {
 	int ret;
+	
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
 
 	/* Disable clk scaling to avoid switching frequencies intermittently */
 	mmc_disable_clk_scaling(host);
@@ -1934,6 +1944,8 @@ int mmc_attach_mmc(struct mmc_host *host)
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
+
+	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
 
 	/* Set correct bus mode for MMC before attempting attach */
 	if (!mmc_host_is_spi(host))

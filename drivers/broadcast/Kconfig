@@ -19,7 +19,7 @@ config LGE_BROADCAST_BRAZIL_FREQ
 	  
 config LGE_BROADCAST_TDMB
 	bool "LGE broadcast TDMB device Driver"
-	depends on (MACH_MSM8926_JAGN_KR) || (MACH_MSM8926_B2LN_KR)
+	depends on (MACH_MSM8926_JAGN_KR) || (MACH_MSM8926_B2LN_KR) || (MACH_MSM8926_VFP_KR)
 	default y
 	help
 	  Select this if you want to use TDMB broadcast service

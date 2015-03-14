@@ -1,7 +1,7 @@
 #ifndef __ASM_ARCH_MSM_BOARD_LGE_H
 #define __ASM_ARCH_MSM_BOARD_LGE_H
 
-#if defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || \
+#if defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_AME) || \
 	defined(CONFIG_MACH_MSM8926_F70_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR)
 typedef enum {
 	HW_REV_0 = 0,
@@ -64,6 +64,11 @@ int lge_pm_get_cable_info(struct chg_cable_info *, int32_t);
 acc_cable_type lge_pm_get_cable_type(void);
 unsigned lge_pm_get_ta_current(void);
 unsigned lge_pm_get_usb_current(void);
+
+#if defined(CONFIG_PRE_SELF_DIAGNOSIS)
+int lge_pre_self_diagnosis(char *drv_bus_code, int func_code, char *dev_code, char *drv_code, int errno);
+#endif
+
 enum lge_boot_cable_type lge_get_boot_cable_type(void);
 #endif
 
@@ -93,6 +98,14 @@ enum {
 	BATT_ID_ISL6296_N,
 	BATT_ID_ISL6296_L,
 	BATT_ID_ISL6296_C,
+#ifdef CONFIG_LGE_PM_BATTERY_ID_RANIX_SILICON_WORKS
+	BATT_ID_RA4301_VC0,
+	BATT_ID_RA4301_VC1,
+	BATT_ID_RA4301_VC2,
+	BATT_ID_SW3800_VC0,
+	BATT_ID_SW3800_VC1,
+	BATT_ID_SW3800_VC2,
+#endif
 };
 bool is_lge_battery_valid(void);
 int read_lge_battery_id(void);
@@ -114,6 +127,7 @@ enum lge_boot_mode_type {
 };
 
 enum lge_boot_mode_type lge_get_boot_mode(void);
+int lge_get_factory_boot(void);
 
 /* from cable_type */
 enum lge_boot_cable_type {
@@ -126,6 +140,10 @@ enum lge_boot_cable_type {
 	LGE_BOOT_NO_INIT_CABLE,
 };
 
+#if defined(CONFIG_PRE_SELF_DIAGNOSIS)
+int lge_pre_self_diagnosis(char *drv_bus_code, int func_code, char *dev_code, char *drv_code, int errno);
+#endif
+
 #if defined(CONFIG_LCD_KCAL)
 struct kcal_data {
 	int red;
@@ -137,6 +155,13 @@ struct kcal_platform_data {
 	int (*set_values) (int r, int g, int b);
 	int (*get_values) (int *r, int *g, int *b);
 	int (*refresh_display) (void);
+};
+#endif
+
+#if defined(CONFIG_PRE_SELF_DIAGNOSIS)
+struct pre_selfd_platform_data {
+	int (*set_values) (int r, int g, int b);
+	int (*get_values) (int *r, int *g, int *b);
 };
 #endif
 

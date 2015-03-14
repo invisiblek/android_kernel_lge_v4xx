@@ -1033,20 +1033,28 @@ err_scale_buses:
 
 static int venus_hfi_power_enable(void *dev)
 {
-	int rc = 0;
-	struct venus_hfi_device *device = dev;
-	if (!device) {
-		dprintk(VIDC_ERR, "Invalid params: %p\n", device);
-		return -EINVAL;
-	}
-	mutex_lock(&device->clk_pwr_lock);
-    rc = venus_hfi_clk_gating_off(device);
-    if (rc) {
-        dprintk(VIDC_ERR, "%s : Clock enable failed\n", __func__);
+    int rc = 0;
+    struct venus_hfi_device *device = dev;
+    if (!device) {
+        dprintk(VIDC_ERR, "Invalid params: %p\n", device);
+        return -EINVAL;
     }
-    mutex_unlock(&device->clk_pwr_lock);
 
-	return rc;
+    mutex_lock(&device->clk_pwr_lock);
+    if (!device->power_enabled) {
+        rc = venus_hfi_power_on(device);
+        if (rc) {
+            dprintk(VIDC_ERR, "Failed venus power on");
+            goto fail_power_on;
+        }
+    }
+    rc = venus_hfi_clk_gating_off(device);
+    if (rc)
+        dprintk(VIDC_ERR, "%s : Clock enable failed\n", __func__);
+
+    fail_power_on:
+    mutex_unlock(&device->clk_pwr_lock);
+    return rc;
 }
 
 static void venus_hfi_pm_hndlr(struct work_struct *work);

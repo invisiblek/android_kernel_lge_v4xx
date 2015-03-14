@@ -26,14 +26,15 @@ static int time_order = 1;
 #endif
 #endif
 
-#ifdef CONFIG_LGE_PM_VZW_CHARGING_TEMP_SCENARIO
+#if defined(CONFIG_LGE_PM_VZW_CHARGING_TEMP_SCENARIO) || defined(CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO_V1_8)
 #define CHG_MAXIDX	7
 #else
 #define CHG_MAXIDX	6
 #endif
 
 static struct batt_temp_table chg_temp_table[CHG_MAXIDX] = {
-#ifdef CONFIG_MACH_MSM8926_JAGNM_ATT
+#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
 	{INT_MIN,       -81,    CHG_BATTEMP_BL_M8},	// batt_temp < -10
 	{    -80,       -50,    CHG_BATTEMP_M8_M5},	// -10 <= batt_temp <= -5
 #else
@@ -42,7 +43,7 @@ static struct batt_temp_table chg_temp_table[CHG_MAXIDX] = {
 #endif
 	{     -49,       419,    CHG_BATTEMP_M4_41},	// -5 < batt_temp < 42
 	{     420,       450,    CHG_BATTEMP_42_45},	// 42 <= batt_temp <= 45
-#ifdef CONFIG_LGE_PM_VZW_CHARGING_TEMP_SCENARIO
+#if defined(CONFIG_LGE_PM_VZW_CHARGING_TEMP_SCENARIO) || defined(CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO_V1_8)
 	{     451,       520,    CHG_BATTEMP_46_52},	// 45 < batt_temp <= 52
 	{     521,       550,    CHG_BATTEMP_53_OT},	// 52 < batt_temp <= 55
 #else
@@ -84,13 +85,15 @@ determine_lge_charging_state(enum lge_battemp_states battemp_st, int batt_volt)
 	switch (charging_state) {
 	case CHG_BATT_NORMAL_STATE:
 		if (battemp_st >= CHG_BATTEMP_AB_OT ||
-#ifdef CONFIG_MACH_MSM8926_JAGNM_ATT
+#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
 			battemp_st <= CHG_BATTEMP_BL_M8) {
 #else
 			battemp_st <= CHG_BATTEMP_BL_M11) {
 #endif
 			states_change = STS_CHE_NORMAL_TO_STPCHG;
-#ifdef CONFIG_MACH_MSM8926_JAGNM_ATT
+#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
 			if (battemp_st <= CHG_BATTEMP_BL_M8)
 #else
 			if (battemp_st <= CHG_BATTEMP_BL_M11)
@@ -104,7 +107,7 @@ determine_lge_charging_state(enum lge_battemp_states battemp_st, int batt_volt)
 				pseudo_chg_ui = 0;
 
 			next_state = CHG_BATT_STPCHG_STATE;
-#ifdef CONFIG_LGE_PM_VZW_CHARGING_TEMP_SCENARIO
+#if defined(CONFIG_LGE_PM_VZW_CHARGING_TEMP_SCENARIO) || defined(CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO_V1_8)
 		} else if (battemp_st == CHG_BATTEMP_46_52 || battemp_st == CHG_BATTEMP_53_OT) {
 #else
 		} else if (battemp_st == CHG_BATTEMP_46_OT) {
@@ -122,13 +125,15 @@ determine_lge_charging_state(enum lge_battemp_states battemp_st, int batt_volt)
 		break;
 	case CHG_BATT_DECCUR_STATE:
 		if (battemp_st >= CHG_BATTEMP_AB_OT ||
-#ifdef CONFIG_MACH_MSM8926_JAGNM_ATT
+#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
 			battemp_st <= CHG_BATTEMP_BL_M8) {
 #else
 			battemp_st <= CHG_BATTEMP_BL_M11) {
 #endif
 			states_change = STS_CHE_DECCUR_TO_STPCHG;
-#ifdef CONFIG_MACH_MSM8926_JAGNM_ATT
+#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
 			if (battemp_st <= CHG_BATTEMP_BL_M8)
 #else
 			if (battemp_st <= CHG_BATTEMP_BL_M11)
@@ -146,7 +151,8 @@ determine_lge_charging_state(enum lge_battemp_states battemp_st, int batt_volt)
 			states_change = STS_CHE_DECCUR_TO_STPCHG;
 			pseudo_chg_ui = 1;
 			next_state = CHG_BATT_STPCHG_STATE;
-#ifndef CONFIG_MACH_MSM8926_JAGNM_ATT
+#if !defined(CONFIG_MACH_MSM8926_JAGNM_ATT)	&& !defined(CONFIG_MACH_MSM8926_JAGNM_RGS) && !defined(CONFIG_MACH_MSM8926_JAGNM_TLS) \
+	&& !defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 		} else if (battemp_st <= CHG_BATTEMP_M4_41) {
 			states_change = STS_CHE_DECCUR_TO_NORAML;
 			pseudo_chg_ui = 0;
@@ -157,7 +163,8 @@ determine_lge_charging_state(enum lge_battemp_states battemp_st, int batt_volt)
 	case CHG_BATT_WARNIG_STATE:
 		break;
 	case CHG_BATT_STPCHG_STATE:
-#ifdef CONFIG_MACH_MSM8926_JAGNM_ATT
+#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
 		if (battemp_st >= CHG_BATTEMP_M8_M5 && battemp_st <= CHG_BATTEMP_42_45) {
 #else
 		if (battemp_st == CHG_BATTEMP_M4_41) {
@@ -166,12 +173,11 @@ determine_lge_charging_state(enum lge_battemp_states battemp_st, int batt_volt)
 			pseudo_chg_ui = 0;
 			next_state = CHG_BATT_NORMAL_STATE;
 		}
-#ifdef CONFIG_LGE_PM_VZW_CHARGING_TEMP_SCENARIO
+#if defined(CONFIG_LGE_PM_VZW_CHARGING_TEMP_SCENARIO) || defined(CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO_V1_8)
 		else if (battemp_st == CHG_BATTEMP_46_52 || battemp_st == CHG_BATTEMP_42_45) {
 			if (batt_volt > DC_IUSB_VOLTUV) {
 				pseudo_chg_ui = 1;
 				next_state = CHG_BATT_STPCHG_STATE;
-		
 			} else {
 				states_change = STS_CHE_STPCHG_TO_DECCUR;
 				pseudo_chg_ui = 0;
@@ -180,7 +186,8 @@ determine_lge_charging_state(enum lge_battemp_states battemp_st, int batt_volt)
 		}
 #endif
 
-#ifdef CONFIG_MACH_MSM8926_JAGNM_ATT
+#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
 		else if (battemp_st <= CHG_BATTEMP_BL_M8 || battemp_st >= CHG_BATTEMP_AB_OT) {
 #else
 		else if (battemp_st >= CHG_BATTEMP_AB_OT) {
@@ -273,7 +280,8 @@ void lge_monitor_batt_temp(struct charging_info req, struct charging_rsp *res)
 
 	if (battemp_state >= CHG_BATTEMP_AB_OT)
 		res->btm_state = BTM_HEALTH_OVERHEAT;
-#ifdef CONFIG_MACH_MSM8926_JAGNM_ATT
+#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) \
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
 	else if (battemp_state <= CHG_BATTEMP_BL_M8)
 #else
 	else if (battemp_state <= CHG_BATTEMP_BL_M11)

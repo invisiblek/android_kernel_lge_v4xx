@@ -277,7 +277,12 @@ enum {
 	POWER_WAKE
 };
 
-
+enum {
+	ELK_PANEL = 0,
+	LGIT_PANEL,
+	SUNTEL_PANEL,
+	MAX_PANEL,
+};
 enum{
 	TIME_EX_INIT_TIME,
 	TIME_EX_FIRST_INT_TIME,
@@ -368,6 +373,7 @@ struct mxt_platform_data {
 	unsigned long gpio_reset;
 	unsigned long gpio_int;
 	unsigned int panel_check;
+	unsigned int panel_delta_value[MAX_PANEL];
 	unsigned char panel_on;
 	const char *fw_name[DIVERSIFY_FW_NUM];
 	const char *extra_fw_name;
@@ -724,6 +730,7 @@ struct mxt_data {
 	u8 cal_cnt;
 	struct hw_reset_data reset;
 	enum lge_boot_mode_type boot_mode;
+	int panel_offset_value;
 };
 
 struct tci_abs {

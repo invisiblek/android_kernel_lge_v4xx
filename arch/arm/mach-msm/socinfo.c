@@ -79,8 +79,8 @@ const char *hw_platform[] = {
 #ifdef CONFIG_MACH_LGE
 /*                 */
 enum {
-		HW_PLATFORM_LGE_START  = 100,
-		HW_PLATFORM_LGPS14     = 100,
+	HW_PLATFORM_LGE_START  = 100,
+	HW_PLATFORM_LGPS14     = 100,
         HW_PLATFORM_LGPS15     = 100,
         HW_PLATFORM_LG_W7      = 101,
         HW_PLATFORM_LG_X5      = 102,
@@ -91,7 +91,7 @@ enum {
         HW_PLATFORM_LG_E8WIFI   = 165,
         HW_PLATFORM_LG_E8LTE   = 166,
         HW_PLATFORM_LG_E9      = 171,
-		HW_PLATFORM_LGE_INVALID= 200
+	HW_PLATFORM_LGE_INVALID= 200
 };
 
 const char *hw_platform_lge[] = {

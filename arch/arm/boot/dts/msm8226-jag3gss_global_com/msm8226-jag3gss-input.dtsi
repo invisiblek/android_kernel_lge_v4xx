@@ -26,18 +26,17 @@
 			revision = "rev_a...";
 			status = "ok";
 			synaptics,fw_version_info = <0x30 0x05 0x01>;
-			synaptics,fw_image = "synaptics/jag3gss_global_com/PLG364-V0.03-PR1606308-DS4.3.5.1.16_30050103.img";
+			synaptics,fw_image = "synaptics/jag3gss_global_com/PLG364-V0.74-PR1666447-DS4.3.5.1.16_3005014A.img";
 			synaptics,panel_spec = "synaptics/jag3gss_global_com/jag3gss_global_com_limit.txt";
 			synaptics,reset-gpio = <&msmgpio 60 0x00>;
 			lge,knock_on_type = <1>;
 			synaptics,platform_data	{
 				max_id = <5>;
-				number_of_button = <0x2>;
 				/*maker_id  disable(0), enable(1)*/
 				maker_id = <0>;
 				maker_id_gpio = <116>;
 				palm_detect_mode = <1>;
-				ghost_detection_enable = <0>;
+				ghost_detection_enable = <1>;
                                 vdd_voltage = <3050000>;
 			};
 		};

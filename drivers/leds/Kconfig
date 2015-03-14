@@ -614,3 +614,7 @@ config LGE_B2LN_LGU_LED
 config LGE_JAG_LED
 	bool "LGE JAG LED Enable"
 	default n
+
+config LEDS_PM8226_EMOTIONAL
+	bool "LGE PM8226 Emotional LED"
+	default n

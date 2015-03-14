@@ -207,7 +207,7 @@ static struct msm_gpiomux_config gpio_func_sensor_configs[] __initdata = {
 static struct gpiomux_setting hall_ic_sus_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_NONE,
+	.pull = GPIOMUX_PULL_UP,
 	.dir = GPIOMUX_IN,
 };
 

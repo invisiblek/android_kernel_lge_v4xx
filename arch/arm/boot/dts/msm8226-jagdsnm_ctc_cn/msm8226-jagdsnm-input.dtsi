@@ -38,7 +38,7 @@
 		    revision = "rev_b...";
 		    status = "ok";
 		    synaptics,fw_version_info = <0x30 0x05 0x01>;
-		    synaptics,fw_image = "synaptics/jagdsnm_ctc_cn/PLG364-V1.03-PR1606308-DS4.3.5.1.16_30050183.img";
+		    synaptics,fw_image = "synaptics/jagdsnm_ctc_cn/PLG364-V0.74-PR1666447-DS4.3.5.1.16_3005014A.img";
 		    synaptics,panel_spec = "synaptics/jagdsnm_ctc_cn/jagdsnm_ctc_cn_limit.txt";
 		    lge,knock_on_type = <1>;
 		    synaptics,platform_data{

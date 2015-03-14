@@ -18,7 +18,10 @@
 #define FCC_CC_COLS		5
 #define FCC_TEMP_COLS		8
 
-#if defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || defined(CONFIG_MACH_MSM8226_E7WIFI) || defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+#if defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || \
+    defined(CONFIG_MACH_MSM8226_E7WIFI) || defined(CONFIG_MACH_MSM8226_E8WIFI) || \
+    defined(CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || \
+    defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 #define PC_CC_ROWS             30
 #define PC_CC_COLS             13
 
@@ -150,9 +153,16 @@ struct bms_battery_data {
 #ifdef CONFIG_LGE_PM_BATTERY_CAPACITY_1540mAh
 extern struct bms_battery_data LGC_BL44JR_1540_data;
 #elif defined(CONFIG_LGE_PM_BATTERY_CAPACITY_1700mAh)
+#ifdef CONFIG_MACH_MSM8926_VFP_KR
+extern struct bms_battery_data LGE_BL_44JH_1700mAh_LG_Chem_data;
+#else
 extern struct bms_battery_data LGC_BL44JH_1700_data;
 extern struct bms_battery_data LG_LGC_BL44JH_1700_data;
 extern struct bms_battery_data LG_TOCAD_BL44JH_1700_data;
+#endif
+#elif defined(CONFIG_LGE_PM_BATTERY_CAPACITY_1900mAh)
+extern struct bms_battery_data LGE_L70_TOCAD_1900mAh_data;
+extern struct bms_battery_data LGE_L70_CHEM_1900mAh_data;
 #elif defined(CONFIG_LGE_PM_BATTERY_CAPACITY_2440mAh)
 extern struct bms_battery_data LGE_BL_59UH_2440mAh_LG_Chem_data;
 extern struct bms_battery_data LGE_BL_59UH_2440mAh_TOCAD_data;
@@ -165,7 +175,8 @@ extern struct bms_battery_data LGE_BL_64SH_3000mAh_Technohill_data;
 #elif defined(CONFIG_LGE_PM_BATTERY_CAPACITY_2100mAh)
 extern struct bms_battery_data LGE_LGC_2040mAH_data;
 extern struct bms_battery_data LGE_Tocad_2040mAh_data;
-#ifdef CONFIG_LGE_PM_BATTERY_HITACI_2100mAh
+extern struct bms_battery_data LGE_BL41A1H_1527783_2100mAh_BMS_data;
+#if defined(CONFIG_LGE_PM_BATTERY_HITACI_2100mAh)
 extern struct bms_battery_data LGE_Hitaci_2040mAh_data;
 #endif
 #elif defined(CONFIG_LGE_PM_BATTERY_CAPACITY_3200mAh)

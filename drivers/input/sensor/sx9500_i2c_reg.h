@@ -28,8 +28,8 @@
 #define SX9500_CPS_CTRL8_REG  0x0E
 #define SX9500_SOFTRESET_REG  0x7F
 
-/*      Sensor Readback */
-#define SX9500_CPSRD_REG      0x20
+/* Sensor Readback */
+#define SX9500_SENSORSEL_REG  0x20
 
 #define SX9500_USEMSB_REG     0x21
 #define SX9500_USELSB_REG     0x22
@@ -43,7 +43,7 @@
 #define SX9500_OFFSETMSB_REG  0x27
 #define SX9500_OFFSETLSB_REG  0x28
 
-/*      IrqStat 0:Inactive 1:Active     */
+/* IrqStat 0:Inactive 1:Active     */
 #define SX9500_IRQSTAT_RESET_FLAG      0x80
 #define SX9500_IRQSTAT_TOUCH_FLAG      0x40
 #define SX9500_IRQSTAT_RELEASE_FLAG    0x20
@@ -58,8 +58,19 @@
 #define SX9500_TCHCMPSTAT_TCHSTAT1_FLAG   0x20
 #define SX9500_TCHCMPSTAT_TCHSTAT0_FLAG   0x10
 
-/*      SoftReset */
+/* SoftReset */
 #define SX9500_SOFTRESET  0xDE
 
+/* CSx PIN */
+#define SENSORSEL_CS0  0x00
+#define SENSORSEL_CS1  0x01
+#define SENSORSEL_CS2  0x02
+#define SENSORSEL_CS3  0x03
+
+#define SENSOREN_DISABLE_ALL 0x00
+#define SENSOREN_CS0   0x01
+#define SENSOREN_CS1   0x02
+#define SENSOREN_CS2   0x04
+#define SENSOREN_CS3   0x08
 
 #endif /* _SX9500_I2C_REG_H_*/

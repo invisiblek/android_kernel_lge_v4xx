@@ -1136,7 +1136,10 @@ static void msm_vfe40_cfg_axi_ub_equal_default(
 	uint32_t prop_size = 0;
 	uint32_t wm_ub_size;
 	uint32_t delta;
+	uint64_t temp;  /*                                                                        */
 
+	pr_err("%s \n", __func__);
+	
 	for (i = 0; i < axi_data->hw_info->num_wm; i++) {
 		if (axi_data->free_wm[i] > 0) {
 			num_used_wms++;
@@ -1147,9 +1150,17 @@ static void msm_vfe40_cfg_axi_ub_equal_default(
 		axi_data->hw_info->min_wm_ub * num_used_wms;
 	for (i = 0; i < axi_data->hw_info->num_wm; i++) {
 		if (axi_data->free_wm[i]) {
-			delta =
-				(axi_data->wm_image_size[i] *
-					prop_size)/total_image_size;
+/*                                                                          */
+//			delta =
+//				(axi_data->wm_image_size[i] *
+//					prop_size)/total_image_size;
+			temp = (uint64_t)axi_data->wm_image_size[i] * prop_size;
+			do_div(temp,total_image_size);
+			//pr_err("_debug_: i = %d, old delta = %u, new delta = %u\n", i, delta, ((uint32_t) temp) );
+			delta = (uint32_t)temp;
+/*                                                                          */
+
+			
 			wm_ub_size = axi_data->hw_info->min_wm_ub + delta;
 			msm_camera_io_w(ub_offset << 16 | (wm_ub_size - 1),
 				vfe_dev->vfe_base + VFE40_WM_BASE(i) + 0x10);
@@ -1176,7 +1187,7 @@ static void msm_vfe40_cfg_axi_ub_equal_slicing(
 static void msm_vfe40_cfg_axi_ub(struct vfe_device *vfe_dev)
 {
 	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
-	axi_data->wm_ub_cfg_policy = MSM_WM_UB_EQUAL_SLICING;
+	//axi_data->wm_ub_cfg_policy = MSM_WM_UB_EQUAL_SLICING;
 	if (axi_data->wm_ub_cfg_policy == MSM_WM_UB_EQUAL_SLICING)
 		msm_vfe40_cfg_axi_ub_equal_slicing(vfe_dev);
 	else

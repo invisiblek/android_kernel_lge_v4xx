@@ -477,3 +477,7 @@ config SND_SOC_MSM_HDMI_CODEC_RX
 config LGE_MBHC_FAST_IRQ_HANDLER
 	bool "put irq handler body into work queue to improve headset detection fail rate"
 	default n
+
+config LGE_MBHC_TWIST_HEADSET
+	bool "block headset lineout event when twist headset"
+	default n
