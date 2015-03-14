@@ -9,3 +9,16 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
+&soc {
+	i2c@f9927000 { /* BLSP1 QUP5 */
+		atmel_t641@4a {									/*touch ic I2C bus adddress*/
+			revision = "rev_a...rev_b";								/*board version */
+		};
+
+		atmel_t641_revD@4a {									/*touch ic I2C bus adddress*/
+			revision = "rev_c...";								/*board version */
+		};
+
+	};
+};
