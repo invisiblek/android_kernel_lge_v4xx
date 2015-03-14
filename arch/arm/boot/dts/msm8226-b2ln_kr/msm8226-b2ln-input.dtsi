@@ -1,0 +1,48 @@
+/* Copyright (c) 2013, LGE Electronics. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&soc {
+	gpio_keys {
+		home {
+			unused;
+		};
+
+		quick_clip {
+			unused;
+		};
+	};
+
+	i2c@f9927000 { /* BLSP1 QUP5 */
+		atmel_s540@4a {
+			revision = "rev_a";
+			vdd_ana-supply = <&pm8226_l28>;
+			vcc_i2c-supply = <&pm8226_lvs1>;
+			vcc_dig-supply = <&pm8226_l19>;
+			status = "disabled";
+		};
+		atmel_s540_rev_b@4a {
+			revision = "rev_b";
+			vdd_ana-supply = <&pm8226_l28>;
+			vcc_i2c-supply = <&pm8226_l6>;
+			vcc_dig-supply = <&pm8226_l16>;
+			status = "ok";
+		};
+		atmel_s540_rev_c@4a {
+			revision = "rev_c...";
+			vdd_ana-supply = <&pm8226_l28>;
+			vcc_i2c-supply = <&pm8226_l23_rev_c>;
+			vcc_dig-supply = <&pm8226_l16>;
+			status = "ok";
+		};
+
+	};
+};

@@ -1,0 +1,44 @@
+/* Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&soc {
+	/* I2C device */
+	i2c@f9926000 {
+		qcom,i2c-bus-freq = <400000>;
+		qcom,i2c-src-freq = <19200000>;
+		qcom,sda-gpio = <&msmgpio 14 0>;
+		qcom,scl-gpio = <&msmgpio 15 0>;
+		qcom,master-id = <86>;
+		
+		/* sx9500 cap sensor */
+		Semtech_sx9500@28 {
+			compatible = "Semtech,sx9500";
+			reg = <0x28>;
+			interrupt-parent = <&msmgpio>;
+			interrupts = <54 0x2>;
+			Semtech,vdd_ana-supply = <&pm8226_l15>;
+			Semtech,vddio_i2c-supply = <&pm8226_l23>;
+			Semtech,irq-gpio = <&msmgpio 54 0x00>;
+			Semtech,i2c-pull-up = <1>;
+			Semtech,vdd_ana_supply_min = <2850000>;
+			Semtech,vdd_ana_supply_max = <3300000>;
+			Semtech,vdd_ana_load_ua = <15000>;
+			Semtech,vddio_dig_supply_min = <1800000>;
+			Semtech,vddio_dig_supply_max = <1800000>;
+			Semtech,vddio_dig_load_ua = <10000>;
+			Semtech,vddio_i2c_supply_min = <1800000>;
+			Semtech,vddio_i2c_supply_max = <1800000>;
+			Semtech,vddio_i2c_load_ua = <10000>;
+			status = "ok";
+		};
+	};
+};
