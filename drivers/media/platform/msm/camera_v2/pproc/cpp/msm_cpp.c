@@ -1428,8 +1428,17 @@ static int msm_cpp_cfg(struct cpp_device *cpp_dev,
 
 	ioctl_ptr->trans_code = rc;
 	status = rc;
+	
+/*                                                                            */	
+	#if 0
 	rc = (copy_to_user((void __user *)u_frame_info->status, &status,
 		sizeof(int32_t)) ? -EFAULT : 0);
+	#else
+	rc = (copy_to_user((void __user *)&u_frame_info->status, &status,
+		sizeof(int32_t)) ? -EFAULT : 0);
+	#endif
+/*                                                                            */
+	
 	if (rc) {
 		ERR_COPY_FROM_USER();
 		rc = -EINVAL;
@@ -1447,9 +1456,16 @@ ERROR1:
 	kfree(new_frame);
 	ioctl_ptr->trans_code = rc;
 	status = rc;
+	#if 0
 	if (copy_to_user((void __user *)u_frame_info->status, &status,
 		sizeof(int32_t)))
 		pr_err("error cannot copy error\n");
+	#else
+	if (copy_to_user((void __user *)&u_frame_info->status, &status,
+		sizeof(int32_t)))
+		pr_err("error cannot copy error\n");
+	#endif
+	
 	return rc;
 }
 

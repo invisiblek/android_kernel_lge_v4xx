@@ -13,6 +13,7 @@
                                                                          
                                                     
                                                                                           
+                                                                             
 */
 
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
@@ -25,6 +26,8 @@
 //******************************** babybear registers cut 1.1
 #define IDENTIFICATION__MODEL_ID					0x000
 #define IDENTIFICATION__REVISION_ID				0x002
+#define REVISION_NOT_CALIBRATED					0x02
+#define REVISION_CALIBRATED						0x03
 #define FIRMWARE__BOOTUP							0x119
 #define RESULT__RANGE_STATUS						0x04D
 #define GPIO_HV_PAD01__CONFIG						0x132
@@ -68,7 +71,7 @@
 #define LOW_LIGHT_IGNORETHRES_RATIO		100
 #define HIGH_LIGHT_IGNORETHRES_RATIO 	 28
 
-#define DEFAULT_CROSSTALK     1 // 12 for ST Glass; 2 for LG Glass
+#define DEFAULT_CROSSTALK     4 // 12 for ST Glass; 2 for LG Glass
 #define DEFAULT_IGNORETHRES   0 // 32 fior ST Glass; 0 for LG Glass
 
 // Filter defines
@@ -77,6 +80,11 @@
 #define MINFILTERSTDDEVSAMPLES	3
 #define MINFILTERVALIDSTDDEVSAMPLES	4
 #define FILTERINVALIDDISTANCE	65535
+
+#ifdef __USE_MULTIMODULE__
+#define it_eep_reg 0x800
+#define fj_eep_reg 0x8B0
+#endif
 
 //Wrap around filter
 #define COMPLEX_FILTER
@@ -231,22 +239,22 @@ int16_t OffsetCalibration(void)
            uint16_t statusCode = 0;
            uint16_t distance = 0;
 
-	pr_err("OffsetCalibration start!\n");
+		pr_err("OffsetCalibration start!\n");
 
             //Set offset to zero
-           msm_proxy_t.i2c_client.i2c_func_tbl->i2c_write(&msm_proxy_t.i2c_client, SYSRANGE__PART_TO_PART_RANGE_OFFSET,0, 1);
+           proxy_i2c_write( SYSRANGE__PART_TO_PART_RANGE_OFFSET,0, 1);
 
             // Disable CrossTalkCompensation
-           msm_proxy_t.i2c_client.i2c_func_tbl->i2c_write(&msm_proxy_t.i2c_client, SYSRANGE__CROSSTALK_COMPENSATION_RATE, 0, 1);
-           msm_proxy_t.i2c_client.i2c_func_tbl->i2c_write(&msm_proxy_t.i2c_client, SYSRANGE__CROSSTALK_COMPENSATION_RATE+1, 0, 1);
+           proxy_i2c_write( SYSRANGE__CROSSTALK_COMPENSATION_RATE, 0, 1);
+           proxy_i2c_write( SYSRANGE__CROSSTALK_COMPENSATION_RATE+1, 0, 1);
 
             for(i=0;i<10;i++){
                      // Run ten measurements in a row
-                     msm_proxy_t.i2c_client.i2c_func_tbl->i2c_write(&msm_proxy_t.i2c_client, SYSRANGE__START, 1, 1);
+                     proxy_i2c_write( SYSRANGE__START, 1, 1);
                      TimeOut = 0;
                      do{
-                                msm_proxy_t.i2c_client.i2c_func_tbl->i2c_read(&msm_proxy_t.i2c_client, SYSRANGE__START, &chipidRangeStart, 1);
-                                msm_proxy_t.i2c_client.i2c_func_tbl->i2c_read(&msm_proxy_t.i2c_client, RESULT__RANGE_STATUS, &statusCode, 1);
+                                proxy_i2c_read( SYSRANGE__START, &chipidRangeStart, 1);
+                                proxy_i2c_read( RESULT__RANGE_STATUS, &statusCode, 1);
 
                                  TimeOut +=1;
                                 if(TimeOut>2000)
@@ -255,7 +263,7 @@ int16_t OffsetCalibration(void)
                       }while(!(((statusCode&0x01)==0x01)&&(chipidRangeStart==0x00)));
 
                       // Read distance
-                     msm_proxy_t.i2c_client.i2c_func_tbl->i2c_read(&msm_proxy_t.i2c_client, RESULT__RANGE_VAL, &distance, 1);
+                     proxy_i2c_read( RESULT__RANGE_VAL, &distance, 1);
                       distance *= 3;
 
                       MeasuredDistance = MeasuredDistance + distance;
@@ -369,7 +377,7 @@ uint16_t proxy_get_from_sensor(void)
 		calcConvTime = m_rtnConvTime;
 	}
 	if(calcConvTime==0)
-		calcConvTime=50000;
+		calcConvTime=63000;
 
 	m_rtnSignalRate  = (m_rtnSignalCount*1000)/calcConvTime;
 	m_refSignalRate  = (m_refSignalCount*1000)/calcConvTime;
@@ -452,11 +460,13 @@ static void get_proxy(struct work_struct *work)
 	struct msm_proxy_ctrl_t *proxy_struct = container_of(work, struct msm_proxy_ctrl_t, proxy_work);
 	uint16_t * proxy = &proxy_struct->last_proxy;
 	int16_t offset;
-	//int8_t offsetShift;
 	int16_t cal_count;
-	//uint8_t calCountShift;
-	//int16_t calCountShift2;
 	int16_t fin_val;
+#ifdef __USE_MULTIMODULE__
+	uint16_t module_id = 0;
+	uint8_t shift_module_id = 0;
+#endif
+
 	while(1)
 	{
 		//pr_err("pause_workqueue = %d\n", proxy_struct->pause_workqueue);
@@ -470,7 +480,7 @@ static void get_proxy(struct work_struct *work)
 				offset = OffsetCalibration();
 				pr_err("write offset = %d to eeprom\n", offset);
 				if ((offset <= 10) && (offset >= (-20))) {
-					proxy_i2c_e2p_read(0x800, &cal_count, 2);	                
+					proxy_i2c_e2p_read(0x800, &cal_count, 2);
 					calCountShift = (cal_count & 0xff) >> 8;                  //seperate cal count value
 
 					fin_val = (offset & 0xff) | (calCountShift << 8);
@@ -482,12 +492,12 @@ static void get_proxy(struct work_struct *work)
 					else {
 						calCountShift++;
 						pr_err("KSY writed\n");
-						calCountShift2 = calCountShift << 8;			
-						proxy_i2c_e2p_read(0x800, &offset, 2);					
+						calCountShift2 = calCountShift << 8;
+						proxy_i2c_e2p_read(0x800, &offset, 2);
 						fin_val = calCountShift2 | (offset & 0xff);
 						proxy_i2c_e2p_write(0x800, fin_val, 2);
 					}
-					
+
 					pr_err("KSY read cal count2 = %d to eeprom\n", calCountShift);
 					proxy_struct->proxy_stat.cal_count = calCountShift;
 					proxy_struct->proxy_cal = 0;
@@ -502,19 +512,37 @@ static void get_proxy(struct work_struct *work)
 				proxy_struct->proxy_stat.cal_done = 0;  //cal done
 				offset = OffsetCalibration();
 				pr_err("write offset = %x to eeprom\n", offset);
+#ifdef __USE_MULTIMODULE__
+				proxy_i2c_e2p_read(0x700, &module_id, 2);	
+				shift_module_id = module_id >> 8;
+
+				
 				if ((offset < 11) && (offset > (-21))) {
-					proxy_i2c_e2p_read(0x800, &fin_val, 2); 
-					cal_count=fin_val>>8;
-					//proxy_i2c_e2p_write(0x800, offset, 2);  
-					pr_err("KSY read cal count1 = %x to eeprom\n", fin_val);
-					//if(cal_count == 200)	cal_count = 0;
 					
-					cal_count++;
-					fin_val= (cal_count<<8) | (0x00FF & offset);
-					proxy_i2c_e2p_write(0x800, fin_val, 2);					
-					
-					pr_err("KSY read cal count2 = %x to eeprom\n", fin_val);
-					
+					if((shift_module_id == 0x01) || (shift_module_id == 0x02))	// It module
+					{
+						proxy_i2c_e2p_read(it_eep_reg, &fin_val, 2);
+						cal_count=fin_val>>8;
+
+						cal_count++;
+						fin_val= (cal_count<<8) | (0x00FF & offset);
+						proxy_i2c_e2p_write(it_eep_reg, fin_val, 2);
+
+						pr_err("KSY read inot cal count = %x to eeprom\n", fin_val);
+					}
+
+					else if(shift_module_id == 0x03)
+					{	
+						proxy_i2c_e2p_read(fj_eep_reg, &fin_val, 2);
+						cal_count=fin_val>>8;
+
+						cal_count++;
+						fin_val= (cal_count<<8) | (0x00FF & offset);
+						proxy_i2c_e2p_write(fj_eep_reg, fin_val, 2);
+
+						pr_err("KSY read fj cal count = %x to eeprom\n", fin_val);
+					}
+						
 					proxy_struct->proxy_stat.cal_count = cal_count;
 					proxy_struct->proxy_cal = 0;
 					proxy_struct->proxy_stat.cal_done = 1;  //cal done
@@ -524,6 +552,30 @@ static void get_proxy(struct work_struct *work)
 					proxy_struct->proxy_stat.cal_done = 2;  //cal fail
 					msm_proxy_t.proxy_cal = 0;
 				}
+#else
+				if ((offset < 11) && (offset > (-21))) {
+					proxy_i2c_e2p_read(0x800, &fin_val, 2);
+					cal_count=fin_val>>8;
+					//proxy_i2c_e2p_write(0x800, offset, 2);
+					pr_err("KSY read cal count1 = %x to eeprom\n", fin_val);
+					//if(cal_count == 200)	cal_count = 0;
+
+					cal_count++;
+					fin_val= (cal_count<<8) | (0x00FF & offset);
+					proxy_i2c_e2p_write(0x800, fin_val, 2);
+
+					pr_err("KSY read cal count2 = %x to eeprom\n", fin_val);
+
+					proxy_struct->proxy_stat.cal_count = cal_count;
+					proxy_struct->proxy_cal = 0;
+					proxy_struct->proxy_stat.cal_done = 1;  //cal done
+					msm_proxy_t.proxy_cal = 0;
+				}
+				else{   // Calibration failed by spec out
+					proxy_struct->proxy_stat.cal_done = 2;  //cal fail
+					msm_proxy_t.proxy_cal = 0;
+				}
+#endif
 				#endif
 			}
 			*proxy = proxy_get_from_sensor();
@@ -788,15 +840,15 @@ int msm_init_proxy(void)
 	uint8_t byteArray[4];
 	int8_t offsetByte;
 	int16_t fin_val;
-	int16_t cal_count;
+	uint8_t cal_count;
 	//s8 check_offset;
-	int8_t rangeTemp = 0;
+	//int8_t rangeTemp = 0;
 	uint16_t modelID = 0;
 	uint16_t revID = 0;
 	uint16_t chipidRange = 0;
 	//uint16_t chipidOffset = 0;
 	uint16_t chipidRangeMax = 0;
-	uint16_t chipidscalar = 0;
+	//uint16_t chipidscalar = 0;
 	uint16_t chipidgpio = 0;
 	uint32_t shift, dataMask;
 	//int32_t  readI2C =0x00000000;
@@ -809,6 +861,14 @@ int msm_init_proxy(void)
 	//
 	uint16_t proxy_status = 0;
 	uint16_t proxy_FATAL = 0;
+	
+	uint16_t dataByte;
+	uint16_t ambpart2partCalib1 = 0;
+	uint16_t ambpart2partCalib2 = 0;
+#ifdef __USE_MULTIMODULE__
+	uint16_t module_id = 0;
+	uint8_t shift_module_id = 0;
+#endif
 
 	pr_err("msm_init_proxy ENTER!\n");
 
@@ -860,9 +920,36 @@ int msm_init_proxy(void)
 	proxy_i2c_write( 0x00e7, 0x03, 1);
 	proxy_i2c_write( 0x00f5, 0x02, 1);
 	proxy_i2c_write( 0x00D9, 0x05, 1);
-	proxy_i2c_write( 0x00DB, 0xCE, 1);
-	proxy_i2c_write( 0x00DC, 0x03, 1);
-	proxy_i2c_write( 0x00DD, 0xF8, 1);
+	
+	// AMB P2P calibration
+	proxy_i2c_read(SYSTEM__FRESH_OUT_OF_RESET, &dataByte, 1);
+	if(dataByte==0x01)
+	{
+		proxy_i2c_read( 0x26, &dataByte, 1);
+		ambpart2partCalib1 = dataByte<<8;
+		proxy_i2c_read( 0x27, &dataByte, 1);
+		ambpart2partCalib1 = ambpart2partCalib1 + dataByte;
+		proxy_i2c_read( 0x28, &dataByte, 1);
+		ambpart2partCalib2 = dataByte<<8;
+		proxy_i2c_read( 0x29, &dataByte, 1);
+		ambpart2partCalib2 = ambpart2partCalib2 + dataByte;
+		if(ambpart2partCalib1!=0)
+		{
+			// p2p calibrated
+			proxy_i2c_write( 0xDA, (ambpart2partCalib1>>8)&0xFF, 1);
+			proxy_i2c_write( 0xDB, ambpart2partCalib1&0xFF, 1);
+			proxy_i2c_write( 0xDC, (ambpart2partCalib2>>8)&0xFF, 1);
+			proxy_i2c_write( 0xDD, ambpart2partCalib2&0xFF, 1);
+		}
+		else
+		{
+			// No p2p Calibration, use default settings
+			proxy_i2c_write( 0xDB, 0xCE, 1);
+			proxy_i2c_write( 0xDC, 0x03, 1);
+			proxy_i2c_write( 0xDD, 0xF8, 1);
+		}
+	}
+	
 	proxy_i2c_write( 0x009f, 0x00, 1);
 	proxy_i2c_write( 0x00a3, 0x3c, 1);
 	proxy_i2c_write( 0x00b7, 0x00, 1);
@@ -893,7 +980,7 @@ int msm_init_proxy(void)
 	proxy_i2c_write( 0x00f2, 0x01, 1);
 
 	// RangeSetMaxConvergenceTime
-	proxy_i2c_write( SYSRANGE__MAX_CONVERGENCE_TIME, 0x32, 1);
+	proxy_i2c_write( SYSRANGE__MAX_CONVERGENCE_TIME, 0x3F, 1);
 	proxy_i2c_read( SYSRANGE__RANGE_CHECK_ENABLES, &chipidRangeMax, 1);
 	chipidRangeMax = chipidRangeMax & 0xFE; // off ECE
 	chipidRangeMax = chipidRangeMax | 0x02; // on ignore thr
@@ -901,20 +988,20 @@ int msm_init_proxy(void)
 
 
 	proxy_i2c_write( SYSRANGE__MAX_AMBIENT_LEVEL_MULT, 0xFF, 1);//SNR
-	proxy_i2c_write( 0x0B8+3, 0x28, 1);
+	//proxy_i2c_write( 0x0B8+3, 0x28, 1);
 
 
 	// ClearSystemFreshOutofReset
 	proxy_i2c_write( SYSTEM__FRESH_OUT_OF_RESET, 0x0, 1);
 
-
+	#if 0
 	//readRangeOffset
 	proxy_i2c_read( SYSRANGE__PART_TO_PART_RANGE_OFFSET, &chipidscalar, 1);
 	rangeTemp = (int8_t)chipidscalar;
 	if(chipidscalar > 0x7F) {
 		rangeTemp -= 0xFF;
 		}
-
+	#endif
 	//Multiread
 	#if 0
 	for(i =0; i < 2;  i++){
@@ -947,14 +1034,57 @@ int msm_init_proxy(void)
 	offsetByte = *((u8*)(&rangeTemp)); // round
 	proxy_i2c_write( SYSRANGE__PART_TO_PART_RANGE_OFFSET,(u8)offsetByte, 1);
 	#else
+#ifdef __USE_MULTIMODULE__
+	proxy_i2c_e2p_read(0x700, &module_id, 2);	
+	shift_module_id = module_id >> 8;
+	pr_err("KSY module ID : %d\n", shift_module_id);
+		
+	if((shift_module_id == 0x01) || (shift_module_id == 0x02))  // It module
+	{
+		proxy_i2c_e2p_read(it_eep_reg, &fin_val, 2);
+		offsetByte = 0x00FF & fin_val;
+		cal_count = (0xFF00 & fin_val) >> 8;
+		if((offsetByte <= -21) || (offsetByte >= 11) || (cal_count >= 100)) {
+			proxy_i2c_e2p_write(it_eep_reg, 0, 2);
+			cal_count = 0;		
+			offsetByte = 0;
+		}
+		//	offsetByte -= 255;
+		msm_proxy_t.proxy_stat.cal_count = cal_count;
+		pr_err("inot read offset = %d from eeprom\n", offsetByte);
+		proxy_i2c_write( SYSRANGE__PART_TO_PART_RANGE_OFFSET, offsetByte, 1);
+
+	}
+	else if(shift_module_id == 0x03)           //fj module
+ 	{	
+		proxy_i2c_e2p_read(fj_eep_reg, &fin_val, 2);
+		offsetByte = 0x00FF & fin_val;
+		cal_count = (0xFF00 & fin_val) >> 8;
+		if((offsetByte <= -21) || (offsetByte >= 11) || (cal_count >= 100)) {
+			proxy_i2c_e2p_write(fj_eep_reg, 0, 2);
+			cal_count = 0;		
+			offsetByte = 0;
+		}
+		//	offsetByte -= 255;
+		msm_proxy_t.proxy_stat.cal_count = cal_count;
+		pr_err("fj read offset = %d from eeprom\n", offsetByte);
+		proxy_i2c_write( SYSRANGE__PART_TO_PART_RANGE_OFFSET, offsetByte, 1);
+	
+	}
+#else
 	proxy_i2c_e2p_read(0x800, &fin_val, 2);
 	offsetByte = 0x00FF & fin_val;
 	cal_count = (0xFF00 & fin_val) >> 8;
-	//if(offsetByte > 128)
+	if((offsetByte <= -21) || (offsetByte >= 11) || (cal_count >= 100)) {
+		proxy_i2c_e2p_write(0x800, 0, 2);
+		cal_count = 0;		
+		offsetByte = 0;
+	}
 	//	offsetByte -= 255;
 	msm_proxy_t.proxy_stat.cal_count = cal_count;
 	pr_err("read offset = %d from eeprom\n", offsetByte);
 	proxy_i2c_write( SYSRANGE__PART_TO_PART_RANGE_OFFSET, offsetByte, 1);
+#endif
 	#endif
 
 	// Babybear_SetStraylight
@@ -962,7 +1092,7 @@ int msm_init_proxy(void)
 	proxy_i2c_write( SYSRANGE__CROSSTALK_COMPENSATION_RATE,(ninepointseven>>8)&0xFF, 1);
 	proxy_i2c_write( SYSRANGE__CROSSTALK_COMPENSATION_RATE+1,ninepointseven&0xFF, 1);
 
-	CrosstalkHeight = 6;
+	CrosstalkHeight = 40;
 	proxy_i2c_write( SYSRANGE__CROSSTALK_VALID_HEIGHT,CrosstalkHeight&0xFF, 1);
 
 

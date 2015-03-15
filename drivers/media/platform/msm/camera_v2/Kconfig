@@ -164,6 +164,14 @@ config HI543
         This is a Hynix 5MP Bayer Sensor with autofocus.
         Say Y if the platform uses HI543 sensor.
 
+config HI544
+    bool "Sensor hi544 (Hynix 5MP)"
+    depends on MSMB_CAMERA
+    ---help---
+        Support for HI544 sensor driver.
+        This is a Hynix 5MP Bayer Sensor with autofocus.
+        Say Y if the platform uses HI544 sensor.
+        
 config IMX119
 	bool "Sensor imx119 (Sony Bayer 1.3MP)"
 	depends on MSMB_CAMERA

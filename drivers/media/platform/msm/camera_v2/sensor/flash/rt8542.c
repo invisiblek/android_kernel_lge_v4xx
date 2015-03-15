@@ -251,8 +251,8 @@ void rt8542_backlight_on(int level)
 		rt8542_hw_reset();
 		rt8542_write_reg(main_rt8542_dev->client, 0x05, 0x04);
 
-		/*  OVP(32V), MAX BLED(12.1mA), OCP(1.0A), Boost Frequency(500khz) */
-		rt8542_write_reg(main_rt8542_dev->client, 0x02, 0x52);
+		/*  OVP(32V), MAX BLED(15.4mA), OCP(1.0A), Boost Frequency(500khz) */
+		rt8542_write_reg(main_rt8542_dev->client, 0x02, 0x53);
 		/*                                                                          */ 
 		bl_ctrl = 0;
 		rt8542_read_reg(main_rt8542_dev->client, 0x0A, &bl_ctrl);

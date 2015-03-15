@@ -96,7 +96,6 @@ static int msm_ispif_reset_hw(struct ispif_device *ispif)
 {
 	int rc = 0;
 	long timeout = 0;
-
 	struct clk *reset_clk[ARRAY_SIZE(ispif_8974_reset_clk_info)];
 
 /*                                                                                                  */
@@ -109,10 +108,10 @@ static int msm_ispif_reset_hw(struct ispif_device *ispif)
 	rc = msm_cam_clk_enable(&ispif->pdev->dev,
 		ispif_8974_reset_clk_info, reset_clk,
 		ARRAY_SIZE(ispif_8974_reset_clk_info), 1);
-		if (rc < 0) {
-			pr_err("%s: cannot enable clock, error = %d",
-				__func__, rc);
-		}
+	if (rc < 0) {
+		pr_err("%s: cannot enable clock, error = %d",
+			__func__, rc);
+	}
 	}
 
 	init_completion(&ispif->reset_complete[VFE0]);
@@ -131,7 +130,9 @@ static int msm_ispif_reset_hw(struct ispif_device *ispif)
 	CDBG("%s: VFE0 done\n", __func__);
 	if (timeout <= 0) {
 		pr_err("%s: VFE0 reset wait timeout\n", __func__);
+#if defined(CONFIG_MACH_MSM8226_E7WIFI)
 	if (ispif->hw_num_isps > 1)
+#endif
 		msm_cam_clk_enable(&ispif->pdev->dev,
 			ispif_8974_reset_clk_info, reset_clk,
 			ARRAY_SIZE(ispif_8974_reset_clk_info), 0);
@@ -223,6 +224,7 @@ static int msm_ispif_reset(struct ispif_device *ispif)
 			ISPIF_VFE_m_PIX_INTF_n_CID_MASK(i, 0));
 		msm_camera_io_w(0, ispif->base +
 			ISPIF_VFE_m_PIX_INTF_n_CID_MASK(i, 1));
+/*                                                                                     */
 #if 1 //                                                                                                    
 		msm_camera_io_w(0, ispif->base +
 			ISPIF_VFE_m_RDI_INTF_n_CID_MASK(i, 0));

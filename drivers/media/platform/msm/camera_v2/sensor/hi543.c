@@ -47,7 +47,7 @@ static struct msm_sensor_power_setting hi543_power_setting_rev_a[] = {
 		.delay = 1,
 	},
 #if defined(CONFIG_MACH_MSM8X10_W5)
-#if defined(CONFIG_MACH_MSM8X10_W5C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US)
+#if defined(CONFIG_MACH_MSM8X10_W5C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US) || defined(CONFIG_MACH_MSM8X10_W5C_TRF_US)
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_STANDBY,
@@ -71,7 +71,7 @@ static struct msm_sensor_power_setting hi543_power_setting_rev_a[] = {
 		.delay = 1,
 	},
 #endif
-#if defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+#if defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_VAF,
@@ -108,7 +108,8 @@ static struct msm_sensor_power_setting hi543_power_setting_rev_a[] = {
 
 };
 #endif
-#if defined(CONFIG_MACH_MSM8X10_W5) || defined(CONFIG_MACH_MSM8X10_W6) && !defined(CONFIG_MACH_MSM8X10_W5C_VZW) && !defined(CONFIG_MACH_MSM8X10_W5C_SPR_US)
+#if defined(CONFIG_MACH_MSM8X10_W5) || defined(CONFIG_MACH_MSM8X10_W6)
+#if !defined(CONFIG_MACH_MSM8X10_W5C_VZW) && !defined(CONFIG_MACH_MSM8X10_W5C_SPR_US) && !defined(CONFIG_MACH_MSM8X10_W5C_TRF_US)
 static struct msm_sensor_power_setting hi543_power_setting_rev_b[] = {
 	 {	/* Set GPIO_RESET to low to disable power on reset*/
 		.seq_type = SENSOR_GPIO,
@@ -169,6 +170,7 @@ static struct msm_sensor_power_setting hi543_power_setting_rev_b[] = {
 		.delay = 0,
 	},
 };
+#endif
 #endif
 /*                                                                                    */
 #if defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN)
@@ -232,7 +234,7 @@ static struct msm_sensor_power_setting hi543_power_setting_e9_rev_a[] = {
 /*                                                                                    */
 
 /*                                                                                         */
-#if defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+#if defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US) || defined (CONFIG_MACH_MSM8926_E8LTE)
 static struct msm_sensor_power_setting hi543_power_setting_e7lte_rev_b[] = {
 	{  /* Set GPIO_RESET to low to disable power on reset*/
 		.seq_type = SENSOR_GPIO,
@@ -280,7 +282,7 @@ static struct msm_sensor_power_setting hi543_power_setting_e7lte_rev_b[] = {
 #endif
 /*                                                                                         */
 
-#if defined(CONFIG_MACH_MSM8X10_W5C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US)
+#if defined(CONFIG_MACH_MSM8X10_W5C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US) || defined(CONFIG_MACH_MSM8X10_W5C_TRF_US)
 static struct msm_sensor_power_setting hi543_power_setting_w5c[] = {
 	 {	/* Set GPIO_RESET to low to disable power on reset*/
 		.seq_type = SENSOR_GPIO,
@@ -424,14 +426,14 @@ static int __init hi543_init_module(void)
 			hi543_s_ctrl.power_setting_array.power_setting = hi543_power_setting_rev_a;
 			hi543_s_ctrl.power_setting_array.size = ARRAY_SIZE(hi543_power_setting_rev_a);
 			break;
-			#elif defined(CONFIG_MACH_MSM8X10_W5C_SPR_US)
+			#elif defined(CONFIG_MACH_MSM8X10_W5C_SPR_US) || defined(CONFIG_MACH_MSM8X10_W5C_TRF_US)
 			printk("%s: Sensor power is set as Rev.B, line(%d)\n", __func__, __LINE__);
 			hi543_s_ctrl.power_setting_array.power_setting = hi543_power_setting_w5c;
 			hi543_s_ctrl.power_setting_array.size = ARRAY_SIZE(hi543_power_setting_w5c);
 			break;
 			#endif
 		case HW_REV_C:
-			#if defined(CONFIG_MACH_MSM8X10_W5C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US)
+			#if defined(CONFIG_MACH_MSM8X10_W5C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US) || defined(CONFIG_MACH_MSM8X10_W5C_TRF_US)
 			printk("%s: (W5C_VZW)Sensor power is set as Rev.C, line(%d)\n", __func__, __LINE__);
 			hi543_s_ctrl.power_setting_array.power_setting = hi543_power_setting_w5c;
 			hi543_s_ctrl.power_setting_array.size = ARRAY_SIZE(hi543_power_setting_w5c);
@@ -443,7 +445,7 @@ static int __init hi543_init_module(void)
 			break;
 			#endif
 		default:
-			#if defined(CONFIG_MACH_MSM8X10_W5C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US)
+			#if defined(CONFIG_MACH_MSM8X10_W5C_VZW) || defined(CONFIG_MACH_MSM8X10_W5C_SPR_US) || defined(CONFIG_MACH_MSM8X10_W5C_TRF_US)
 			printk("%s: (W5C_VZW)Sensor power is set as over Rev.C, line(%d)\n", __func__, __LINE__);
 			hi543_s_ctrl.power_setting_array.power_setting = hi543_power_setting_w5c;
 			hi543_s_ctrl.power_setting_array.size = ARRAY_SIZE(hi543_power_setting_w5c);
@@ -481,7 +483,7 @@ static int __init hi543_init_module(void)
 	}
 /*                                                                                      */
 /*                                                                                         */
-#elif defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US)
+#elif defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US) || defined (CONFIG_MACH_MSM8926_E8LTE)
 	switch(lge_get_board_revno()) {
 		case HW_REV_0:
 		case HW_REV_A:

@@ -66,7 +66,7 @@ static struct msm_sensor_power_setting hi707_power_setting[] = {
 		.config_val = GPIO_OUT_LOW,
 		.delay = 0,
 	},
-#if defined(CONFIG_MACH_MSM8X10_W5) || defined(CONFIG_MACH_MSM8X10_W6)
+#if defined(CONFIG_MACH_MSM8X10_W5) || defined(CONFIG_MACH_MSM8X10_W6) || defined(CONFIG_MACH_MSM8X10_L70P)
 	{
 		.seq_type = SENSOR_VREG,
 		.seq_val = CAM_VIO,
@@ -96,7 +96,14 @@ static struct msm_sensor_power_setting hi707_power_setting[] = {
 		.delay = 1,
 	},
 #endif
-#if defined(CONFIG_MACH_MSM8X10_W5) || defined(CONFIG_MACH_MSM8X10_W6)
+#if defined(CONFIG_MACH_MSM8X10_W5) || defined(CONFIG_MACH_MSM8X10_W6) || defined(CONFIG_MACH_MSM8X10_L70P)
+#elif defined(CONFIG_MACH_MSM8926_VFP_KR)
+	{
+		.seq_type = SENSOR_VREG,
+		.seq_val = CAM_VDIG,
+		.config_val = GPIO_OUT_HIGH,
+		.delay = 1,
+	},
 #else
 	{
 		.seq_type = SENSOR_GPIO,
