@@ -2306,6 +2306,9 @@ static void mxt_proc_t93_messages(struct mxt_data *data, u8 *message)
 	} else if ( msg & 0x02 ) {
 		TOUCH_INFO_MSG("T93 Knock ON!!\n");
 		send_uevent(knockon_event);
+		input_report_key(data->input_dev, KEY_POWER, BUTTON_PRESSED);
+		input_report_key(data->input_dev, KEY_POWER, BUTTON_RELEASED);
+		input_sync(data->input_dev);
 	}
 }
 #endif
@@ -6036,6 +6039,9 @@ int mxt_initialize_t100_input_device(struct mxt_data *data)
 //	__set_bit(EV_SYN, input_dev->evbit);
 	__set_bit(EV_ABS, input_dev->evbit);
 //	__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
+
+	__set_bit(EV_KEY, input_dev->evbit);
+	__set_bit(KEY_POWER, input_dev->keybit);
 
 	/* For single touch */
 /*
