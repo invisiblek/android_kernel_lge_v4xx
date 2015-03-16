@@ -825,9 +825,9 @@ struct tci_abs {
 	int y;
 };
 
-#define TOUCH_INFO_MSG(fmt, args...) 	printk(KERN_ERR "[Touch] " fmt, ##args)
-#define TOUCH_ERR_MSG(fmt, args...) printk(KERN_ERR "[Touch E] [%s %d] " fmt, __FUNCTION__, __LINE__, ##args)
-#define TOUCH_PATCH_INFO_MSG(fmt, args...) 	printk(KERN_ERR "[Touch Patch] " fmt, ##args)
+#define TOUCH_INFO_MSG(fmt, args...) 	printk(KERN_DEBUG "[Touch] " fmt, ##args)
+#define TOUCH_ERR_MSG(fmt, args...) printk(KERN_DEBUG "[Touch E] [%s %d] " fmt, __FUNCTION__, __LINE__, ##args)
+#define TOUCH_PATCH_INFO_MSG(fmt, args...) 	printk(KERN_DEBUG "[Touch Patch] " fmt, ##args)
 
 int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data);
 int mxt_initialize_t9_input_device(struct mxt_data *data);

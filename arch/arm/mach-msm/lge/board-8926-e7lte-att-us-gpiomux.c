@@ -1420,14 +1420,14 @@ void __init msm8226_init_gpiomux(void)
 	// GPIO related function <<4.TOUCH>>
 	if(hw_rev == HW_REV_0) {
 		msm_gpiomux_install(msm_atmel_configs, ARRAY_SIZE(msm_atmel_configs));
-		printk(KERN_ERR " [Touch] HW_REV_0 for Atmel Touch IC \n");
+		printk(KERN_DEBUG " [Touch] HW_REV_0 for Atmel Touch IC \n");
 	} 	else if(hw_rev == HW_REV_A){
                 msm_gpiomux_install(msm_atmel_configs_rev_A, ARRAY_SIZE(msm_atmel_configs_rev_A));
-                printk(KERN_ERR " [Touch] HW_REV A for Atmel Touch IC \n");		
+                printk(KERN_DEBUG " [Touch] HW_REV A for Atmel Touch IC \n");		
 	}
 		else {
 		msm_gpiomux_install(msm_atmel_configs_rev_B, ARRAY_SIZE(msm_atmel_configs_rev_B));
-		printk(KERN_ERR " [Touch] HW_REV B for Atmel Touch IC \n");
+		printk(KERN_DEBUG " [Touch] HW_REV B for Atmel Touch IC \n");
 
 	} 
 

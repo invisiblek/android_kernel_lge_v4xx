@@ -350,7 +350,7 @@ static bool mxt_object_readable(unsigned int type)
 
 static void mxt_dump_message(struct mxt_data *data, u8 *message)
 {
-	print_hex_dump(KERN_ERR, "[Touch] MXT MSG:", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump(KERN_DEBUG, "[Touch] MXT MSG:", DUMP_PREFIX_NONE, 16, 1,
 		       message, data->T5_msg_size, false);
 }
 

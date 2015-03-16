@@ -161,7 +161,7 @@ determine_lge_charging_state(enum lge_battemp_states battemp_st, int batt_volt)
 		}
 		break;
 	default:
-		pr_err("unknown charging status. %d\n", charging_state);
+		pr_debug("unknown charging status. %d\n", charging_state);
 		break;
 	}
 
@@ -249,28 +249,28 @@ void lge_monitor_batt_temp(struct charging_info req, struct charging_rsp *res)
 	}
 
 #ifdef DEBUG_LCS
-	pr_err("DLCS ==============================================\n");
-//	pr_err("DLCS : dummy battery temperature  = %d\n", dummy_temp);
-	pr_err("DLCS : battery temperature states = %d\n", battemp_state);
-	pr_err("DLCS : res -> state        = %d\n", res->state);
-	pr_err("DLCS : res -> change_lvl   = %d\n", res->change_lvl);
-	pr_err("DLCS : res -> force_update = %d\n", res->force_update ? 1 : 0);
-	pr_err("DLCS : res -> chg_disable  = %d\n", res->disable_chg ? 1 : 0);
-	pr_err("DLCS : res -> dc_current   = %d\n", res->dc_current);
-	pr_err("DLCS : res -> btm_state    = %d\n", res->btm_state);
-	pr_err("DLCS : res -> is_charger   = %d\n", req.is_charger);
-	pr_err("DLCS : res -> pseudo_chg_ui= %d\n", res->pseudo_chg_ui);
-	pr_err("DLCS ==============================================\n");
+	pr_debug("DLCS ==============================================\n");
+//	pr_debug("DLCS : dummy battery temperature  = %d\n", dummy_temp);
+	pr_debug("DLCS : battery temperature states = %d\n", battemp_state);
+	pr_debug("DLCS : res -> state        = %d\n", res->state);
+	pr_debug("DLCS : res -> change_lvl   = %d\n", res->change_lvl);
+	pr_debug("DLCS : res -> force_update = %d\n", res->force_update ? 1 : 0);
+	pr_debug("DLCS : res -> chg_disable  = %d\n", res->disable_chg ? 1 : 0);
+	pr_debug("DLCS : res -> dc_current   = %d\n", res->dc_current);
+	pr_debug("DLCS : res -> btm_state    = %d\n", res->btm_state);
+	pr_debug("DLCS : res -> is_charger   = %d\n", req.is_charger);
+	pr_debug("DLCS : res -> pseudo_chg_ui= %d\n", res->pseudo_chg_ui);
+	pr_debug("DLCS ==============================================\n");
 #endif
 
 #ifdef CONFIG_LGE_PM_THERMAL
-	pr_err("LGE charging scenario : state %d -> %d(%d-%d),"\
+	pr_debug("LGE charging scenario : state %d -> %d(%d-%d),"\
 		" temp=%d, volt=%d, BTM=%d, charger=%d, cur_set=%d/%d\n",
 		pre_state, charging_state, res->change_lvl, res->force_update ? 1 : 0,
 		req.batt_temp, req.batt_volt / 1000, res->btm_state, req.is_charger,
 		req.chg_current_te, res->dc_current);
 #else
-	pr_err("LGE charging scenario : Change state "\
+	pr_debug("LGE charging scenario : Change state "\
 		"%d -> %d(%d-%d), temp=%d, volt=%d, BTM=%d, charger=%d\n",
 		pre_state, charging_state, states_change,
 		res->force_update ? 1 : 0, req.batt_temp, req.batt_volt / 1000,
