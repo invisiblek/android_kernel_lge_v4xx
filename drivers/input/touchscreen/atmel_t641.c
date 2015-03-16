@@ -56,6 +56,8 @@ static unsigned char touched_finger_count = 0;
 static unsigned char patchevent_mask = 0;
 static unsigned char power_block_mask = 0;
 
+static int lpwg_status = 0;
+
 struct lge_touch_attribute {
 	struct attribute	attr;
 	ssize_t (*show)(struct mxt_data *ts, char *buf);
@@ -5389,6 +5391,7 @@ static ssize_t store_lpwg_notify(struct mxt_data *data, const char *buf, size_t 
 	switch(type){
 	case 1 :
 		atmel_ts_lpwg(data->client, LPWG_ENABLE, value[0], NULL);
+		lpwg_status = (value[0]) ? 1 : 0;
 		break;
 	case 2 :
 		atmel_ts_lpwg(data->client, LPWG_LCD_X, value[0], NULL);
@@ -5416,6 +5419,11 @@ static ssize_t store_lpwg_notify(struct mxt_data *data, const char *buf, size_t 
 		break;
 		}
 	return count;
+}
+
+static ssize_t show_lpwg_notify(struct mxt_data *data, char *buf)
+{
+	return sprintf(buf, "%d\n", lpwg_status);
 }
 #endif
 
@@ -5459,7 +5467,7 @@ static LGE_TOUCH_ATTR(patch_debug_enable, S_IWUSR | S_IRUSR, mxt_patch_debug_ena
 static LGE_TOUCH_ATTR(knock_on_type, S_IRUGO, mxt_get_knockon_type, NULL);
 #if defined(CONFIG_TOUCHSCREEN_LGE_LPWG)
 static LGE_TOUCH_ATTR(lpwg_data, S_IRUGO | S_IWUSR, show_lpwg_data, store_lpwg_data);
-static LGE_TOUCH_ATTR(lpwg_notify, S_IRUGO | S_IWUSR, NULL, store_lpwg_notify);
+static LGE_TOUCH_ATTR(lpwg_notify, S_IRUGO | S_IWUSR, show_lpwg_notify, store_lpwg_notify);
 #else
 static LGE_TOUCH_ATTR(touch_gesture,S_IRUGO | S_IWUSR, NULL, mxt_knock_on_store);
 #endif
