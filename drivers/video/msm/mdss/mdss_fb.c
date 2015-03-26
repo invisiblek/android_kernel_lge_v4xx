@@ -55,6 +55,10 @@
 #include "mdss_fb.h"
 #include "mdss_mdp_splash_logo.h"
 
+#ifdef CONFIG_MACH_LGE
+unsigned long msm_fb_phys_addr_backup;
+#endif
+
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
 #else
@@ -1412,6 +1416,10 @@ static int mdss_fb_alloc_fbmem_iommu(struct msm_fb_data_type *mfd, int dom)
 	mfd->fbi->screen_base = virt;
 	mfd->fbi->fix.smem_start = phys;
 	mfd->fbi->fix.smem_len = size;
+#ifdef CONFIG_MACH_LGE
+	msm_fb_phys_addr_backup = phys;
+	memset(virt, 0, size);
+#endif
 
 	return 0;
 }
