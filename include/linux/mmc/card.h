@@ -94,6 +94,7 @@ struct mmc_ext_csd {
 	u8			raw_erased_mem_count;	/* 181 */
 	u8			raw_ext_csd_structure;	/* 194 */
 	u8			raw_card_type;		/* 196 */
+	u8			raw_drive_strength;	/* 197 */
 	u8			out_of_int_time;	/* 198 */
 	u8			raw_s_a_timeout;		/* 217 */
 	u8			raw_hc_erase_gap_size;	/* 221 */
@@ -220,7 +221,6 @@ enum mmc_blk_status {
 	MMC_BLK_URGENT,
 	MMC_BLK_URGENT_DONE,
 	MMC_BLK_NO_REQ_TO_STOP,
-	MMC_BLK_BUS_ERR,
 };
 
 struct mmc_wr_pack_stats {
@@ -310,6 +310,10 @@ struct mmc_bkops_info {
 #define BKOPS_SIZE_PERCENTAGE_TO_QUEUE_DELAYED_WORK 1 /* 1% */
 };
 
+enum mmc_pon_type {
+	MMC_LONG_PON = 1,
+	MMC_SHRT_PON,
+};
 /*
  * MMC device
  */
@@ -357,7 +361,6 @@ struct mmc_card {
 #define MMC_QUIRK_BROKEN_DATA_TIMEOUT	(1<<12)
 
 #define MMC_QUIRK_CACHE_DISABLE (1 << 14)       /* prevent cache enable */
-#define MMC_QUIRK_RETRY_FLUSH_TIMEOUT (1 << 31) /* requeue flush command timeouts */
 
 	unsigned int		erase_size;	/* erase size in sectors */
  	unsigned int		erase_shift;	/* if erase unit is power 2 */
@@ -397,18 +400,8 @@ struct mmc_card {
 	struct device_attribute rpm_attrib;
 	unsigned int		idle_timeout;
 	struct notifier_block        reboot_notify;
-	bool issue_long_pon;
+	enum mmc_pon_type pon_type;
 	u8 *cached_ext_csd;
-
-	unsigned long long	requests;	/* cumulative number of requests */
-	unsigned long long	request_errors;	/* cumulative number of request errors */
-
-#define MMC_ERROR_FAILURE_RATIO	10		/* give up on cards with too many failures/successes */
-#define MMC_ERROR_FORGIVE_RATIO	10		/* forgive cards with enough successes/failures */
-	unsigned int		failures;	/* number of recent request failures */
-	unsigned int		successes;	/* successful requests since 1st recorded failure  */
-#define MMC_THROTTLE_BACK_THRESHOLD 2
-	unsigned int		crc_errors;	/* number of CRC errors seen at this speed */
 };
 
 /*
@@ -465,6 +458,7 @@ struct mmc_fixup {
 #define CID_MANFID_TOSHIBA	0x11
 #define CID_MANFID_MICRON	0x13
 #define CID_MANFID_SAMSUNG	0x15
+#define CID_MANFID_KINGSTON	0x70
 #define CID_MANFID_HYNIX	0x90
 
 #define END_FIXUP { 0 }
@@ -570,7 +564,6 @@ static inline void __maybe_unused remove_quirk(struct mmc_card *card, int data)
 #define mmc_card_clr_doing_bkops(c)	((c)->state &= ~MMC_STATE_DOING_BKOPS)
 #define mmc_card_set_need_bkops(c)	((c)->state |= MMC_STATE_NEED_BKOPS)
 #define mmc_card_clr_need_bkops(c)	((c)->state &= ~MMC_STATE_NEED_BKOPS)
-
 /*
  * Quirk add/remove for MMC products.
  */
@@ -665,5 +658,5 @@ extern struct mmc_wr_pack_stats *mmc_blk_get_packed_statistics(
 			struct mmc_card *card);
 extern void mmc_blk_init_packed_statistics(struct mmc_card *card);
 extern void mmc_blk_disable_wr_packing(struct mmc_queue *mq);
-extern int mmc_send_long_pon(struct mmc_card *card);
+extern int mmc_send_pon(struct mmc_card *card);
 #endif /* LINUX_MMC_CARD_H */

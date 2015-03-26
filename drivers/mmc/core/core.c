@@ -26,6 +26,7 @@
 #include <linux/suspend.h>
 #include <linux/fault-inject.h>
 #include <linux/random.h>
+#include <linux/wakelock.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
@@ -34,7 +35,6 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
-#include <mach/board_lge.h>
 
 #include "core.h"
 #include "bus.h"
@@ -63,18 +63,6 @@ static void mmc_clk_scaling(struct mmc_host *host, bool from_wq);
 #define MMC_FLUSH_REQ_TIMEOUT_MS 90000 /* msec */
 #define MMC_CACHE_DISBALE_TIMEOUT_MS 180000 /* msec */
 
-/*
-               
-                         
-                            
- */
-#if defined(CONFIG_FMBT_TRACE_EMMC)
-#include <linux/mmc/mem_log.h>
-#define eftech_printf(fmt, args...) printk(fmt, ## args)
-unsigned long long glTimeGap2 = 0;
-unsigned long long glTimeGap1 = 0;
-#endif
-
 static struct workqueue_struct *workqueue;
 
 /*
@@ -95,9 +83,6 @@ module_param(use_spi_crc, bool, 0);
 bool mmc_assume_removable;
 #else
 bool mmc_assume_removable = 1;
-#endif
-#if defined(CONFIG_FMBT_TRACE_EMMC)
-extern packed_cmd_t lge_packed_cmd_info;
 #endif
 EXPORT_SYMBOL(mmc_assume_removable);
 module_param_named(removable, mmc_assume_removable, bool, 0644);
@@ -184,9 +169,35 @@ static inline void mmc_should_fail_request(struct mmc_host *host,
 
 #endif /* CONFIG_FAIL_MMC_REQUEST */
 
+static inline void
+mmc_clk_scaling_update_state(struct mmc_host *host, struct mmc_request *mrq)
+{
+	if (mrq) {
+		switch (mrq->cmd->opcode) {
+		case MMC_READ_SINGLE_BLOCK:
+		case MMC_READ_MULTIPLE_BLOCK:
+		case MMC_WRITE_BLOCK:
+		case MMC_WRITE_MULTIPLE_BLOCK:
+			host->clk_scaling.invalid_state = false;
+			break;
+		default:
+			host->clk_scaling.invalid_state = true;
+			break;
+		}
+	} else {
+		/*
+		 * force clock scaling transitions,
+		 * if other conditions are met
+		 */
+		host->clk_scaling.invalid_state = false;
+	}
+
+	return;
+}
+
 static inline void mmc_update_clk_scaling(struct mmc_host *host)
 {
-	if (host->clk_scaling.enable) {
+	if (host->clk_scaling.enable && !host->clk_scaling.invalid_state) {
 		host->clk_scaling.busy_time_us +=
 			ktime_to_us(ktime_sub(ktime_get(),
 					host->clk_scaling.start_busy));
@@ -204,30 +215,12 @@ static inline void mmc_update_clk_scaling(struct mmc_host *host)
 void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 {
 	struct mmc_command *cmd = mrq->cmd;
-/*
-               
-               
-                            
- */
-#if defined(CONFIG_FMBT_TRACE_EMMC)
-	unsigned long long currentTime = 0;
-	int i;
-#endif
-/*              */
-
 	int err = cmd->error;
 #ifdef CONFIG_MMC_PERF_PROFILING
 	ktime_t diff;
 #endif
-	if (host->card) {
+	if (host->card)
 		mmc_update_clk_scaling(host);
-		if (err || (mrq->data && mrq->data->error)) {
-			host->card->request_errors++;
-			if (err == -EILSEQ ||
-			    (mrq->data && mrq->data->error == -EILSEQ))
-				host->card->crc_errors++;
-		}
-	}
 
 	if (err && cmd->retries && mmc_host_is_spi(host)) {
 		if (cmd->resp[0] & R1_SPI_ILLEGAL_COMMAND)
@@ -273,43 +266,7 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 			pr_debug("%s:     %d bytes transferred: %d\n",
 				mmc_hostname(host),
 				mrq->data->bytes_xfered, mrq->data->error);
-/*
-               
-                         
-                            
- */
-#if defined(CONFIG_FMBT_TRACE_EMMC)
-			if(!strncmp(mmc_hostname(host), "mmc0",4))
-			{
-				currentTime = sched_clock();
-				memlog_emmc_add(mrq, currentTime, currentTime - glTimeGap2);
-
-				if((lge_packed_cmd_info.packed_cmd_hdr[3] == mrq->cmd->arg) && (mrq->cmd->opcode == 25)
-						&& (mrq->data->blocks == lge_packed_cmd_info.packed_blocks) )
-				{
-					memlog_packed_add(lge_packed_cmd_info.packed_cmd_hdr[0],0);
-					for(i=2; i<(lge_packed_cmd_info.num_packed*2+1); i=i+2)
-					{
-						memlog_packed_add(lge_packed_cmd_info.packed_cmd_hdr[i],1);
-						memlog_packed_add(lge_packed_cmd_info.packed_cmd_hdr[i+1],2);
-					}
-				}
-			}
 		}
-		else {
-			if(!strncmp(mmc_hostname(host), "mmc0",4))
-			{
-				if(mrq->cmd->opcode != MMC_SEND_STATUS)
-				{
-					currentTime = sched_clock();
-					memlog_emmc_add(mrq, currentTime, currentTime - glTimeGap1);
-				}
-			}
-#endif
-/*              */
-		}
-
-/*              */
 
 		if (mrq->stop) {
 			pr_debug("%s:     (CMD%u): %d: %08x %08x %08x %08x\n",
@@ -390,21 +347,6 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 		if (host->perf_enable)
 			host->perf.start = ktime_get();
 #endif
-/* 
-               
-                         
-                            
- */
-#if defined(CONFIG_FMBT_TRACE_EMMC)
-		glTimeGap2 = sched_clock();
-
-	}
-	else
-	{
-		glTimeGap1 = sched_clock();
-#endif
-/*              */
-	
 	}
 	mmc_host_clk_hold(host);
 	led_trigger_event(host->led, LED_FULL);
@@ -417,12 +359,12 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 		 * frequency will be done after current thread
 		 * releases host.
 		 */
-		mmc_clk_scaling(host, false);
-		host->clk_scaling.start_busy = ktime_get();
+		mmc_clk_scaling_update_state(host, mrq);
+		if (!host->clk_scaling.invalid_state) {
+			mmc_clk_scaling(host, false);
+			host->clk_scaling.start_busy = ktime_get();
+		}
 	}
-
-	if (host->card)
-		host->card->requests++;
 
 	host->ops->request(host, mrq);
 }
@@ -674,8 +616,10 @@ static bool mmc_should_stop_curr_req(struct mmc_host *host)
 	    (host->areq->cmd_flags & REQ_FUA))
 		return false;
 
+	mmc_host_clk_hold(host);
 	remainder = (host->ops->get_xfer_remain) ?
 		host->ops->get_xfer_remain(host) : -1;
+	mmc_host_clk_release(host);
 	return (remainder > 0);
 }
 
@@ -700,6 +644,7 @@ static int mmc_stop_request(struct mmc_host *host)
 				mmc_hostname(host));
 		return -ENOTSUPP;
 	}
+	mmc_host_clk_hold(host);
 	err = host->ops->stop_request(host);
 	if (err) {
 		pr_err("%s: Call to host->ops->stop_request() failed (%d)\n",
@@ -734,6 +679,7 @@ static int mmc_stop_request(struct mmc_host *host)
 		goto out;
 	}
 out:
+	mmc_host_clk_release(host);
 	return err;
 }
 
@@ -756,11 +702,11 @@ static int mmc_wait_for_data_req_done(struct mmc_host *host,
 	struct mmc_context_info *context_info = &host->context_info;
 	bool pending_is_urgent = false;
 	bool is_urgent = false;
-	int err;
+	int err, ret;
 	unsigned long flags;
 
 	while (1) {
-		wait_io_event_interruptible(context_info->wait,
+		ret = wait_io_event_interruptible(context_info->wait,
 				(context_info->is_done_rcv ||
 				 context_info->is_new_req  ||
 				 context_info->is_urgent));
@@ -813,7 +759,7 @@ static int mmc_wait_for_data_req_done(struct mmc_host *host,
 				err = MMC_BLK_NEW_REQUEST;
 				break; /* return err */
 			}
-		} else {
+		} else if (context_info->is_urgent) {
 			/*
 			 * The case when block layer sent next urgent
 			 * notification before it receives end_io on
@@ -865,6 +811,11 @@ static int mmc_wait_for_data_req_done(struct mmc_host *host,
 				pending_is_urgent = true;
 				continue; /* wait for done/new/urgent event */
 			}
+		} else {
+			pr_warn("%s: mmc thread unblocked from waiting by signal, ret=%d\n",
+					mmc_hostname(host),
+					ret);
+			continue;
 		}
 	} /* while */
 	return err;
@@ -982,7 +933,8 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 			mmc_post_req(host, host->areq->mrq, 0);
 			host->areq = NULL;
 			if (areq) {
-				if (!(areq->cmd_flags & REQ_URGENT)) {
+				if (!(areq->cmd_flags &
+						MMC_REQ_NOREINSERT_MASK)) {
 					areq->reinsert_req(areq);
 					mmc_post_req(host, areq->mrq, 0);
 				} else {
@@ -1069,6 +1021,10 @@ EXPORT_SYMBOL(mmc_start_req);
  */
 void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 {
+#ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
+	if (mmc_bus_needs_resume(host))
+		mmc_resume_bus(host);
+#endif
 	__mmc_start_req(host, mrq);
 	mmc_wait_for_req_done(host, mrq);
 }
@@ -1352,17 +1308,7 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 			 */
 			limit_us = 3000000;
 		else
-			#ifdef CONFIG_MACH_LGE
-			/*           
-                                              
-                                                                         
-                                        
-                               
-    */
-			limit_us = 300000;
-			#else
 			limit_us = 100000;
-			#endif
 
 		/*
 		 * SDHC cards always use these fixed values.
@@ -1992,15 +1938,7 @@ void mmc_power_up(struct mmc_host *host)
 	 * This delay should be sufficient to allow the power supply
 	 * to reach the minimum voltage.
 	 */
-	#ifdef CONFIG_MACH_LGE
-	/*           
-                                              
-                            
- */
-	mmc_delay(20);
-	#else
 	mmc_delay(10);
-	#endif
 
 	host->ios.clock = host->f_init;
 
@@ -2011,15 +1949,7 @@ void mmc_power_up(struct mmc_host *host)
 	 * This delay must be at least 74 clock sizes, or 1 ms, or the
 	 * time required to reach a stable voltage.
 	 */
-#ifdef CONFIG_MACH_LGE
-	/*           
-                                              
-                            
- */
-	mmc_delay(20);
-#else
 	mmc_delay(10);
-#endif
 
 	mmc_host_clk_release(host);
 }
@@ -2123,9 +2053,6 @@ int mmc_resume_bus(struct mmc_host *host)
 		host->bus_ops->resume(host);
 	}
 
-	if (host->bus_ops->detect && !host->bus_dead)
-		host->bus_ops->detect(host);
-
 	mmc_bus_put(host);
 	printk("%s: Deferred resume completed\n", mmc_hostname(host));
 	return 0;
@@ -2179,10 +2106,6 @@ void mmc_detach_bus(struct mmc_host *host)
 	mmc_bus_put(host);
 }
 
-#ifdef CONFIG_LGE_ENABLE_MMC_STRENGTH_CONTROL
-	extern char clock_flag;
-	char voltage_flag = 0; 
-#endif
 /**
  *	mmc_detect_change - process change of state on a MMC socket
  *	@host: host which changed state.
@@ -2201,20 +2124,8 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 	WARN_ON(host->removed);
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
-	/* Don't try to suspend the system during card detection */
-	__pm_stay_awake(&host->detect_ws);
 	host->detect_change = 1;
-#ifdef CONFIG_LGE_ENABLE_MMC_STRENGTH_CONTROL
-	if(host->index == 1)
-	{
-		if(host->card)
-		{	
-			clock_flag = 0;
-			voltage_flag = 0;
-		}
-		
-	}
-#endif	
+
 	mmc_schedule_delayed_work(&host->detect, delay);
 }
 
@@ -2753,7 +2664,7 @@ static int mmc_do_hw_reset(struct mmc_host *host, int check)
 	mmc_host_clk_hold(host);
 	mmc_set_clock(host, host->f_init);
 
-	if (host->ops->hw_reset)
+	if (mmc_card_mmc(card) && host->ops->hw_reset)
 		host->ops->hw_reset(host);
 	else
 		mmc_power_cycle(host);
@@ -2802,18 +2713,6 @@ int mmc_hw_reset_check(struct mmc_host *host)
 	return mmc_do_hw_reset(host, 1);
 }
 EXPORT_SYMBOL(mmc_hw_reset_check);
-
-int mmc_throttle_back(struct mmc_host *host)
-{
-	if (host->bus_ops->throttle_back) {
-		if (host->card)
-			host->card->crc_errors = 0;
-		return host->bus_ops->throttle_back(host);
-	}
-
-	return -ENOSYS;
-}
-EXPORT_SYMBOL(mmc_throttle_back);
 
 /**
  * mmc_reset_clk_scale_stats() - reset clock scaling statistics
@@ -2965,7 +2864,8 @@ static bool mmc_is_vaild_state_for_clk_scaling(struct mmc_host *host)
 	 * this mode.
 	 */
 	if (!card || (mmc_card_mmc(card) &&
-			card->part_curr == EXT_CSD_PART_CONFIG_ACC_RPMB))
+			card->part_curr == EXT_CSD_PART_CONFIG_ACC_RPMB)
+			|| host->clk_scaling.invalid_state)
 		goto out;
 
 	if (mmc_send_status(card, &status)) {
@@ -3233,6 +3133,19 @@ int _mmc_detect_card_removed(struct mmc_host *host)
 		return 1;
 
 	ret = host->bus_ops->alive(host);
+
+	/*
+	 * Card detect status and alive check may be out of sync if card is
+	 * removed slowly, when card detect switch changes while card/slot
+	 * pads are still contacted in hardware (refer to "SD Card Mechanical
+	 * Addendum, Appendix C: Card Detection Switch"). So reschedule a
+	 * detect work 200ms later for this case.
+	 */
+	if (!ret && host->ops->get_cd && !host->ops->get_cd(host)) {
+		mmc_detect_change(host, msecs_to_jiffies(200));
+		pr_debug("%s: card removed too slowly\n", mmc_hostname(host));
+	}
+
 	if (ret) {
 		mmc_card_set_removed(host->card);
 		pr_debug("%s: card remove detected\n", mmc_hostname(host));
@@ -3281,12 +3194,10 @@ void mmc_rescan(struct work_struct *work)
 {
 	struct mmc_host *host =
 		container_of(work, struct mmc_host, detect.work);
-	bool stay_awake = false;
+	bool extend_wakelock = false;
 
-	if (host->rescan_disable) {
-		__pm_relax(&host->detect_ws);
+	if (host->rescan_disable)
 		return;
-	}
 
 	mmc_bus_get(host);
 	mmc_rpm_hold(host, &host->class_dev);
@@ -3297,27 +3208,21 @@ void mmc_rescan(struct work_struct *work)
 	 */
 	if (host->bus_ops && host->bus_ops->detect && !host->bus_dead
 	    && !(host->caps & MMC_CAP_NONREMOVABLE))
-	{
-		
-	#ifdef CONFIG_MACH_LGE	
-		if(host->bus_ops->detect(host))
-		{
-			mmc_bus_put(host);
-			goto out;
-		}
-	#else
-	host->bus_ops->detect(host);
-	#endif 
-	}
-	host->detect_change = 0;
+		host->bus_ops->detect(host);
 
-	/*
-	 * If the card was just removed, the bus will be marked as dead but
-	 * will not have been freed yet.  Stay awake so that user space can
-	 * respond to the event.
-	 */
-	if (host->bus_dead && host->bus_ops)
-		stay_awake = true;
+	host->detect_change = 0;
+	/* If the card was removed the bus will be marked
+	 * as dead - extend the wakelock so userspace
+	 * can respond */
+	if (host->bus_dead)
+		extend_wakelock = 1;
+
+
+	/* If the card was removed the bus will be marked
+	 * as dead - extend the wakelock so userspace
+	 * can respond */
+	if (host->bus_dead)
+		extend_wakelock = 1;
 
 	/*
 	 * Let mmc_bus_put() free the bus/bus_ops if we've found that
@@ -3325,14 +3230,6 @@ void mmc_rescan(struct work_struct *work)
 	 */
 	mmc_bus_put(host);
 	mmc_bus_get(host);
-
-	/* Don't redetect if the card has failed too many times */
-	if (host->card_bad) {
-		pr_err("%s: ignoring bad card\n", mmc_hostname(host));
-		mmc_rpm_release(host, &host->class_dev);
-		mmc_bus_put(host);
-		goto out;
-	}
 
 	/* if there still is a card present, stop here */
 	if (host->bus_ops != NULL) {
@@ -3349,25 +3246,26 @@ void mmc_rescan(struct work_struct *work)
 	 */
 	mmc_bus_put(host);
 
-	if (host->ops->get_cd && host->ops->get_cd(host) == 0)
+	if (host->ops->get_cd && host->ops->get_cd(host) == 0) {
+		mmc_claim_host(host);
+		mmc_power_off(host);
+		mmc_release_host(host);
 		goto out;
+	}
 
 	mmc_rpm_hold(host, &host->class_dev);
 	mmc_claim_host(host);
 	if (!mmc_rescan_try_freq(host, host->f_min))
-		stay_awake = true;
+		extend_wakelock = true;
 	mmc_release_host(host);
 	mmc_rpm_release(host, &host->class_dev);
  out:
-	if (stay_awake)
-		__pm_wakeup_event(&host->detect_ws, 2000);
-	else
-		__pm_relax(&host->detect_ws);
+	/* only extend the wakelock, if suspend has not started yet */
+	if (extend_wakelock && !host->rescan_disable)
+		wake_lock_timeout(&host->detect_wake_lock, HZ / 2);
 
-	if (host->caps & MMC_CAP_NEEDS_POLL) {
-		__pm_stay_awake(&host->detect_ws);
+	if (host->caps & MMC_CAP_NEEDS_POLL)
 		mmc_schedule_delayed_work(&host->detect, HZ);
-	}
 }
 
 void mmc_start_host(struct mmc_host *host)
@@ -3385,8 +3283,7 @@ void mmc_stop_host(struct mmc_host *host)
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
 
-	if (cancel_delayed_work_sync(&host->detect))
-		__pm_relax(&host->detect_ws);
+	cancel_delayed_work_sync(&host->detect);
 
 	mmc_flush_scheduled_work();
 
@@ -3608,9 +3505,6 @@ int mmc_suspend_host(struct mmc_host *host)
 	if (mmc_bus_needs_resume(host))
 		return 0;
 
-	if (cancel_delayed_work(&host->detect))
-		__pm_relax(&host->detect_ws);
-
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
 		/*
@@ -3752,19 +3646,28 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 			spin_unlock_irqrestore(&host->lock, flags);
 			break;
 		}
+
+		/* since its suspending anyway, disable rescan */
 		host->rescan_disable = 1;
 		spin_unlock_irqrestore(&host->lock, flags);
 
-		/* Guard against races with the detect wakeup source. */
-		if (!(host->caps & MMC_CAP_NEEDS_POLL) &&
-		    work_busy(&host->detect.work)) {
-			pr_err("%s: card detection in progress\n",
-				mmc_hostname(host));
-			spin_lock_irqsave(&host->lock, flags);
-			host->rescan_disable = 0;
-			spin_unlock_irqrestore(&host->lock, flags);
-			return -EAGAIN;
-		}
+		/* Wait for pending detect work to be completed */
+		if (!(host->caps & MMC_CAP_NEEDS_POLL))
+			flush_work(&host->detect.work);
+
+		/*
+		 * In some cases, the detect work might be scheduled
+		 * just before rescan_disable is set to true.
+		 * Cancel such the scheduled works.
+		 */
+		cancel_delayed_work_sync(&host->detect);
+
+		/*
+		 * It is possible that the wake-lock has been acquired, since
+		 * its being suspended, release the wakelock
+		 */
+		if (wake_lock_active(&host->detect_wake_lock))
+			wake_unlock(&host->detect_wake_lock);
 
 		if (!host->bus_ops || host->bus_ops->suspend)
 			break;
@@ -3913,15 +3816,6 @@ static int __init mmc_init(void)
 	ret = sdio_register_bus();
 	if (ret)
 		goto unregister_host_class;
-/*
-               
-                         
-                            
- */
-#if defined(CONFIG_FMBT_TRACE_EMMC)
-	init_memLog();
-#endif
-/*              */
 
 	return 0;
 

@@ -14,6 +14,7 @@
 #include <linux/sched.h>
 #include <linux/device.h>
 #include <linux/fault-inject.h>
+#include <linux/wakelock.h>
 
 #include <linux/mmc/core.h>
 #include <linux/mmc/pm.h>
@@ -143,7 +144,6 @@ struct mmc_host_ops {
 	int	(*execute_tuning)(struct mmc_host *host, u32 opcode);
 	void	(*enable_preset_value)(struct mmc_host *host, bool enable);
 	int	(*select_drive_strength)(unsigned int max_dtr, int host_drv, int card_drv);
-	int	(*tune_drive_strength)(struct mmc_host *host);
 	void	(*hw_reset)(struct mmc_host *host);
 	unsigned long (*get_max_frequency)(struct mmc_host *host);
 	unsigned long (*get_min_frequency)(struct mmc_host *host);
@@ -195,6 +195,12 @@ struct mmc_context_info {
 struct mmc_hotplug {
 	unsigned int irq;
 	void *handler_priv;
+};
+
+enum dev_state {
+	DEV_SUSPENDING = 1,
+	DEV_SUSPENDED,
+	DEV_RESUMED,
 };
 
 struct mmc_host {
@@ -337,7 +343,6 @@ struct mmc_host {
 #ifdef CONFIG_MMC_DEBUG
 	unsigned int		removed:1;	/* host is being removed */
 #endif
-	unsigned int		card_bad:1;	/* the card is bad; ignore it */
 
 	int			rescan_disable;	/* disable card detection */
 
@@ -349,8 +354,8 @@ struct mmc_host {
 	int			claim_cnt;	/* "claim" nesting count */
 
 	struct delayed_work	detect;
-	struct wakeup_source	detect_ws;
-	const char		*detect_ws_name;
+	struct wake_lock	detect_wake_lock;
+	const char		*wlock_name;
 	int			detect_change;	/* card detect flag */
 	struct mmc_hotplug	hotplug;
 
@@ -419,9 +424,12 @@ struct mmc_host {
 		bool		enable;
 		bool		initialized;
 		bool		in_progress;
+		/* freq. transitions are not allowed in invalid state */
+		bool		invalid_state;
 		struct delayed_work work;
 		enum mmc_load	state;
 	} clk_scaling;
+	enum dev_state dev_status;
 	unsigned long		private[0] ____cacheline_aligned;
 };
 

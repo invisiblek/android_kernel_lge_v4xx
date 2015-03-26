@@ -19,11 +19,11 @@
 
 struct mmc_cd_gpio {
 	unsigned int gpio;
-	char label[0];
 	bool status;
+	char label[0];
 };
 
-int mmc_cd_get_status(struct mmc_host *host)
+static int mmc_cd_get_status(struct mmc_host *host)
 {
 	int ret = -ENOSYS;
 	struct mmc_cd_gpio *cd = host->hotplug.handler_priv;
@@ -34,19 +34,8 @@ int mmc_cd_get_status(struct mmc_host *host)
 	ret = !gpio_get_value_cansleep(cd->gpio) ^
 		!!(host->caps2 & MMC_CAP2_CD_ACTIVE_HIGH);
 out:
-	#ifdef CONFIG_MACH_LGE
-	#if !(defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_B2LN_KR))
-	pr_info("%s: gpio status, GPIO_READ_%s\n",
-				mmc_hostname(host), ret ? "HIGH" : "LOW");
-	#endif
-	#endif 
-	
 	return ret;
 }
-#ifdef CONFIG_MACH_LGE
-EXPORT_SYMBOL(mmc_cd_get_status);
-bool mmc_gpio_irq_flag =0;	
-#endif 
 
 static irqreturn_t mmc_cd_gpio_irqt(int irq, void *dev_id)
 {
@@ -64,21 +53,7 @@ static irqreturn_t mmc_cd_gpio_irqt(int irq, void *dev_id)
 				(host->caps2 & MMC_CAP2_CD_ACTIVE_HIGH) ?
 				"HIGH" : "LOW");
 		cd->status = status;
-		host->card_bad = 0;
 
-#ifdef CONFIG_MACH_LGE
-		if(!status )   //active high & active low  status value is low when sdcard ejected . 
-		{
-			mmc_gpio_irq_flag =1;	
-		}
-		
-		else 
-		{
-			mmc_gpio_irq_flag =0;	
-		}
-		pr_info("%s: mmc_gpio_irq_flagd !!!!! %d\n",mmc_hostname(host),mmc_gpio_irq_flag );
-		
-#endif 
 		/* Schedule a card detection after a debounce timeout */
 		mmc_detect_change(host, msecs_to_jiffies(100));
 	}
