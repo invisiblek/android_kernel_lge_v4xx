@@ -482,8 +482,6 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 	else
 		stream = SNDRV_PCM_STREAM_CAPTURE;
 
-
-
 	mutex_lock(&fe->card->dpcm_mutex);
 	/* first we call set_params for the platform driver
 	 * this should configure the soc side
@@ -503,15 +501,8 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 			goto out;
 	}
 
-	/*
-	 * Create an empty hw_params for the BE as the machine driver must
-	 * fix this up to match DSP decoder and ASRC configuration.
-	 * I.e. machine driver fixup for compressed BE is mandatory.
-	 */
-
-	memset(&fe->dpcm[fe_substream->stream].hw_params, 0,
-		sizeof(struct snd_pcm_hw_params));
-
+	memcpy(&fe->dpcm[fe_substream->stream].hw_params, params,
+			sizeof(struct snd_pcm_hw_params));
 
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
 
@@ -608,14 +599,15 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_platform *platform = rtd->platform;
+	int ret = 0;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
 	if (platform->driver->compr_ops && platform->driver->compr_ops->pointer)
-		 platform->driver->compr_ops->pointer(cstream, tstamp);
+		ret = platform->driver->compr_ops->pointer(cstream, tstamp);
 
 	mutex_unlock(&rtd->pcm_mutex);
-	return 0;
+	return ret;
 }
 
 static int soc_compr_copy(struct snd_compr_stream *cstream,

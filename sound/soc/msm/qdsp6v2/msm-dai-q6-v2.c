@@ -1531,7 +1531,6 @@ static int msm_dai_q6_mi2s_hw_params(struct snd_pcm_substream *substream,
 	struct msm_dai_q6_dai_data *dai_data = &mi2s_dai_config->mi2s_dai_data;
 	struct afe_param_id_i2s_cfg *i2s = &dai_data->port_config.i2s;
 
-
 	dai_data->channels = params_channels(params);
 	switch (dai_data->channels) {
 	case 8:
@@ -1695,6 +1694,7 @@ static int msm_dai_q6_mi2s_hw_free(struct snd_pcm_substream *substream,
 	}
 	return 0;
 }
+
 static void msm_dai_q6_mi2s_shutdown(struct snd_pcm_substream *substream,
 				     struct snd_soc_dai *dai)
 {
