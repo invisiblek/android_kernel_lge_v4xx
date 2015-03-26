@@ -185,7 +185,6 @@ eHalStatus wlan_hdd_remain_on_channel_callback( tHalHandle hHal, void* pCtx,
     }
 
     vos_mem_free( pRemainChanCtx );
-    pRemainChanCtx = NULL;
     complete(&pAdapter->cancel_rem_on_chan_var);
     return eHAL_STATUS_SUCCESS;
 }
@@ -678,9 +677,10 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
                 memcpy(&dstMac, &buf[WLAN_HDD_80211_FRM_DA_OFFSET], ETH_ALEN);
                 hddLog(VOS_TRACE_LEVEL_INFO,
                         "%s: Deauth/Disassoc received for STA:"
-                        MAC_ADDRESS_STR,
+                        "%02x:%02x:%02x:%02x:%02x:%02x",
                         __func__,
-                        MAC_ADDR_ARRAY(dstMac));
+                        dstMac[0], dstMac[1], dstMac[2],
+                        dstMac[3], dstMac[4], dstMac[5]);
                 goto err_rem_channel;
             }
         }
@@ -752,11 +752,7 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
             }
             goto err_rem_channel;
         }
-        /* This will extend timer in LIM when sending Any action frame
-         * It will cover remain on channel timer till next action frame
-         * in rx direction.
-         */
-        extendedWait = (tANI_U16)wait;
+
         /* Wait for driver to be ready on the requested channel */
         status = wait_for_completion_interruptible_timeout(
                      &pAdapter->offchannel_tx_event,
@@ -987,21 +983,12 @@ int hdd_setP2pNoa( struct net_device *dev, tANI_U8 *command )
     tP2pPsConfig NoA;
     int count, duration, start_time;
     char *param;
-    tANI_U8 ret = 0;
 
     param = strnchr(command, strlen(command), ' ');
     if (param == NULL)
       return -EINVAL;
     param++;
-    ret = sscanf(param, "%d %d %d", &count, &start_time, &duration);
-    if (ret < 3)
-    {
-        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-               "%s: P2P_SET GO NoA: fail to read param "
-               "count=%d duration=%d interval=%d \n",
-                __func__, count, start_time, duration);
-        return -EINVAL;
-    }
+    sscanf(param, "%d %d %d", &count, &start_time, &duration);
     VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                "%s: P2P_SET GO NoA: count=%d duration=%d interval=%d \n",
                 __func__, count, start_time, duration);
@@ -1069,21 +1056,12 @@ int hdd_setP2pOpps( struct net_device *dev, tANI_U8 *command )
     tP2pPsConfig NoA;
     char *param;
     int legacy_ps, opp_ps, ctwindow;
-    tANI_U8 ret = 0;
 
     param = strnchr(command, strlen(command), ' ');
     if (param == NULL)
         return -EINVAL;
     param++;
-    ret = sscanf(param, "%d %d %d", &legacy_ps, &opp_ps, &ctwindow);
-    if (ret < 3)
-    {
-        VOS_TRACE (VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                 "%s: P2P_SET GO PS: fail to read param "
-                 " legacy_ps=%d opp_ps=%d ctwindow=%d \n",
-                 __func__, legacy_ps, opp_ps, ctwindow);
-        return -EINVAL;
-    }
+    sscanf(param, "%d %d %d", &legacy_ps, &opp_ps, &ctwindow);
     VOS_TRACE (VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                  "%s: P2P_SET GO PS: legacy_ps=%d opp_ps=%d ctwindow=%d \n",
                  __func__, legacy_ps, opp_ps, ctwindow);
@@ -1738,5 +1716,31 @@ static void hdd_wlan_tx_complete( hdd_adapter_t* pAdapter,
     /* Enable Queues which we have disabled earlier */
     netif_tx_start_all_queues( pAdapter->dev );
 
+}
+
+void hdd_start_p2p_go_connection_in_progress_timer( hdd_adapter_t *pAdapter )
+{
+
+    hdd_context_t *pHddCtx;
+    VOS_STATUS vos_status;
+
+    pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+
+    if (WLAN_HDD_P2P_GO == pAdapter->device_mode)
+    {
+        vos_status = vos_timer_start(&pHddCtx->hdd_p2p_go_conn_is_in_progress,
+                        WAIT_TIME_FOR_P2PGO_CONNECTION);
+        if ( !VOS_IS_STATUS_SUCCESS(vos_status))
+        {
+             VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("Starting hdd_p2p_go_conn_is_in_progress timer failed %s"), __func__);
+        }
+    }
+}
+
+v_VOID_t wlan_hdd_p2p_go_connection_in_progresscb (v_PVOID_t userData )
+{
+     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+              "%s: Connection is in progress", __func__);
 }
 

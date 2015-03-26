@@ -25,8 +25,6 @@
 
   \brief WLAN Host Device Driver implementation for TDLS
 
-  Copyright (c) 2013 Qualcomm Atheros, Inc. All Rights Reserved.
-  Qualcomm Atheros Confidential and Proprietary.
   ========================================================================*/
 
 #include <wlan_hdd_includes.h>
@@ -76,6 +74,7 @@ static void wlan_hdd_tdls_pre_setup_init_work(tdlsCtx_t * pHddTdlsCtx,
         pHddTdlsCtx->curr_candidate = curr_candidate;
         pHddTdlsCtx->magic = TDLS_CTX_MAGIC;
 
+        INIT_WORK(&pHddTdlsCtx->implicit_setup, wlan_hdd_tdls_pre_setup);
         schedule_work(&pHddTdlsCtx->implicit_setup);
     }
 }
@@ -535,31 +534,9 @@ static void wlan_hdd_tdls_free_list(tdlsCtx_t *pHddTdlsCtx)
             tmp = list_entry(pos, hddTdlsPeer_t, node);
             list_del(pos);
             vos_mem_free(tmp);
-            tmp = NULL;
         }
     }
 }
-
-static void wlan_hdd_tdls_schedule_scan(struct work_struct *work)
-{
-    tdls_scan_context_t *scan_ctx =
-          container_of(work, tdls_scan_context_t, tdls_scan_work.work);
-
-    if (NULL == scan_ctx)
-        return;
-
-    if (unlikely(TDLS_CTX_MAGIC != scan_ctx->magic))
-        return;
-
-    scan_ctx->attempt++;
-
-    wlan_hdd_cfg80211_scan(scan_ctx->wiphy,
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
-                           scan_ctx->dev,
-#endif
-                           scan_ctx->scan_request);
-}
-
 
 int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 {
@@ -679,8 +656,6 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
     {
         pHddCtx->tdls_mode = eTDLS_SUPPORT_ENABLED;
     }
-    INIT_WORK(&pHddTdlsCtx->implicit_setup, wlan_hdd_tdls_pre_setup);
-    INIT_DELAYED_WORK(&pHddCtx->tdls_scan_ctxt.tdls_scan_work, wlan_hdd_tdls_schedule_scan);
 
     return 0;
 }
@@ -711,10 +686,6 @@ void wlan_hdd_tdls_exit(hdd_adapter_t *pAdapter)
         hddLog(VOS_TRACE_LEVEL_WARN, "%s TDLS not enabled, exiting!", __func__);
         return;
     }
-#ifdef WLAN_OPEN_SOURCE
-    cancel_work_sync(&pHddTdlsCtx->implicit_setup);
-    cancel_delayed_work_sync(&pHddCtx->tdls_scan_ctxt.tdls_scan_work);
-#endif
 
     /* must stop timer here before freeing peer list, because peerIdleTimer is
     part of peer list structure. */
@@ -957,7 +928,7 @@ int wlan_hdd_tdls_recv_discovery_resp(hdd_adapter_t *pAdapter, u8 *mac)
         }
         else
         {
-            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, 
             "Rssi Threshold not met: "MAC_ADDRESS_STR" rssi = %d threshold = %d ",
             MAC_ADDR_ARRAY(curr_peer->peerMac), curr_peer->rssi,
             pHddTdlsCtx->threshold_config.rssi_trigger_threshold);
@@ -1401,12 +1372,11 @@ int wlan_hdd_tdls_get_all_peers(hdd_adapter_t *pAdapter, char *buf, int buflen)
 
 
     init_len = buflen;
-    len = scnprintf(buf, buflen, "\n%-18s%-3s%-4s%-3s%-5s\n",
-            "MAC", "Id", "cap", "up", "RSSI");
+    len = snprintf(buf, buflen, "\n%-18s%-3s%-4s%-3s%-5s\n", "MAC", "Id", "cap", "up", "RSSI");
     buf += len;
     buflen -= len;
     /*                           1234567890123456789012345678901234567 */
-    len = scnprintf(buf, buflen, "---------------------------------\n");
+    len = snprintf(buf, buflen, "---------------------------------\n");
     buf += len;
     buflen -= len;
 
@@ -1419,7 +1389,7 @@ int wlan_hdd_tdls_get_all_peers(hdd_adapter_t *pAdapter, char *buf, int buflen)
     pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
     if (NULL == pHddTdlsCtx) {
         mutex_unlock(&tdls_lock);
-        len = scnprintf(buf, buflen, "TDLS not enabled\n");
+        len = snprintf(buf, buflen, "TDLS not enabled\n");
         return len;
     }
     for (i = 0; i < 256; i++) {
@@ -1430,7 +1400,7 @@ int wlan_hdd_tdls_get_all_peers(hdd_adapter_t *pAdapter, char *buf, int buflen)
 
             if (buflen < 32+1)
                 break;
-            len = scnprintf(buf, buflen,
+            len = snprintf(buf, buflen,
                 MAC_ADDRESS_STR"%3d%4s%3s%5d\n",
                 MAC_ADDR_ARRAY(curr_peer->peerMac),
                 curr_peer->staId,
@@ -1923,6 +1893,26 @@ int wlan_hdd_tdls_copy_scan_context(hdd_context_t *pHddCtx,
     return 0;
 }
 
+static void wlan_hdd_tdls_schedule_scan(struct work_struct *work)
+{
+    tdls_scan_context_t *scan_ctx =
+          container_of(work, tdls_scan_context_t, tdls_scan_work.work);
+
+    if (NULL == scan_ctx)
+        return;
+
+    if (unlikely(TDLS_CTX_MAGIC != scan_ctx->magic))
+        return;
+
+    scan_ctx->attempt++;
+
+    wlan_hdd_cfg80211_scan(scan_ctx->wiphy,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
+                           scan_ctx->dev,
+#endif
+                           scan_ctx->scan_request);
+}
+
 static void wlan_hdd_tdls_scan_init_work(hdd_context_t *pHddCtx,
                                 struct wiphy *wiphy,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
@@ -1941,6 +1931,8 @@ static void wlan_hdd_tdls_scan_init_work(hdd_context_t *pHddCtx,
         pHddCtx->tdls_scan_ctxt.attempt = 0;
         pHddCtx->tdls_scan_ctxt.magic = TDLS_CTX_MAGIC;
     }
+    INIT_DELAYED_WORK(&pHddCtx->tdls_scan_ctxt.tdls_scan_work, wlan_hdd_tdls_schedule_scan);
+
     schedule_delayed_work(&pHddCtx->tdls_scan_ctxt.tdls_scan_work, delay);
 }
 
