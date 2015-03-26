@@ -243,9 +243,9 @@ struct mdss_mdp_format_params *mdss_mdp_get_format_params(u32 format)
 	return NULL;
 }
 
-void mdss_mdp_intersect_rect(struct mdss_rect *res_rect,
-	const struct mdss_rect *dst_rect,
-	const struct mdss_rect *sci_rect)
+void mdss_mdp_intersect_rect(struct mdss_mdp_img_rect *res_rect,
+	const struct mdss_mdp_img_rect *dst_rect,
+	const struct mdss_mdp_img_rect *sci_rect)
 {
 	int l = max(dst_rect->x, sci_rect->x);
 	int t = max(dst_rect->y, sci_rect->y);
@@ -253,16 +253,16 @@ void mdss_mdp_intersect_rect(struct mdss_rect *res_rect,
 	int b = min((dst_rect->y + dst_rect->h), (sci_rect->y + sci_rect->h));
 
 	if (r < l || b < t)
-		*res_rect = (struct mdss_rect){0, 0, 0, 0};
+		*res_rect = (struct mdss_mdp_img_rect){0, 0, 0, 0};
 	else
-		*res_rect = (struct mdss_rect){l, t, (r-l), (b-t)};
+		*res_rect = (struct mdss_mdp_img_rect){l, t, (r-l), (b-t)};
 }
 
-void mdss_mdp_crop_rect(struct mdss_rect *src_rect,
-	struct mdss_rect *dst_rect,
-	const struct mdss_rect *sci_rect)
+void mdss_mdp_crop_rect(struct mdss_mdp_img_rect *src_rect,
+	struct mdss_mdp_img_rect *dst_rect,
+	const struct mdss_mdp_img_rect *sci_rect)
 {
-	struct mdss_rect res;
+	struct mdss_mdp_img_rect res;
 	mdss_mdp_intersect_rect(&res, dst_rect, sci_rect);
 
 	if (res.w && res.h) {
@@ -272,7 +272,7 @@ void mdss_mdp_crop_rect(struct mdss_rect *src_rect,
 			src_rect->w = res.w;
 			src_rect->h = res.h;
 		}
-		*dst_rect = (struct mdss_rect)
+		*dst_rect = (struct mdss_mdp_img_rect)
 			{(res.x - sci_rect->x), (res.y - sci_rect->y),
 			res.w, res.h};
 	}
@@ -498,24 +498,28 @@ int mdss_mdp_put_img(struct mdss_mdp_img_data *data)
 		data->srcp_file = NULL;
 	} else if (!IS_ERR_OR_NULL(data->srcp_ihdl)) {
 		pr_debug("ion hdl=%p buf=0x%x\n", data->srcp_ihdl, data->addr);
-
-		if (is_mdss_iommu_attached()) {
-			int domain;
-			if (data->flags & MDP_SECURE_OVERLAY_SESSION)
-				domain = MDSS_IOMMU_DOMAIN_SECURE;
-			else
-				domain = MDSS_IOMMU_DOMAIN_UNSECURE;
-			ion_unmap_iommu(iclient, data->srcp_ihdl,
+		if (!iclient) {
+			pr_err("invalid ion client\n");
+			return -ENOMEM;
+		} else {
+			if (is_mdss_iommu_attached()) {
+				int domain;
+				if (data->flags & MDP_SECURE_OVERLAY_SESSION)
+					domain = MDSS_IOMMU_DOMAIN_SECURE;
+				else
+					domain = MDSS_IOMMU_DOMAIN_UNSECURE;
+				ion_unmap_iommu(iclient, data->srcp_ihdl,
 					mdss_get_iommu_domain(domain), 0);
 
-			if (domain == MDSS_IOMMU_DOMAIN_SECURE) {
-				msm_ion_unsecure_buffer(iclient,
-					data->srcp_ihdl);
+				if (domain == MDSS_IOMMU_DOMAIN_SECURE) {
+					msm_ion_unsecure_buffer(iclient,
+							data->srcp_ihdl);
+				}
 			}
+			ion_free(iclient, data->srcp_ihdl);
+			data->srcp_ihdl = NULL;
 		}
 
-		ion_free(iclient, data->srcp_ihdl);
-		data->srcp_ihdl = NULL;
 	} else {
 		return -ENOMEM;
 	}
