@@ -67,10 +67,19 @@ $(foreach var, $(atmel_fw_file),  $(shell objcopy -I binary -O ihex $(var) $(var
 atmel_ihex_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/atmel/$(TARGET_PRODUCT)/*.ihex)))
 atmel_ihex_files := $(foreach var, $(atmel_ihex_list), atmel/$(TARGET_PRODUCT)/$(var))
 else 
-atmel_fw_file := $(wildcard $(srctree)/firmware/atmel/*.fw)
+ifdef CONFIG_MACH_MSM8226_E7WIFI
+atmel_fw_file := $(wildcard $(srctree)/firmware/atmel/e7wifi/*.fw)
 $(foreach var, $(atmel_fw_file),  $(shell objcopy -I binary -O ihex $(var) $(var).ihex))
-atmel_ihex_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/atmel/*.ihex)))
-atmel_ihex_files := $(foreach var, $(atmel_ihex_list), atmel/$(var))
+atmel_ihex_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/atmel/e7wifi/*.ihex)))
+atmel_ihex_files := $(foreach var, $(atmel_ihex_list), atmel/e7wifi/$(var))
+else
+ifdef CONFIG_MACH_MSM8926_E7LTE_ATT_US
+atmel_fw_file := $(wildcard $(srctree)/firmware/atmel/e7att/*.fw)
+$(foreach var, $(atmel_fw_file),  $(shell objcopy -I binary -O ihex $(var) $(var).ihex))
+atmel_ihex_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/atmel/e7att/*.ihex)))
+atmel_ihex_files := $(foreach var, $(atmel_ihex_list), atmel/e7att/$(var))
+endif
+endif
 endif
 endif
 
