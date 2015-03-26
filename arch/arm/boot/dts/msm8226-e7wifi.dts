@@ -10,8 +10,8 @@
  * GNU General Public License for more details.
  */
 
-/include/ "../msm8226-lge-common/msm8226-v2-lge.dtsi"
-/include/ "msm8226-e7wifi.dtsi"
+/include/ "msm8226-lge-common/msm8226-v2-lge.dtsi"
+/include/ "msm8226-e7wifi/msm8226-e7wifi.dtsi"
 
 / {
 	model = "Qualcomm MSM 8226v2 e7wifi";
