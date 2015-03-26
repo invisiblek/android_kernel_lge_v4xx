@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -16,6 +16,7 @@
 		reg = <0xfd900000 0x100000>;
 		reg-names = "mdp_phys";
 		interrupts = <0 72 0>;
+		vdd-cx-supply = <&pm8110_s1_corner>;
 
 		mdss_fb0: qcom,mdss_fb_primary {
 			cell-index = <0>;
@@ -40,7 +41,7 @@
 		qcom,platform-mode-gpio = <&msmgpio 7 0>;
 		qcom,platform-strength-ctrl = [ff 06];
 		qcom,platform-bist-ctrl = [03 03 00 00 0f 00];
-		qcom,platform-regulator-settings = [09 08 05 00 20 03];
+		qcom,platform-regulator-settings = [02 08 05 00 20 03];
 		qcom,platform-lane-config = [80 45 00 00 01 66
 		80 45 00 00 01 66
 		80 45 00 00 01 66
