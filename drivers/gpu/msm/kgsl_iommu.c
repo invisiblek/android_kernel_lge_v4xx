@@ -517,7 +517,7 @@ static void kgsl_iommu_clk_disable_event(struct kgsl_device *device, void *data,
  * Return - void
  */
 static void
-	kgsl_iommu_disable_clk_on_ts(struct kgsl_mmu *mmu,
+kgsl_iommu_disable_clk_on_ts(struct kgsl_mmu *mmu,
 				unsigned int ts, int ctx_id)
 {
 	struct kgsl_iommu_disable_clk_param *param;
