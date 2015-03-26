@@ -21,6 +21,9 @@
 #include <linux/gpio.h>
 #include <linux/err.h>
 #include <linux/regulator/consumer.h>
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+#include <mach/board_lge.h>
+#endif
 
 #include "mdss.h"
 #include "mdss_panel.h"
@@ -75,6 +78,10 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			goto error;
 		}
 
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+		nt35521_panel_power(pdata,1);
+#endif
+
 		if (!pdata->panel_info.mipi.lp11_init) {
 			ret = mdss_dsi_panel_reset(pdata, 1);
 			if (ret) {
@@ -88,12 +95,18 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			}
 		}
 	} else {
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+		mdelay(120);
+#endif
 		ret = mdss_dsi_panel_reset(pdata, 0);
 		if (ret) {
 			pr_err("%s: Panel reset failed. rc=%d\n",
 					__func__, ret);
 			goto error;
 		}
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+		nt35521_panel_power(pdata,0);
+#endif
 		ret = msm_dss_enable_vreg(
 			ctrl_pdata->power_data.vreg_config,
 			ctrl_pdata->power_data.num_vreg, 0);
@@ -101,6 +114,9 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			pr_err("%s: Failed to disable vregs.rc=%d\n",
 				__func__, ret);
 		}
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+		mdelay(1);
+#endif
 	}
 error:
 	return ret;
