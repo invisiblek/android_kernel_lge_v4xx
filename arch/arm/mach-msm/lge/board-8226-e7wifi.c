@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/i2c/i2c-qup.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
@@ -24,6 +25,7 @@
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
 #include <linux/memory.h>
+#include <linux/regulator/cpr-regulator.h>
 #include <linux/regulator/qpnp-regulator.h>
 #include <linux/msm_tsens.h>
 #include <asm/mach/map.h>
@@ -31,6 +33,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/board.h>
+#include <mach/msm_bus.h>
 #include <mach/gpiomux.h>
 #include <mach/msm_iomap.h>
 #include <mach/restart.h>
@@ -52,6 +55,7 @@
 #include "../spm.h"
 #include "../pm.h"
 #include "../modem_notifier.h"
+#include "../spm-regulator.h"
 #include <mach/board_lge.h>
 #if defined(CONFIG_LCD_KCAL)
 #include <linux/module.h>
@@ -178,10 +182,14 @@ void __init msm8226_add_drivers(void)
 	msm_pm_sleep_status_init();
 	rpm_regulator_smd_driver_init();
 	qpnp_regulator_init();
+	spm_regulator_init();
 	if (of_board_is_rumi())
 		msm_clock_init(&msm8226_rumi_clock_init_data);
 	else
 		msm_clock_init(&msm8226_clock_init_data);
+	msm_bus_fabric_init_driver();
+	qup_i2c_init_driver();
+	cpr_regulator_init();
 	tsens_tm_init_driver();
 	msm_thermal_device_init();
 #if defined(CONFIG_ANDROID_RAM_CONSOLE)
@@ -226,7 +234,7 @@ static const char *msm8226_dt_match[] __initconst = {
 	NULL
 };
 
-DT_MACHINE_START(MSM8226_DT, "Qualcomm MSM 8226 (Flattened Device Tree)")
+DT_MACHINE_START(MSM8226_DT, "Qualcomm MSM 8x26 / MSM 8x28 (Flattened Device Tree)")
 	.map_io = msm_map_msm8226_io,
 	.init_irq = msm_dt_init_irq,
 	.init_machine = msm8226_init,

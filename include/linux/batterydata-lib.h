@@ -35,6 +35,7 @@
 #define MAX_SINGLE_LUT_COLS	20
 
 #define MAX_BATT_ID_NUM		4
+#define DEGC_SCALE		10
 
 struct single_row_lut {
 	int x[MAX_SINGLE_LUT_COLS];
@@ -91,9 +92,6 @@ enum battery_type {
 	BATT_OEM,
 	BATT_QRD_4V35_2000MAH,
 	BATT_QRD_4V2_1300MAH,
-#ifdef CONFIG_LGE_PM
-	BATT_4600_LGE
-#endif
 };
 
 /**

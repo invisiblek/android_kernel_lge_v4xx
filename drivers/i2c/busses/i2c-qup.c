@@ -22,6 +22,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
+#include <linux/i2c/i2c-qup.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
@@ -38,7 +39,6 @@
 #include <mach/board.h>
 #include <mach/gpiomux.h>
 #include <mach/msm_bus_board.h>
-#include <mach/board_lge.h>
 
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("0.2");
@@ -143,12 +143,6 @@ enum msm_i2c_state {
 #define QUP_OUT_FIFO_NOT_EMPTY		0x10
 #define I2C_GPIOS_DT_CNT		(2)		/* sda and scl */
 
-//                                                   
-bool i2c_suspended = false;
-#if defined(CONFIG_TOUCHSCREEN_ATMEL_S540)
-bool atmel_touch_i2c_suspended = false;        /* Use atme touch IC for checking i2c suspend */
-#endif
-
 static char const * const i2c_rsrcs[] = {"i2c_clk", "i2c_sda"};
 
 static struct gpiomux_setting recovery_config = {
@@ -199,6 +193,7 @@ struct qup_i2c_dev {
 	int                          wr_sz;
 	struct msm_i2c_platform_data *pdata;
 	enum msm_i2c_state           pwr_state;
+	atomic_t		     xfer_progress;
 	struct mutex                 mlock;
 	void                         *complete;
 	int                          i2c_gpios[ARRAY_SIZE(i2c_rsrcs)];
@@ -236,8 +231,10 @@ qup_i2c_interrupt(int irq, void *devid)
 	uint32_t op_flgs = 0;
 	int err = 0;
 
-	if (pm_runtime_suspended(dev->dev))
+	if (atomic_read(&dev->xfer_progress) != 1) {
+		dev_err(dev->dev, "irq:%d when PM suspended\n", irq);
 		return IRQ_NONE;
+	}
 
 	status = readl_relaxed(dev->base + QUP_I2C_STATUS);
 	status1 = readl_relaxed(dev->base + QUP_ERROR_FLAGS);
@@ -792,7 +789,7 @@ qup_issue_write(struct qup_i2c_dev *dev, struct i2c_msg *msg, int rem,
 					(uint32_t)dev->base +
 					QUP_OUT_FIFO_BASE + (*idx), 0);
 				*idx += 2;
-			} else if (next->flags == 0 && dev->pos == msg->len - 1
+			} else if ((dev->pos == msg->len - 1)
 					&& *idx < (dev->wr_sz*2) &&
 					(next->addr != msg->addr)) {
 				/* Last byte of an intermittent write */
@@ -1008,6 +1005,7 @@ qup_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	if (dev->pdata->clk_ctl_xfer)
 		i2c_qup_pm_resume_clk(dev);
 
+	atomic_set(&dev->xfer_progress, 1);
 	/* Initialize QUP registers during first transfer */
 	if (dev->clk_ctl == 0) {
 		int fs_div;
@@ -1311,6 +1309,7 @@ timeout_err:
 	dev->cnt = 0;
 	if (dev->pdata->clk_ctl_xfer)
 		i2c_qup_pm_suspend_clk(dev);
+	atomic_set(&dev->xfer_progress, 0);
 	mutex_unlock(&dev->mlock);
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
@@ -1661,6 +1660,7 @@ blsp_core_init:
 
 	mutex_init(&dev->mlock);
 	dev->pwr_state = MSM_I2C_PM_SUSPENDED;
+	atomic_set(&dev->xfer_progress, 0);
 	/* If the same AHB clock is used on Modem side
 	 * switch it on here itself and don't switch it
 	 * on and off during suspend and resume.
@@ -1802,15 +1802,6 @@ static int i2c_qup_pm_suspend_sys(struct device *device)
 	mutex_unlock(&dev->mlock);
 	if (!pm_runtime_enabled(device) || !pm_runtime_suspended(device)) {
 		dev_dbg(device, "system suspend\n");
-
-		i2c_suspended = true;
-#if defined(CONFIG_TOUCHSCREEN_ATMEL_S540)
-        //                                                   
-		if (!strncmp(dev_name(device), "f9927000.i2c", 12)){
-			atmel_touch_i2c_suspended = true;
-			dev_info(device, "lge_touch I2C Suspend!\n");
-		}
-#endif
 		i2c_qup_pm_suspend(dev);
 		/*
 		 * set the device's runtime PM status to 'suspended'
@@ -1834,53 +1825,6 @@ static int i2c_qup_pm_resume_sys(struct device *device)
 	 */
 	dev_dbg(device, "system resume\n");
 	dev->pwr_state = MSM_I2C_PM_SUSPENDED;
-
-#if defined(CONFIG_MACH_MSM8926_X3_KR) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_G2M_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR)
-	if(lge_get_board_revno() <  HW_REV_B) {
-			dev_info(device, "X3_KR / G2M_KR revA/A2!!");
-	} else {
-		//                                                                
-		if (pm_runtime_suspended(device)) {
-			dev_info(device, "i2c is runtime suspended status !!! try to runtime resume !!!\n");
-		}
-
-		if (!pm_runtime_enabled(device)) {
-			dev_info(device, "Runtime PM is disabled\n");
-			i2c_qup_pm_resume_runtime(device);
-		} else {
-			pm_runtime_get_sync(device);
-		}
-
-	        if (pm_runtime_suspended(device)) {
-			dev_info(device, "i2c can't wake up !!! pm_runtime_get_sync() doesn't work !!!\n");
-		}
-	}
-#else
-	//                                                                
-	if (pm_runtime_suspended(device)) {
-		dev_info(device, "i2c is runtime suspended status !!! try to runtime resume !!!\n");
-	}
-
-	if (!pm_runtime_enabled(device)) {
-		dev_info(device, "Runtime PM is disabled\n");
-		i2c_qup_pm_resume_runtime(device);
-	} else {
-		pm_runtime_get_sync(device);
-	}
-
-	if (pm_runtime_suspended(device)) {
-		dev_info(device, "i2c can't wake up !!! pm_runtime_get_sync() doesn't work !!!\n");
-	}
-#endif
-	i2c_suspended = false;
-
-#if defined(CONFIG_TOUCHSCREEN_ATMEL_S540)
-	//                                                   
-	if (!strncmp(dev_name(device), "f9927000.i2c", 12)){
-		atmel_touch_i2c_suspended = false;
-		dev_info(device, "lge_touch I2C Resume!\n");
-	}
-#endif
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -1916,11 +1860,18 @@ static struct platform_driver qup_i2c_driver = {
 };
 
 /* QUP may be needed to bring up other drivers */
-static int __init
-qup_i2c_init_driver(void)
+int __init qup_i2c_init_driver(void)
 {
+	static bool initialized;
+
+	if (initialized)
+		return 0;
+	else
+		initialized = true;
+
 	return platform_driver_register(&qup_i2c_driver);
 }
+EXPORT_SYMBOL(qup_i2c_init_driver);
 arch_initcall(qup_i2c_init_driver);
 
 static void __exit qup_i2c_exit_driver(void)
