@@ -62,6 +62,9 @@
 
 #define PRONTO_PMU_CCPU_BOOT_REMAP_ADDR			0x2004
 
+#define PRONTO_PMU_SPARE				0x1088
+#define PRONTO_PMU_SPARE_SSR_BIT			BIT(23)
+
 #define CLK_CTL_WCNSS_RESTART_BIT			BIT(0)
 
 #define AXI_HALTREQ					0x0
@@ -70,11 +73,6 @@
 
 #define HALT_ACK_TIMEOUT_US				500000
 #define CLK_UPDATE_TIMEOUT_US				500000
-
-//                                            
-static int enable_pronto_ramdump;
-module_param(enable_pronto_ramdump, int, S_IRUGO | S_IWUSR);
-//             
 
 struct pronto_data {
 	void __iomem *base;
@@ -381,7 +379,15 @@ static int wcnss_powerup(const struct subsys_desc *subsys)
 	struct pronto_data *drv = subsys_to_drv(subsys);
 	struct platform_device *pdev = wcnss_get_platform_device();
 	struct wcnss_wlan_config *pwlanconfig = wcnss_get_wlan_config();
-	int    ret = -1;
+	void __iomem *base = drv->base;
+	u32 reg;
+	int ret = -1;
+
+	if (base) {
+		reg = readl_relaxed(base + PRONTO_PMU_SPARE);
+		reg |= PRONTO_PMU_SPARE_SSR_BIT;
+		writel_relaxed(reg, base + PRONTO_PMU_SPARE);
+	}
 
 	if (pdev && pwlanconfig)
 		ret = wcnss_wlan_power(&pdev->dev, pwlanconfig,
@@ -411,10 +417,8 @@ static void crash_shutdown(const struct subsys_desc *subsys)
 static int wcnss_ramdump(int enable, const struct subsys_desc *subsys)
 {
 	struct pronto_data *drv = subsys_to_drv(subsys);
-//                                            
-//	if (!enable)
-	if(!enable_pronto_ramdump)
-//             
+
+	if (!enable)
 		return 0;
 
 	return pil_do_ramdump(&drv->desc, drv->ramdump_dev);

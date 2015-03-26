@@ -97,9 +97,7 @@ static int cortex_set_config(struct mux_div_clk *md, u32 src_sel, u32 div)
 
 static int cortex_enable(struct mux_div_clk *md)
 {
-	u32 src_sel = parent_to_src_sel(md->parents, md->num_parents,
-							md->c.parent);
-	return cortex_set_config(md, src_sel, md->data.div);
+	return cortex_set_config(md, md->src_sel, md->data.div);
 }
 
 static void cortex_disable(struct mux_div_clk *md)
@@ -156,7 +154,6 @@ static struct mux_div_clk a7ssmux = {
 static struct clk_lookup clock_tbl_a7[] = {
 	CLK_LOOKUP("cpu0_clk",	a7ssmux.c, "0.qcom,msm-cpufreq"),
 	CLK_LOOKUP("cpu0_clk",	a7ssmux.c, "fe805664.qcom,pm-8x60"),
-	CLK_LOOKUP("cpu0_clk",	a7ssmux.c, "0.qcom,rq-stats"),
 };
 
 static int of_get_fmax_vdd_class(struct platform_device *pdev, struct clk *c,

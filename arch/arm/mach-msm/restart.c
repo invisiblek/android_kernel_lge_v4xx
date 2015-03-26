@@ -93,7 +93,6 @@ static struct notifier_block panic_blk = {
 
 static void set_dload_mode(int on)
 {
-	pr_err("%s(%d)\n", __func__, on);
 	if (dload_mode_addr) {
 		__raw_writel(on ? 0xE47B337D : 0, dload_mode_addr);
 		__raw_writel(on ? 0xCE14091A : 0,
@@ -105,7 +104,6 @@ static void set_dload_mode(int on)
 
 static bool get_dload_mode(void)
 {
-	pr_err("%s(%d)\n", __func__, dload_mode_enabled);
 	return dload_mode_enabled;
 }
 
