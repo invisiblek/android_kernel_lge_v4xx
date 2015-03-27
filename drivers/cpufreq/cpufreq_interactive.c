@@ -157,6 +157,9 @@ static void cpufreq_interactive_timer_resched(unsigned long cpu)
 	unsigned long flags;
 	u64 now = ktime_to_us(ktime_get());
 
+	if (cpu_is_offline(cpu))
+		return;
+
 	spin_lock_irqsave(&pcpu->load_lock, flags);
 	pcpu->time_in_idle =
 		get_cpu_idle_time(smp_processor_id(),
@@ -191,6 +194,9 @@ static void cpufreq_interactive_timer_start(int cpu)
 	u64 expires = round_to_nw_start(pcpu->last_evaluated_jiffy);
 	unsigned long flags;
 	u64 now = ktime_to_us(ktime_get());
+
+	if (cpu_is_offline(cpu))
+		return;
 
 	spin_lock_irqsave(&pcpu->load_lock, flags);
 	pcpu->cpu_timer.expires = expires;
