@@ -42,6 +42,9 @@
 #include <mach/rpm-smd.h>
 #include <mach/scm.h>
 
+#ifdef CONFIG_LGE_PM
+#include <mach/board_lge.h>
+#endif
 #define MAX_CURRENT_UA 1000000
 #define MAX_RAILS 5
 #define MAX_THRESHOLD 2
@@ -1051,6 +1054,7 @@ static void __ref do_core_control(long temp)
 	}
 	mutex_unlock(&core_control_mutex);
 }
+#ifndef CONFIG_LGE_PM
 /* Call with core_control_mutex locked */
 static int __ref update_offline_cores(int val)
 {
@@ -1114,12 +1118,15 @@ static __ref int do_hotplug(void *data)
 
 	return ret;
 }
+#endif
 #else
 static void do_core_control(long temp)
 {
 	return;
 }
 
+#endif
+#ifdef CONFIG_LGE_PM
 static __ref int do_hotplug(void *data)
 {
 	return 0;

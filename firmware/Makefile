@@ -26,6 +26,16 @@ fw-shipped- += acenic/tg1.bin
 else
 acenic-objs := acenic/tg1.bin acenic/tg2.bin
 endif
+
+ifdef CONFIG_TOUCHSCREEN_ATMEL_T641
+atmel_fw_file := $(wildcard $(srctree)/firmware/atmel/*.fw)
+$(foreach var, $(atmel_fw_file),  $(shell objcopy -I binary -O ihex $(var) $(var).ihex))
+atmel_ihex_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/atmel/*.ihex)))
+atmel_ihex_files := $(foreach var, $(atmel_ihex_list), atmel/$(var))
+
+fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_T641) += $(atmel_ihex_files)
+endif
+
 fw-shipped-$(CONFIG_3C359) += 3com/3C359.bin
 fw-shipped-$(CONFIG_ACENIC) += $(acenic-objs)
 fw-shipped-$(CONFIG_ADAPTEC_STARFIRE) += adaptec/starfire_rx.bin \

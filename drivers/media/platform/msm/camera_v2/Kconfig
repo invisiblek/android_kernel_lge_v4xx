@@ -101,6 +101,20 @@ config MSM_ISPIF_V1
           of any CID of MSM_CSI22_HEADER can be routed to of pixel
           or raw data interface in VFE.
 
+config HI351
+	bool "Sensor HI351 (YUV 3M)"
+	depends on MSMB_CAMERA
+	---help---
+		Hynix 3M YUV Sensor
+
+config HI543
+	bool "Sensor hi543 (Hynix 5MP)"
+	depends on MSMB_CAMERA
+	---help---
+		Support for HI543 sensor driver.
+		This is a Hynix 5MP Bayer Sensor with autofocus.
+		Say Y if the platform uses HI543 sensor.
+
 config IMX134
 	bool "Sensor IMX134 (BAYER 8M)"
 	depends on MSMB_CAMERA

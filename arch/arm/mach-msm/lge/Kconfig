@@ -1,0 +1,62 @@
+config MACH_LGE
+	bool
+
+menu "LGE Board Selection"
+
+config MACH_MSM8226_E7WIFI
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "APQ8026 E7WIFI OPEN"
+        help
+          Support for the Qualcomm APQ8026 E7 WiFi-Only device.
+
+config MACH_MSM8926_E7LTE_ATT_US
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "MSM8926 E7LTE ATT US"
+        help
+          Support for the Qualcomm MSM8926 E7 LTE device.
+
+endmenu
+
+menu "LGE Specific Patches"
+
+config LGE_BOOTLOADER_LOG
+	tristate "Support LGE bootloader log"
+	default n
+	depends on MACH_LGE
+	help
+	  LGE bootloader log
+
+config DTS_TARGET
+	string "DTS target dir"
+	help
+	  CONFIG_DTS_TARGET should be set to support appended dts.
+
+config LGE_BOOTLOADER_TIME_CHECKER
+	bool "Show bootloader(LK, SBL) time"
+	default n
+	depends on MACH_LGE
+	help
+	  This shows the lk and sbl1 booting time in MSM8974.
+	  If this feature is enabled, it should be check by adb shell.
+	  Device Node : sys/module/lge_bootloader_time_checker/
+
+config LGE_QFPROM_INTERFACE
+	bool "Support qfprom interface"
+	default n
+	depends on MACH_LGE
+	help
+	  LGE QFPROM DRIVER.
+
+menu "LGE Battery Profile"
+
+config LGE_PM_BATTERY_CAPACITY_4000mAh
+        bool "Support Battery Capacity : 4000mAh"
+        depends on LGE_PM_BATTERY_PROFILE_DATA
+        help
+          LGE battery capacity for 4000mAh
+
+endmenu
+
+endmenu

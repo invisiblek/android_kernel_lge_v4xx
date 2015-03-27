@@ -77,6 +77,9 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 
 		if (!pdata->panel_info.mipi.lp11_init) {
 			ret = mdss_dsi_panel_reset(pdata, 1);
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+			nt35521_panel_power(pdata, 1);
+#endif
 			if (ret) {
 				pr_err("%s: Panel reset failed. rc=%d\n",
 						__func__, ret);
@@ -88,12 +91,18 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			}
 		}
 	} else {
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+		mdelay(120);
+		mdss_dsi_panel_reset(pdata, 0);
+		nt35521_panel_power(pdata, 0);
+#else
 		ret = mdss_dsi_panel_reset(pdata, 0);
 		if (ret) {
 			pr_err("%s: Panel reset failed. rc=%d\n",
 					__func__, ret);
 			goto error;
 		}
+#endif
 		ret = msm_dss_enable_vreg(
 			ctrl_pdata->power_data.vreg_config,
 			ctrl_pdata->power_data.num_vreg, 0);
@@ -101,6 +110,9 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			pr_err("%s: Failed to disable vregs.rc=%d\n",
 				__func__, ret);
 		}
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+		mdelay(1);
+#endif
 	}
 error:
 	return ret;
@@ -660,6 +672,9 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	struct mdss_panel_info *pinfo;
 	struct mipi_panel_info *mipi;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+	u32 tmp;
+#endif
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -710,6 +725,21 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	__mdss_dsi_ctrl_setup(pdata);
 	mdss_dsi_sw_reset(pdata);
 	mdss_dsi_host_init(pdata);
+
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+	if (nt35521_panel_power(pdata, 1)) {
+		pr_err("%s:Failed to disable lge_asus_panel_power.rc\n", __func__);
+		return 0;
+	}
+	mipi->force_clk_lane_hs = 1;
+
+	mdelay(5);
+
+	tmp = MIPI_INP((ctrl_pdata->ctrl_base) + 0xac);
+	tmp &= ~(1<<28);
+	MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac, tmp);
+	wmb();
+#endif
 
 	/*
 	 * Issue hardware reset line after enabling the DSI clocks and data

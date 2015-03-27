@@ -39,6 +39,9 @@
 #include <mach/board.h>
 #include <mach/gpiomux.h>
 #include <mach/msm_bus_board.h>
+#ifdef CONFIG_MACH_LGE
+#include <mach/board_lge.h>
+#endif
 
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("0.2");
@@ -1825,6 +1828,23 @@ static int i2c_qup_pm_resume_sys(struct device *device)
 	 */
 	dev_dbg(device, "system resume\n");
 	dev->pwr_state = MSM_I2C_PM_SUSPENDED;
+
+#ifdef CONFIG_MACH_LGE
+	if (pm_runtime_suspended(device)) {
+		dev_info(device, "i2c is runtime suspended status !!! try to runtime resume !!!\n");
+	}
+
+	if (!pm_runtime_enabled(device)) {
+		dev_info(device, "Runtime PM is disabled\n");
+		i2c_qup_pm_resume_runtime(device);
+	} else {
+		pm_runtime_get_sync(device);
+	}
+
+	if (pm_runtime_suspended(device)) {
+		dev_info(device, "i2c can't wake up !!! pm_runtime_get_sync() doesn't work !!!\n");
+	}
+#endif
 	return 0;
 }
 #endif /* CONFIG_PM */

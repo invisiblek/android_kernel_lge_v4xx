@@ -71,6 +71,9 @@ struct thermal_zone_device_ops {
 	int (*set_trip_temp) (struct thermal_zone_device *, int,
 			      long);
 	int (*get_crit_temp) (struct thermal_zone_device *, unsigned long *);
+#ifdef CONFIG_LGE_PM
+	int (*set_crit_temp) (struct thermal_zone_device *, unsigned long);
+#endif
 	int (*notify) (struct thermal_zone_device *, int,
 		       enum thermal_trip_type);
 };

@@ -26,6 +26,7 @@
 
 	memory {
 		secure_mem: secure_region {
+			status = "ok";
 			linux,contiguous-region;
 			reg = <0 0x6D00000>;
 			label = "secure_mem";
@@ -299,6 +300,7 @@
 		compatible = "qcom,android-usb";
 		reg = <0xfe8050c8 0xc8>;
 		qcom,android-usb-swfi-latency = <1>;
+		qcom,pm-qos-latency = <2 1001 12701>;
 		qcom,streaming-func = "rndis";
 		qcom,android-usb-uicc-nluns = <1>;
 	};
@@ -659,6 +661,10 @@
 
 	qcom,msm-adsp-sensors {
 		compatible = "qcom,msm-adsp-sensors";
+		qcom,src-id = <11>;
+		qcom,dst-id = <604>;
+		qcom,ab = <32505856>;
+		qcom,ib = <32505856>;
 	};
 
 	qcom,wdt@f9017000 {

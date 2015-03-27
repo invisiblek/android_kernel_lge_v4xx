@@ -740,6 +740,9 @@ config FB_MSM_HDMI_AS_PRIMARY
 	---help---
 	Support for using HDMI as primary
 
+config LGE_MIPI_DSI_LGD_NT35521_WXGA
+        bool "MIPI LGD NT35521 WXGA PANEL"
+
 config FB_MSM_PANEL_NONE
 	bool "NONE"
 	---help---

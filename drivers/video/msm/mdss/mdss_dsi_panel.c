@@ -28,6 +28,10 @@
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
 
+#if defined(CONFIG_BACKLIGHT_LM3630)
+extern void lm3630_lcd_backlight_set_level(int level);
+#endif
+
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	ctrl->pwm_bl = pwm_request(ctrl->pwm_lpg_chan, "lcd-bklt");
@@ -171,6 +175,7 @@ static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	int rc = 0;
 
+#ifndef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
 	if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 		rc = gpio_request(ctrl_pdata->disp_en_gpio,
 						"disp_enable");
@@ -180,12 +185,16 @@ static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 			goto disp_en_gpio_err;
 		}
 	}
+#endif
 	rc = gpio_request(ctrl_pdata->rst_gpio, "disp_rst_n");
 	if (rc) {
 		pr_err("request reset gpio failed, rc=%d\n",
 			rc);
+#ifndef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
 		goto rst_gpio_err;
+#endif
 	}
+#ifndef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
 	if (gpio_is_valid(ctrl_pdata->mode_gpio)) {
 		rc = gpio_request(ctrl_pdata->mode_gpio, "panel_mode");
 		if (rc) {
@@ -202,6 +211,7 @@ rst_gpio_err:
 	if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 		gpio_free(ctrl_pdata->disp_en_gpio);
 disp_en_gpio_err:
+#endif
 	return rc;
 }
 
@@ -275,6 +285,37 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 	}
 	return rc;
 }
+
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+int nt35521_panel_power(struct mdss_panel_data *pdata, int enable)
+{
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+
+	if (pdata == NULL) {
+		pr_err("%s: Invalid input data\n", __func__);
+		return -EINVAL;
+	}
+
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+				panel_data);
+
+	if (enable) {
+		printk("%s: LGE NT35521 Panel Power On!\n", __func__);
+		gpio_set_value((ctrl_pdata->lcd_dsv_enp_gpio), 1); /* DSV ENP */
+		mdelay(1);
+		gpio_set_value(ctrl_pdata->lcd_dsv_enn_gpio, 1); /* DSV ENN */
+		mdelay(50);
+	} else {
+		printk("%s: LGE NT35521 Panel Power Off!\n", __func__);
+		gpio_set_value(ctrl_pdata->lcd_dsv_enn_gpio, 0);
+		mdelay(1);
+		gpio_set_value((ctrl_pdata->lcd_dsv_enp_gpio), 0);
+	}
+
+	return 0;
+}
+
+#endif
 
 static char caset[] = {0x2a, 0x00, 0x00, 0x03, 0x00};	/* DTYPE_DCS_LWRITE */
 static char paset[] = {0x2b, 0x00, 0x00, 0x05, 0x00};	/* DTYPE_DCS_LWRITE */
@@ -385,7 +426,11 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 
 	switch (ctrl_pdata->bklt_ctrl) {
 	case BL_WLED:
+#ifdef CONFIG_BACKLIGHT_LM3630
+		lm3630_lcd_backlight_set_level(bl_level);
+#else
 		led_trigger_event(bl_led_trigger, bl_level);
+#endif
 		break;
 	case BL_PWM:
 		mdss_dsi_panel_bklt_pwm(ctrl_pdata, bl_level);
@@ -1168,6 +1213,20 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		pr_err("%s: failed to parse panel features\n", __func__);
 		goto error;
 	}
+
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+	ctrl_pdata->lcd_dsv_enp_gpio = of_get_named_gpio(np, "qcom,lcd_dsv_enp-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->lcd_dsv_enp_gpio)) {
+		pr_err("%s: lcd_dsv_enp_gpio not specified\n" , __func__);
+		goto error;
+	}
+
+	ctrl_pdata->lcd_dsv_enn_gpio = of_get_named_gpio(np, "qcom,lcd_dsv_enn-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->lcd_dsv_enn_gpio)) {
+		pr_err("%s: lcd_dsv_enn_gpio not specified\n" , __func__);
+		goto error;
+	}
+#endif
 
 	return 0;
 

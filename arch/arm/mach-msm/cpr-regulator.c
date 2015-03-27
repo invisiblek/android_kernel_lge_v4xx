@@ -149,6 +149,13 @@ static const char * const vdd_apc_name[] =	{"vdd-apc-optional-prim",
 						"vdd-apc-optional-sec",
 						"vdd-apc"};
 
+#ifdef CONFIG_MACH_LGE
+int cpr_pvs_bin = 0;
+u32 cpr_vreg_pvs_bin = 0;
+module_param(cpr_pvs_bin, int, 0444);
+module_param(cpr_vreg_pvs_bin, int, 0444);
+#endif
+
 enum voltage_change_dir {
 	NO_CHANGE,
 	DOWN,
@@ -232,7 +239,11 @@ struct cpr_regulator {
 #define CPR_DEBUG_MASK_IRQ	BIT(0)
 #define CPR_DEBUG_MASK_API	BIT(1)
 
+#ifdef CONFIG_MACH_LGE
+static int cpr_debug_enable = 0;
+#else
 static int cpr_debug_enable = CPR_DEBUG_MASK_IRQ;
+#endif
 static int cpr_enable;
 static struct cpr_regulator *the_cpr;
 
@@ -1210,6 +1221,10 @@ static int __devinit cpr_pvs_init(struct platform_device *pdev,
 			cpr_vreg->floor_volt[CPR_FUSE_CORNER_NORMAL],
 			cpr_vreg->floor_volt[CPR_FUSE_CORNER_TURBO]);
 
+#ifdef CONFIG_MACH_LGE
+	cpr_vreg_pvs_bin = cpr_vreg->pvs_bin;
+#endif
+
 	return 0;
 }
 
@@ -1341,6 +1356,9 @@ static void cpr_parse_pvs_version_fuse(struct cpr_regulator *cpr_vreg,
 	} else {
 		cpr_vreg->pvs_version = UINT_MAX;
 	}
+#ifdef CONFIG_MACH_LGE
+	cpr_pvs_bin = cpr_vreg->pvs_version;
+#endif
 }
 
 /*

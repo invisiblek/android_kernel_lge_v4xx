@@ -31,12 +31,21 @@
  * (as a macro let's say).
  */
 
+#ifdef CONFIG_LGE_PM
+#define POWER_SUPPLY_ATTR(_name)					\
+{									\
+	.attr = { .name = #_name },			\
+	.show = power_supply_show_property,				\
+	.store = power_supply_store_property,				\
+}
+#else	/* QCT ORG */
 #define POWER_SUPPLY_ATTR(_name)					\
 {									\
 	.attr = { .name = #_name },					\
 	.show = power_supply_show_property,				\
 	.store = power_supply_store_property,				\
 }
+#endif
 
 static struct device_attribute power_supply_attrs[];
 
@@ -134,6 +143,9 @@ static ssize_t power_supply_store_property(struct device *dev,
 static struct device_attribute power_supply_attrs[] = {
 	/* Properties of type `int' */
 	POWER_SUPPLY_ATTR(status),
+#ifdef CONFIG_LGE_PM
+	POWER_SUPPLY_ATTR(status_original),
+#endif
 	POWER_SUPPLY_ATTR(charge_type),
 	POWER_SUPPLY_ATTR(health),
 	POWER_SUPPLY_ATTR(present),
@@ -175,8 +187,10 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(capacity),
 	POWER_SUPPLY_ATTR(capacity_level),
 	POWER_SUPPLY_ATTR(temp),
+#ifndef CONFIG_LGE_PM
 	POWER_SUPPLY_ATTR(temp_cool),
 	POWER_SUPPLY_ATTR(temp_warm),
+#endif
 	POWER_SUPPLY_ATTR(temp_ambient),
 	POWER_SUPPLY_ATTR(time_to_empty_now),
 	POWER_SUPPLY_ATTR(time_to_empty_avg),
@@ -184,8 +198,16 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(time_to_full_avg),
 	POWER_SUPPLY_ATTR(type),
 	POWER_SUPPLY_ATTR(scope),
+#ifdef CONFIG_MACH_MSM8226_E7WIFI
+	POWER_SUPPLY_ATTR(battery_dualization),
+#endif
+#ifndef CONFIG_LGE_PM
 	POWER_SUPPLY_ATTR(system_temp_level),
+#endif
 	POWER_SUPPLY_ATTR(resistance),
+#ifdef CONFIG_LGE_PM
+	POWER_SUPPLY_ATTR(charger_timer),
+#endif
 	/* Properties of type `const char *' */
 	POWER_SUPPLY_ATTR(model_name),
 	POWER_SUPPLY_ATTR(manufacturer),
