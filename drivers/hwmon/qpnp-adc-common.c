@@ -29,6 +29,10 @@
 #include <linux/completion.h>
 #include <linux/qpnp/qpnp-adc.h>
 #include <linux/platform_device.h>
+#ifdef CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO
+#include <mach/board_lge.h>
+#endif
+
 
 /* Min ADC code represets 0V */
 #define QPNP_VADC_MIN_ADC_CODE			0x6000
@@ -44,6 +48,209 @@
    and provided to the battery driver in the units desired for
    their framework which is 0.1DegC. True resolution of 0.1DegC
    will result in the below table size to increase by 10 times */
+
+#ifdef CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO
+static const struct qpnp_vadc_map_pt adcmap_btm_threshold_for_rev0[] = {
+	{-300,	1668},
+	{-200,	1571},
+	{-100,	1431},
+	{0,	1255},
+	{10,	1236},
+	{20,	1217},
+	{30,	1197},
+	{40,	1177},
+	{50,	1159},
+	{60,	1139},
+	{70,	1120},
+	{80,	1100},
+	{90,	1080},
+	{100,	1061},
+	{110,	1042},
+	{120,	1023},
+	{130,	1003},
+	{140,	984},
+	{150,	966},
+	{160,	947},
+	{170,	928},
+	{180,	910},
+	{190,	892},
+	{200,	874},
+	{210,	857},
+	{220,	840},
+	{230,	823},
+	{240,	806},
+	{250,	790},
+	{260,	774},
+	{270,	758},
+	{280,	743},
+	{290,	728},
+	{300,	713},
+	{310,	699},
+	{320,	685},
+	{330,	671},
+	{340,	658},
+	{350,	645},
+	{360,	632},
+	{370,	620},
+	{380,	608},
+	{390,	597},
+	{400,	585},
+	{410,	574},
+	{420,	564},
+	{430,	554},
+	{440,	544},
+	{450,	533},
+	{460,	525},
+	{470,	516},
+	{480,	507},
+	{490,	499},
+	{500,	490},
+	{510,	482},
+	{520,	475},
+	{530,	467},
+	{540,	460},
+	{550,	453},
+	{560,	446},
+	{570,	440},
+	{580,	434},
+	{590,	428},
+	{600,	422},
+	{610,	416},
+	{620,	411},
+	{630,	405},
+	{640,	400},
+	{650,	395},
+	{660,	391},
+	{670,	386},
+	{680,	382},
+	{690,	378},
+	{700,	373},
+	{710,	369},
+	{720,	366},
+	{730,	362},
+	{740,	358},
+	{750,	355},
+	{760,	352},
+	{770,	348},
+	{780,	345},
+	{790,	342}
+};
+
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US)
+static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
+	{-300,	1673},
+	{-290,	1661},
+	{-280,	1649},
+	{-270,	1637},
+	{-260,	1625},
+	{-250,	1614},
+	{-240,	1607},
+	{-230,	1600},
+	{-220,	1593},
+	{-210,	1586},
+	{-200,	1579},
+	{-190,	1565},
+	{-180,	1552},
+	{-170,	1539},
+	{-160,	1526},
+	{-150,	1513},
+	{-140,	1493},
+	{-130,	1473},
+	{-120,	1454},
+	{-110,	1435},
+	{-100,	1416},
+	{-90,	1389},
+	{-80,	1382},
+	{-70,	1365},
+	{-60,	1349},
+	{-50,	1333},
+	{-40,	1314},
+	{-30,	1296},
+	{-20,	1278},
+	{-10,	1260},
+	{0,	1242},
+	{10,	1225},
+	{20,	1208},
+	{30,	1192},
+	{40,	1176},
+	{50,	1160},
+	{60,	1141},
+	{70,	1122},
+	{80,	1104},
+	{90,	1086},
+	{100,	1068},
+	{110,	1053},
+	{120,	1035},
+	{130,	1017},
+	{140,	997},
+	{150,	974},
+	{160,	956},
+	{170,	939},
+	{180,	921},
+	{190,	904},
+	{200,	887},
+	{210,	869},
+	{220,	851},
+	{230,	834},
+	{240,	817},
+	{250,	800},
+	{260,	784},
+	{270,	767},
+	{280,	752},
+	{290,	736},
+	{300,	721},
+	{310,	706},
+	{320,	692},
+	{330,	678},
+	{340,	664},
+	{350,	650},
+	{360,	637},
+	{370,	625},
+	{380,	612},
+	{390,	600},
+	{400,	588},
+	{410,	577},
+	{420,	566},
+	{430,	555},
+	{440,	544},
+	{450,	534},
+	{460,	525},
+	{470,	516},
+	{480,	507},
+	{490,	499},
+	{500,	491},
+	{510,	482},
+	{520,	473},
+	{530,	464},
+	{540,	455},
+	{550,	446},
+	{560,	439},
+	{570,	431},
+	{580,	425},
+	{590,	421},
+	{600,	415},
+	{610,	410},
+	{620,	405},
+	{630,	400},
+	{640,	394},
+	{650,	389},
+	{660,	384},
+	{670,	379},
+	{680,	375},
+	{690,	370},
+	{700,	366},
+	{710,	362},
+	{720,	357},
+	{730,	354},
+	{740,	350},
+	{750,	346},
+	{760,	343},
+	{770,	339},
+	{780,	336},
+	{790,	333}
+};
+#endif
+#else
 static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{-300,	1642},
 	{-200,	1544},
@@ -129,6 +336,7 @@ static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{780,	208},
 	{790,	203}
 };
+#endif
 
 static const struct qpnp_vadc_map_pt adcmap_qrd_btm_threshold[] = {
 	{-200,	1540},
@@ -622,7 +830,11 @@ int32_t qpnp_adc_scale_batt_therm(struct qpnp_vadc_chip *chip,
 			adc_properties, chan_properties);
 
 	return qpnp_adc_map_temp_voltage(
+#ifdef CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO
+			(lge_get_board_revno() == HW_REV_0) ? adcmap_btm_threshold_for_rev0 : adcmap_btm_threshold,
+#else
 			adcmap_btm_threshold,
+#endif
 			ARRAY_SIZE(adcmap_btm_threshold),
 			bat_voltage,
 			&adc_chan_result->physical);
@@ -940,7 +1152,11 @@ int32_t qpnp_adc_btm_scaler(struct qpnp_vadc_chip *chip,
 	pr_debug("warm_temp:%d and cool_temp:%d\n", param->high_temp,
 				param->low_temp);
 	rc = qpnp_adc_map_voltage_temp(
+#ifdef CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO
+		(lge_get_board_revno() == HW_REV_0) ? adcmap_btm_threshold_for_rev0 : adcmap_btm_threshold,
+#else
 		adcmap_btm_threshold,
+#endif
 		ARRAY_SIZE(adcmap_btm_threshold),
 		(param->low_temp),
 		&low_output);
@@ -955,7 +1171,11 @@ int32_t qpnp_adc_btm_scaler(struct qpnp_vadc_chip *chip,
 	low_output += btm_param.adc_gnd;
 
 	rc = qpnp_adc_map_voltage_temp(
+#ifdef CONFIG_LGE_PM_CHARGING_TEMP_SCENARIO
+		(lge_get_board_revno() == HW_REV_0) ? adcmap_btm_threshold_for_rev0 : adcmap_btm_threshold,
+#else
 		adcmap_btm_threshold,
+#endif
 		ARRAY_SIZE(adcmap_btm_threshold),
 		(param->high_temp),
 		&high_output);
@@ -990,6 +1210,94 @@ int32_t qpnp_vadc_check_result(int32_t *data)
 	return 0;
 }
 EXPORT_SYMBOL(qpnp_vadc_check_result);
+
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US)
+int qpnp_adc_get_revid_version(struct device *dev)
+{
+	struct pmic_revid_data *revid_data;
+	struct device_node *revid_dev_node;
+
+	revid_dev_node = of_parse_phandle(dev->of_node,
+						"qcom,pmic-revid", 0);
+	if (!revid_dev_node) {
+		pr_debug("Missing qcom,pmic-revid property\n");
+		return -EINVAL;
+	}
+
+	revid_data = get_revid_data(revid_dev_node);
+	if (IS_ERR(revid_data)) {
+		pr_err("revid error rc = %ld\n", PTR_ERR(revid_data));
+		return -EINVAL;
+	}
+
+	if ((revid_data->rev1 == PM8941_V3P1_REV1) &&
+		(revid_data->rev2 == PM8941_V3P1_REV2) &&
+		(revid_data->rev3 == PM8941_V3P1_REV3) &&
+		(revid_data->rev4 == PM8941_V3P1_REV4) &&
+		(revid_data->pmic_type == PM8941_V3P1_TYPE) &&
+		(revid_data->pmic_subtype == PM8941_V3P1_SUBTYPE))
+			return QPNP_REV_ID_8941_3_1;
+	else if ((revid_data->rev1 == PM8941_V3P0_REV1) &&
+		(revid_data->rev2 == PM8941_V3P0_REV2) &&
+		(revid_data->rev3 == PM8941_V3P0_REV3) &&
+		(revid_data->rev4 == PM8941_V3P0_REV4) &&
+		(revid_data->pmic_type == PM8941_V3P0_TYPE) &&
+		(revid_data->pmic_subtype == PM8941_V3P0_SUBTYPE))
+			return QPNP_REV_ID_8941_3_0;
+	else if ((revid_data->rev1 == PM8941_V2P0_REV1) &&
+		(revid_data->rev2 == PM8941_V2P0_REV2) &&
+		(revid_data->rev3 == PM8941_V2P0_REV3) &&
+		(revid_data->rev4 == PM8941_V2P0_REV4) &&
+		(revid_data->pmic_type == PM8941_V2P0_TYPE) &&
+		(revid_data->pmic_subtype == PM8941_V2P0_SUBTYPE))
+			return QPNP_REV_ID_8941_2_0;
+	else if ((revid_data->rev1 == PM8226_V2P2_REV1) &&
+		(revid_data->rev2 == PM8226_V2P2_REV2) &&
+		(revid_data->rev3 == PM8226_V2P2_REV3) &&
+		(revid_data->rev4 == PM8226_V2P2_REV4) &&
+		(revid_data->pmic_type == PM8226_V2P2_TYPE) &&
+		(revid_data->pmic_subtype == PM8226_V2P2_SUBTYPE))
+			return QPNP_REV_ID_8026_2_2;
+	else if ((revid_data->rev1 == PM8226_V2P1_REV1) &&
+		(revid_data->rev2 == PM8226_V2P1_REV2) &&
+		(revid_data->rev3 == PM8226_V2P1_REV3) &&
+		(revid_data->rev4 == PM8226_V2P1_REV4) &&
+		(revid_data->pmic_type == PM8226_V2P1_TYPE) &&
+		(revid_data->pmic_subtype == PM8226_V2P1_SUBTYPE))
+			return QPNP_REV_ID_8026_2_1;
+	else if ((revid_data->rev1 == PM8226_V2P0_REV1) &&
+		(revid_data->rev2 == PM8226_V2P0_REV2) &&
+		(revid_data->rev3 == PM8226_V2P0_REV3) &&
+		(revid_data->rev4 == PM8226_V2P0_REV4) &&
+		(revid_data->pmic_type == PM8226_V2P0_TYPE) &&
+		(revid_data->pmic_subtype == PM8226_V2P0_SUBTYPE))
+			return QPNP_REV_ID_8026_2_0;
+	else if ((revid_data->rev1 == PM8226_V1P0_REV1) &&
+		(revid_data->rev2 == PM8226_V1P0_REV2) &&
+		(revid_data->rev3 == PM8226_V1P0_REV3) &&
+		(revid_data->rev4 == PM8226_V1P0_REV4) &&
+		(revid_data->pmic_type == PM8226_V1P0_TYPE) &&
+		(revid_data->pmic_subtype == PM8226_V1P0_SUBTYPE))
+			return QPNP_REV_ID_8026_1_0;
+	else if ((revid_data->rev1 == PM8110_V1P0_REV1) &&
+		(revid_data->rev2 == PM8110_V1P0_REV2) &&
+		(revid_data->rev3 == PM8110_V1P0_REV3) &&
+		(revid_data->rev4 == PM8110_V1P0_REV4) &&
+		(revid_data->pmic_type == PM8110_V1P0_TYPE) &&
+		(revid_data->pmic_subtype == PM8110_V1P0_SUBTYPE))
+			return QPNP_REV_ID_8110_1_0;
+	else if ((revid_data->rev1 == PM8110_V2P0_REV1) &&
+		(revid_data->rev2 == PM8110_V2P0_REV2) &&
+		(revid_data->rev3 == PM8110_V2P0_REV3) &&
+		(revid_data->rev4 == PM8110_V2P0_REV4) &&
+		(revid_data->pmic_type == PM8110_V2P0_TYPE) &&
+		(revid_data->pmic_subtype == PM8110_V2P0_SUBTYPE))
+			return QPNP_REV_ID_8110_2_0;
+	else
+		return -EINVAL;
+}
+EXPORT_SYMBOL(qpnp_adc_get_revid_version);
+#else
 
 int qpnp_adc_get_revid_version(struct device *dev)
 {
@@ -1076,6 +1384,7 @@ int qpnp_adc_get_revid_version(struct device *dev)
 		return -EINVAL;
 }
 EXPORT_SYMBOL(qpnp_adc_get_revid_version);
+#endif
 
 int32_t qpnp_adc_get_devicetree_data(struct spmi_device *spmi,
 			struct qpnp_adc_drv *adc_qpnp)

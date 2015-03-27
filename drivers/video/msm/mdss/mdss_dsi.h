@@ -316,6 +316,12 @@ struct mdss_dsi_ctrl_pdata {
 	struct dsi_buf rx_buf;
 	struct dsi_buf status_buf;
 	int status_mode;
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+	int lcd_pm_en_gpio;
+	int bl_en_gpio;
+	int lcd_dsv_enp_gpio;
+	int lcd_dsv_enn_gpio;
+#endif
 };
 
 struct dsi_status_data {
@@ -392,6 +398,10 @@ static inline bool mdss_dsi_broadcast_mode_enabled(void)
 		ctrl_list[DSI_CTRL_SLAVE] &&
 		ctrl_list[DSI_CTRL_SLAVE]->shared_pdata.broadcast_enable;
 }
+
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+int nt35521_panel_power(struct mdss_panel_data *pdata, int enable);
+#endif
 
 static inline struct mdss_dsi_ctrl_pdata *mdss_dsi_get_master_ctrl(void)
 {

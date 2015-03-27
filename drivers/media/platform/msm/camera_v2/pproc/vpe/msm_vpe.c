@@ -1380,8 +1380,10 @@ static long msm_vpe_subdev_ioctl(struct v4l2_subdev *sd,
 				process_frame,
 				sizeof(struct msm_vpe_frame_info_t))) {
 					mutex_unlock(&vpe_dev->mutex);
+#ifndef CONFIG_MACH_LGE
 					kfree(process_frame);
 					kfree(event_qcmd);
+#endif
 					return -EINVAL;
 		}
 

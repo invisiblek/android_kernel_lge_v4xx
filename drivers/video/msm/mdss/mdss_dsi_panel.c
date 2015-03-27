@@ -28,6 +28,10 @@
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
 
+#ifdef CONFIG_BACKLIGHT_LM3630
+extern void lm3630_lcd_backlight_set_level(int level);
+#endif
+
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	ctrl->pwm_bl = pwm_request(ctrl->pwm_lpg_chan, "lcd-bklt");
@@ -167,6 +171,7 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
 
+#ifndef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
 static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	int rc = 0;
@@ -204,6 +209,7 @@ rst_gpio_err:
 disp_en_gpio_err:
 	return rc;
 }
+#endif
 
 int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 {
@@ -234,6 +240,7 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 	pinfo = &(ctrl_pdata->panel_data.panel_info);
 
 	if (enable) {
+#ifndef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
 		rc = mdss_dsi_request_gpios(ctrl_pdata);
 		if (rc) {
 			pr_err("gpio request failed\n");
@@ -242,6 +249,7 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 		if (!pinfo->panel_power_on) {
 			if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 				gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
+#endif
 
 			for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
 				gpio_set_value((ctrl_pdata->rst_gpio),
@@ -249,7 +257,9 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 				if (pdata->panel_info.rst_seq[++i])
 					usleep(pinfo->rst_seq[i] * 1000);
 			}
+#ifndef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
 		}
+#endif
 
 		if (gpio_is_valid(ctrl_pdata->mode_gpio)) {
 			if (pinfo->mode_gpio_state == MODE_GPIO_HIGH)
@@ -264,17 +274,50 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			pr_debug("%s: Reset panel done\n", __func__);
 		}
 	} else {
+#ifndef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
 			gpio_free(ctrl_pdata->disp_en_gpio);
 		}
+#endif
 		gpio_set_value((ctrl_pdata->rst_gpio), 0);
+#ifndef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
 		gpio_free(ctrl_pdata->rst_gpio);
 		if (gpio_is_valid(ctrl_pdata->mode_gpio))
 			gpio_free(ctrl_pdata->mode_gpio);
+#endif
 	}
 	return rc;
 }
+
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+int nt35521_panel_power(struct mdss_panel_data *pdata, int enable)
+{
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+
+	if (pdata == NULL) {
+		pr_err("%s: Invalid input data\n", __func__);
+		return -EINVAL;
+	}
+
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata, panel_data);
+
+	if (enable) {
+		printk("%s: LGE NT35521 Panel Power On!\n", __func__);
+		gpio_set_value((ctrl_pdata->lcd_dsv_enp_gpio), 1); /* DSV ENP */
+		mdelay(1);
+		gpio_set_value(ctrl_pdata->lcd_dsv_enn_gpio, 1); /* DSV ENN */
+		mdelay(50);
+	} else {
+		printk("%s: LGE NT35521 Panel Power Off!\n", __func__);
+		gpio_set_value(ctrl_pdata->lcd_dsv_enn_gpio, 0);
+		mdelay(1);
+		gpio_set_value((ctrl_pdata->lcd_dsv_enp_gpio), 0);
+	}
+
+	return 0;
+}
+#endif
 
 static char caset[] = {0x2a, 0x00, 0x00, 0x03, 0x00};	/* DTYPE_DCS_LWRITE */
 static char paset[] = {0x2b, 0x00, 0x00, 0x05, 0x00};	/* DTYPE_DCS_LWRITE */
@@ -385,7 +428,11 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 
 	switch (ctrl_pdata->bklt_ctrl) {
 	case BL_WLED:
+#ifdef CONFIG_BACKLIGHT_LM3630
+		lm3630_lcd_backlight_set_level(bl_level);
+#else
 		led_trigger_event(bl_led_trigger, bl_level);
+#endif
 		break;
 	case BL_PWM:
 		mdss_dsi_panel_bklt_pwm(ctrl_pdata, bl_level);
@@ -1168,6 +1215,20 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		pr_err("%s: failed to parse panel features\n", __func__);
 		goto error;
 	}
+
+#ifdef CONFIG_LGE_MIPI_DSI_LGD_NT35521_WXGA
+	ctrl_pdata->lcd_dsv_enp_gpio = of_get_named_gpio(np, "qcom,lcd_dsv_enp-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->lcd_dsv_enp_gpio)) {
+		pr_err("%s: lcd_dsv_enp_gpio not specified\n" , __func__);
+		goto error;
+	}
+
+	ctrl_pdata->lcd_dsv_enn_gpio = of_get_named_gpio(np, "qcom,lcd_dsv_enn-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->lcd_dsv_enn_gpio)) {
+		pr_err("%s: lcd_dsv_enn_gpio not specified\n" , __func__);
+		goto error;
+	}
+#endif
 
 	return 0;
 

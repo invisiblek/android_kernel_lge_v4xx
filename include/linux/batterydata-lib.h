@@ -18,8 +18,13 @@
 #define FCC_CC_COLS		5
 #define FCC_TEMP_COLS		8
 
+#ifdef CONFIG_MACH_LGE
+#define PC_CC_ROWS             30
+#define PC_CC_COLS             13
+#else
 #define PC_CC_ROWS             31
 #define PC_CC_COLS             13
+#endif
 
 #define PC_TEMP_ROWS		31
 #define PC_TEMP_COLS		8
@@ -130,11 +135,22 @@ struct bms_battery_data {
 #if defined(CONFIG_PM8921_BMS) || \
 	defined(CONFIG_PM8921_BMS_MODULE) || \
 	defined(CONFIG_QPNP_BMS)
+
+#ifdef CONFIG_LGE_PM_BATTERY_PROFILE_DATA
+#ifdef CONFIG_LGE_PM_BATTERY_CAPACITY_4000mAh
+extern struct bms_battery_data LGE_BL_T12_4000mAh_TOCAD_data;
+extern struct bms_battery_data LGE_BL_T12_4000mAh_LG_Chem_data;
+#else
+extern struct bms_battery_data LGE_BL_54SH_2540mAh_LG_Chem_data;
+#endif
+
+#else
 extern struct bms_battery_data  palladium_1500_data;
 extern struct bms_battery_data  desay_5200_data;
 extern struct bms_battery_data  oem_batt_data;
 extern struct bms_battery_data QRD_4v35_2000mAh_data;
 extern struct bms_battery_data  qrd_4v2_1300mah_data;
+#endif
 
 int interpolate_fcc(struct single_row_lut *fcc_temp_lut, int batt_temp);
 int interpolate_scalingfactor(struct sf_lut *sf_lut, int row_entry, int pc);

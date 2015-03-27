@@ -27,6 +27,10 @@
 #include <linux/hrtimer.h>
 #include <linux/power_supply.h>
 #include <linux/cdev.h>
+#ifdef CONFIG_LGE_PM_USB_ID
+#include <linux/qpnp/qpnp-adc.h>
+#endif
+
 /*
  * The following are bit fields describing the usb_request.udc_priv word.
  * These bit fields are set by function drivers that wish to queue
@@ -190,6 +194,13 @@ enum usb_vdd_value {
 	VDD_VAL_MAX,
 };
 
+#ifdef CONFIG_LGE_PM_USB_ID
+enum msm_otg_id_state {
+        MSM_OTG_ID_GROUND = 0,
+        MSM_OTG_ID_FLOAT,
+};
+#endif
+
 /**
  * Maintain state for hvdcp external charger status
  * DEFAULT	This is used when DCP is detected
@@ -251,6 +262,9 @@ enum usb_ext_chg_status {
  */
 struct msm_otg_platform_data {
 	int *phy_init_seq;
+#ifdef CONFIG_LGE_PM_USB_ID
+	int *phy_init_host_seq;
+#endif
 	int (*vbus_power)(bool on);
 	unsigned power_budget;
 	enum usb_mode_type mode;
@@ -278,6 +292,9 @@ struct msm_otg_platform_data {
 	bool dpdm_pulldown_added;
 	bool enable_ahb2ahb_bypass;
 	bool disable_retention_with_vdd_min;
+#ifdef CONFIG_LGE_PM_USB_ID
+	bool factory_cable_reset;
+#endif
 };
 
 /* phy related flags */
@@ -486,7 +503,17 @@ struct msm_otg {
 	struct completion ext_chg_wait;
 	int ui_enabled;
 	bool pm_done;
+#ifdef CONFIG_LGE_PM_USB_ID
+	struct qpnp_vadc_chip *vadc_dev;
+	struct qpnp_adc_tm_btm_param adc_param;
+	struct delayed_work init_adc_work;
+	enum msm_otg_id_state id_state;
+	struct qpnp_adc_tm_chip *adc_tm_dev;
+	bool id_adc_detect;
+	struct power_supply *ac_psy;
+#else
 	struct qpnp_vadc_chip	*vadc_dev;
+#endif
 };
 
 struct ci13xxx_platform_data {

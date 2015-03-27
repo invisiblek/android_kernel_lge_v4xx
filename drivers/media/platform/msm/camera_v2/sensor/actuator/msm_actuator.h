@@ -25,6 +25,9 @@
 #define DEFINE_MSM_MUTEX(mutexname) \
 	static struct mutex mutexname = __MUTEX_INITIALIZER(mutexname)
 
+static int current_moment;
+#define CAMERA_ENTER_MOMENT                      1
+#define CAMERA_ENTER_MOMENT_AFTER                2
 #define	MSM_ACTUATOT_MAX_VREGS (10)
 
 struct msm_actuator_ctrl_t;

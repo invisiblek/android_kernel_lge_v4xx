@@ -357,7 +357,7 @@ int32_t msm_sensor_driver_probe(void *setting)
 		slave_info->sensor_id_info.sensor_id_reg_addr);
 	CDBG("sensor_id %x", slave_info->sensor_id_info.sensor_id);
 	CDBG("size %d", slave_info->power_setting_array.size);
-	CDBG("size down %d", slave_info->power_setting_array.size_down);
+	CDBG("down %d", slave_info->power_setting_array.size_down);
 
 	if (slave_info->is_init_params_valid) {
 		CDBG("position %d",

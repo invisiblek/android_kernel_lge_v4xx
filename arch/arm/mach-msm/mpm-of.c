@@ -594,19 +594,44 @@ static void msm_mpm_sys_low_power_modes(bool allow)
 	mutex_unlock(&enable_xo_mutex);
 }
 
+#ifdef CONFIG_MACH_LGE
+static bool in_suspend;
+#endif
 void msm_mpm_suspend_prepare(void)
 {
+#ifdef CONFIG_MACH_LGE
+	bool allow;
+	unsigned long flags;
+	spin_lock_irqsave(&msm_mpm_lock, flags);
+	in_suspend = true;
+	allow = msm_mpm_irqs_detectable(false) &&
+		msm_mpm_gpio_irqs_detectable(false);
+	spin_unlock_irqrestore(&msm_mpm_lock, flags);
+	msm_mpm_sys_low_power_modes(allow);
+#else
 	bool allow = msm_mpm_irqs_detectable(false) &&
 		msm_mpm_gpio_irqs_detectable(false);
 	msm_mpm_sys_low_power_modes(allow);
+#endif
 }
 EXPORT_SYMBOL(msm_mpm_suspend_prepare);
 
 void msm_mpm_suspend_wake(void)
 {
+#ifdef CONFIG_MACH_LGE
+	bool allow;
+	unsigned long flags;
+	spin_lock_irqsave(&msm_mpm_lock, flags);
+	allow = msm_mpm_irqs_detectable(true) &&
+		msm_mpm_gpio_irqs_detectable(true);
+	in_suspend = false;
+	spin_unlock_irqrestore(&msm_mpm_lock, flags);
+	msm_mpm_sys_low_power_modes(allow);
+#else
 	bool allow = msm_mpm_irqs_detectable(true) &&
 		msm_mpm_gpio_irqs_detectable(true);
 	msm_mpm_sys_low_power_modes(allow);
+#endif
 }
 EXPORT_SYMBOL(msm_mpm_suspend_wake);
 
@@ -617,6 +642,12 @@ static void msm_mpm_work_fn(struct work_struct *work)
 		bool allow;
 		wait_for_completion(&wake_wq);
 		spin_lock_irqsave(&msm_mpm_lock, flags);
+#ifdef CONFIG_MACH_LGE
+		if (in_suspend) {
+			spin_unlock_irqrestore(&msm_mpm_lock, flags);
+			continue;
+		}
+#endif
 		allow = msm_mpm_irqs_detectable(true) &&
 				msm_mpm_gpio_irqs_detectable(true);
 		spin_unlock_irqrestore(&msm_mpm_lock, flags);

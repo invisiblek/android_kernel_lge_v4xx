@@ -339,6 +339,16 @@ static int read_eeprom_memory(struct msm_eeprom_ctrl_t *e_ctrl,
 				return rc;
 			}
 			memptr += emap[j].mem.valid_size;
+
+			/*
+			 *We need to change slave address for read data (Y412B)
+			 *I2C addr : 0x50, 0x51, 0x52, 0x53
+			*/
+			       if(!strncmp(eb_info->eeprom_name, "imx111", 6))
+			       {
+					CDBG("%s: I2C address : 0x%x\n", __func__, e_ctrl->i2c_client.cci_client->sid);
+					e_ctrl->i2c_client.cci_client->sid++;
+			       }
 		}
 		if (emap[j].pageen.valid_size) {
 			e_ctrl->i2c_client.addr_type = emap[j].pageen.addr_t;
@@ -445,8 +455,8 @@ static struct msm_cam_clk_info cam_8960_clk_info[] = {
 	[SENSOR_CAM_MCLK] = {"cam_clk", 24000000},
 };
 
-static struct msm_cam_clk_info cam_8974_clk_info[] = {
-	[SENSOR_CAM_MCLK] = {"cam_src_clk", 19200000},
+static struct msm_cam_clk_info cam_8974_clk_info[] = { //
+	[SENSOR_CAM_MCLK] = {"cam_src_clk", 24000000},
 	[SENSOR_CAM_CLK] = {"cam_clk", 0},
 };
 
@@ -457,6 +467,122 @@ static struct v4l2_subdev_core_ops msm_eeprom_subdev_core_ops = {
 static struct v4l2_subdev_ops msm_eeprom_subdev_ops = {
 	.core = &msm_eeprom_subdev_core_ops,
 };
+
+static int msm_eeprom_check_CRC(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+	int CRC_code, CRC_sum, counter;
+
+	CRC_code = (e_ctrl->cal_data.mapdata[0x037E] << 8) + e_ctrl->cal_data.mapdata[0x037F];
+	CRC_sum = 0;
+
+	for( counter = 0x000A; counter <= 0x037D; counter++ ) {
+		CRC_sum  += e_ctrl->cal_data.mapdata[counter];
+	}
+
+	CRC_sum &= 0xffff;
+
+	if( CRC_code != CRC_sum ) {
+		// CRC error
+		pr_err("%s IMX111 EEPROM CRC error for 5100K! CRC = 0x%04x / 0x%04x\n", __func__, CRC_code, CRC_sum);
+		return EIO;
+	} else {
+		CDBG("%s CRC for 5100K - OK = 0x%04x / 0x%04x", __func__, CRC_code, CRC_sum);
+	}
+
+	CRC_code = (e_ctrl->cal_data.mapdata[0x03C4] << 8) + e_ctrl->cal_data.mapdata[0x03C5];
+	CRC_sum = 0;
+
+	for( counter = 0x0380; counter <= 0x03C3; counter++ ) {
+		CRC_sum  += e_ctrl->cal_data.mapdata[counter];
+	}
+
+	CRC_sum &= 0xffff;
+
+	if( CRC_code != CRC_sum ) {
+		// CRC error
+		pr_err("%s IMX111 EEPROM CRC error for 2856K! CRC = 0x%04x / 0x%04x\n", __func__, CRC_code, CRC_sum);
+		return EIO;
+	} else {
+		CDBG("%s CRC for 2856K - OK = 0x%04x / 0x%04x", __func__, CRC_code, CRC_sum);
+	}
+
+	return 0;
+}
+
+static uint32_t msm_eeprom_checksum(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+	int CheckSum = 0;
+	int DataSum = 0;
+	int i = 0;
+	uint32_t rc_supported = 0x00;
+
+	//HI544 EEPROM MAP (Common for Cowell & LGIT)
+	const int AWB_5100K_START_ADDR   = 0x0000;
+	const int AWB_5100K_END_ADDR     = 0x0005;
+	const int LSC_5100K_START_ADDR   = 0x000C;
+	const int LSC_5100K_END_ADDR     = 0x037F;
+
+	//HI544 (LGIT) EEPROM MAP (CHECKSUM)
+	const int AWB_5100K_CHECKSUM_MSB = 0x0006;
+	const int AWB_5100K_CHECKSUM_LSB = 0x0007;
+	const int LSC_5100K_CHECKSUM_MSB = 0x0380;
+	const int LSC_5100K_CHECKSUM_LSB = 0x0381;
+
+	CDBG(">> %s START\n", __func__);
+
+	/////////////////////////////////////////////////////////////////////////
+	// 1. AWB CheckSum
+	/////////////////////////////////////////////////////////////////////////
+
+	CheckSum = (e_ctrl->cal_data.mapdata[AWB_5100K_CHECKSUM_MSB] << 8)
+		    + e_ctrl->cal_data.mapdata[AWB_5100K_CHECKSUM_LSB];
+
+	for( i = AWB_5100K_START_ADDR; i <= AWB_5100K_END_ADDR; i++ ) {
+		DataSum  += e_ctrl->cal_data.mapdata[i];
+	}
+
+	DataSum &= 0x0000FFFF;
+
+	CDBG("[CHECK] AWB CheckSum: 0x%04x, DataSum: 0x%04x\n", CheckSum, DataSum);
+	if( CheckSum != DataSum ) {
+		pr_err("%s HI544 EEPROM AWB CheckSum error for 5100K!\n", __func__);
+	} else {
+		CDBG("%s HI544 EEPROM AWB CheckSum for 5100K - OK\n", __func__);
+		rc_supported |= 0x10; //AWB bit On
+	}
+
+	/////////////////////////////////////////////////////////////////////////
+	// 2. LSC CheckSum
+	/////////////////////////////////////////////////////////////////////////
+
+	CheckSum = (e_ctrl->cal_data.mapdata[LSC_5100K_CHECKSUM_MSB] << 8)
+		    + e_ctrl->cal_data.mapdata[LSC_5100K_CHECKSUM_LSB];
+
+	DataSum = 0;
+
+	for( i = LSC_5100K_START_ADDR; i <= LSC_5100K_END_ADDR; i++ ) {
+		DataSum  += e_ctrl->cal_data.mapdata[i];
+	}
+
+	DataSum &= 0x0000FFFF;
+
+	CDBG("[CHECK] LSC CheckSum: 0x%04x, DataSum: 0x%04x\n", CheckSum, DataSum);
+
+	if (CheckSum == 0) {
+		//LSC Data does NOT exist
+		CDBG("%s HI544 EEPROM LSC NOT Supported for 5100K!\n", __func__);
+	}
+	else if( CheckSum != DataSum ) {
+		//LSC data exist, But CheckSum Failed!
+		pr_err("%s HI544 EEPROM LSC CheckSum error for 5100K!\n", __func__);
+	} else {
+		CDBG("%s HI544 EEPROM LSC CheckSum for 5100K - OK\n", __func__);
+		rc_supported |= 0x20; //LSC bit On
+	}
+
+	CDBG("<< %s END (rc_supported: 0x%X) @Line:%d\n", __func__, rc_supported, __LINE__);
+	return rc_supported;
+}
 
 static int msm_eeprom_i2c_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -815,8 +941,14 @@ static int msm_eeprom_spi_setup(struct spi_device *spi)
 			pr_err("%s: read cal data failed\n", __func__);
 			goto power_down;
 		}
-		e_ctrl->is_supported |= msm_eeprom_match_crc(
-						&e_ctrl->cal_data);
+
+		if(!strncmp(eb_info->eeprom_name, "hi544", 5)) {
+			CDBG("[CHECK] [BEFORE] e_ctrl->is_supported: 0x%X", e_ctrl->is_supported);
+			e_ctrl->is_supported |= msm_eeprom_checksum(e_ctrl);
+			CDBG("[CHECK] [AFTER]  e_ctrl->is_supported: 0x%X", e_ctrl->is_supported);
+		} else {
+			e_ctrl->is_supported |= msm_eeprom_match_crc(&e_ctrl->cal_data);
+		}
 	}
 
 	rc = msm_camera_power_down(power_info, e_ctrl->eeprom_device_type,
@@ -1031,7 +1163,21 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 		CDBG("memory_data[%d] = 0x%X\n", j,
 		     e_ctrl->cal_data.mapdata[j]);
 
-	e_ctrl->is_supported |= msm_eeprom_match_crc(&e_ctrl->cal_data);
+	if(!strncmp(eb_info->eeprom_name, "imx111", 6)) {
+		rc = msm_eeprom_check_CRC(e_ctrl);
+		if (rc < 0) {
+			pr_err("%s read_eeprom_memory failed\n", __func__);
+			goto memdata_free;
+		}
+	}
+
+	if(!strncmp(eb_info->eeprom_name, "hi544", 5)) {
+		CDBG("[CHECK] [BEFORE] e_ctrl->is_supported: 0x%X", e_ctrl->is_supported);
+		e_ctrl->is_supported |= msm_eeprom_checksum(e_ctrl);
+		CDBG("[CHECK] [AFTER]  e_ctrl->is_supported: 0x%X", e_ctrl->is_supported);
+	} else {
+		e_ctrl->is_supported |= msm_eeprom_match_crc(&e_ctrl->cal_data);
+	}
 
 	rc = msm_camera_power_down(power_info, e_ctrl->eeprom_device_type,
 		&e_ctrl->i2c_client);
@@ -1052,7 +1198,15 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	e_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_EEPROM;
 	msm_sd_register(&e_ctrl->msm_sd);
 
-	e_ctrl->is_supported = (e_ctrl->is_supported << 1) | 1;
+	if(!strncmp(eb_info->eeprom_name, "hi544", 5)) {
+		if (e_ctrl->is_supported != 0) {
+			e_ctrl->is_supported = (e_ctrl->is_supported << 1) | 1;
+		}
+		CDBG("[CHECK] [FINAL]  e_ctrl->is_supported: 0x%X", e_ctrl->is_supported);
+	} else {
+		e_ctrl->is_supported = (e_ctrl->is_supported << 1) | 1;
+	}
+
 	CDBG("%s X\n", __func__);
 	return rc;
 
