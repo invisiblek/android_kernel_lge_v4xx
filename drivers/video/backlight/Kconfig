@@ -379,10 +379,12 @@ config BACKLIGHT_RT8555
 	  Say Y to enable the backlight driver for RT8555.
 
 config BACKLIGHT_LM3697
-	tristate "Backlight Driver for LM3697 using WLED"
-	depends on BACKLIGHT_CLASS_DEVICE
+	tristate "Backlight Driver for TI LM3697"
+	depends on BACKLIGHT_CLASS_DEVICE && I2C
 	help
-	  Say Y to enable the backlight driver for LM3697.
+	  Say Y to enable the backlight driver for TI LM3697.
+	  Up to 3 backlight strings and 11 bit dimming is supported.
+	  PWM brightness control is also supported.
 	  
 endif # BACKLIGHT_CLASS_DEVICE
 

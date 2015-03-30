@@ -50,7 +50,15 @@ static bool patch_factorymode = false;
 
 #ifdef TSP_PATCH
 static u8 patch_bin[] = {
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT)
+#include "mxts_patch_knock_code_2_5.h"
+#else
+#include "mxts_patch_knock_code_2_5_kr.h"
+#endif
+#else
 	#include "mxts_patch_bin.h"
+#endif
 };
 
 static unsigned char power_block_mask = 0;
@@ -76,7 +84,7 @@ static unsigned char power_block_mask = 0;
 #endif
 
 #ifndef CONFIG_MACH_MSM8926_B2LN_KR
-#define ISIS 		1
+//#define ISIS 		1
 #endif
 #define DEBUG_ABS	1
 #define FIRMUP_ON_PROBE
@@ -86,11 +94,19 @@ static unsigned char power_block_mask = 0;
 #ifdef FIRMUP_ON_PROBE
 #ifdef MXT_GESTURE_RECOGNIZE
 #ifdef MXT_LPWG
+#ifndef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
 #define MXT_LATEST_CONFIG_CRC	0x205A61
+#else
+#define MXT_LATEST_CONFIG_CRC	0x5AA821
+#endif
 #define UDF_CONTROL_CLEAR_T37_DATA
 u8 latest_firmware[] = {
 #ifdef ALPHA_FW
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+	#include "MXT540S_v5.1.AA_.h"
+#else
 	#include "mXT540SC02_V5.0.AA_.h"
+#endif
 #else
 	#include "mXT540S_V1.0.E2_.h"
 #endif
@@ -1420,19 +1436,39 @@ static const u8 *UDF_off_configs_resume[] = {
 	end_config_s
 };
 
-static u8 t93_UDF_on_config[] = {	MXT_T93_NEW, 1,
-	0, 0x0F,
-};
-
 static u8 t100_report_off[] = {	MXT_TOUCH_MULTITOUCHSCREEN_T100, 1,
 	0, 0x85,
 };
 
+#ifndef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+static u8 t93_UDF_on_config[] = {	MXT_T93_NEW, 1,
+	0, 0x0F,
+};
 static const u8 *UDF_on_configs_[] = {
 	t93_UDF_on_config,
 	t100_report_off,
 	end_config_s
 };
+#endif
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+static u8 t93_UDF_on_config_knock_on[] = {	MXT_T93_NEW, 1,
+	0, 0x0F,
+};
+
+static u8 t93_UDF_on_config_knock_code[] = {	MXT_T93_NEW, 1,
+	0, 0x1F,
+};
+static const u8 *UDF_on_configs_knock_on[] = {
+	t93_UDF_on_config_knock_on,
+	t100_report_off,
+	end_config_s
+};
+static const u8 *UDF_on_configs_knock_code[] = {
+	t93_UDF_on_config_knock_code,
+	t100_report_off,
+	end_config_s
+};
+#endif
 #endif	//TSP_PATCH
 
 #else	//WAITED_UDF
@@ -1486,12 +1522,46 @@ static void touch_multi_tap_work(struct work_struct *multi_tap_work)
 	data->is_lpwg_report_enable = 1;
 	wake_unlock(&touch_wake_lock);
 	wake_lock_timeout(&touch_wake_lock, msecs_to_jiffies(3000));
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+	if(data->mxt_knock_on_enable && !data->mxt_password_enable) { // Only Knock on
+		DO_SAFE(write_partial_configs(data, UDF_on_configs_knock_on), error);
+		msleep(MXT_WAKEUP_TIME);
+	}
+	else if(!data->mxt_knock_on_enable && data->mxt_password_enable) { // Knock code + on
+		DO_SAFE(write_partial_configs(data, UDF_on_configs_knock_code), error);
+		msleep(MXT_WAKEUP_TIME);
+	}
+	else
+	{
+		dev_info(&data->client->dev, " knock_on_enable:%d, mxt_password_enable:%d both disable\n",data->mxt_knock_on_enable, data->mxt_password_enable );
+		return;
+	}
+#else
 	write_partial_configs(data, UDF_on_configs_);
+#endif
 	TOUCH_INFO_MSG("T93 ENABLE LPWG \n");
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+	if (data->suspended) {
+		if(data->mxt_knock_on_enable || data->mxt_password_enable) {
+			if(data->mxt_knock_on_enable && !data->mxt_password_enable) { // Only Knock on
+				send_uevent(knockon_event);
+			}
+			else if(!data->mxt_knock_on_enable && data->mxt_password_enable) { // Knock code + on
+				send_uevent(lpwg_event);
+			}
+			mxt_set_t7_power_cfg(data, MXT_POWER_CFG_DEEPSLEEP);
+		}
+	}
+#else
 	if (data->suspended) {
 		send_uevent(lpwg_event);
 		mxt_set_t7_power_cfg(data, MXT_POWER_CFG_DEEPSLEEP);
 	}
+#endif
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+error:
+	return;
+#endif
 }
 
 static void waited_udf(struct mxt_data *data, u8 *message)
@@ -2047,6 +2117,9 @@ err_t mxt_proc_t37_message(struct mxt_data *data, u8 *msg_buf)
 
 retry:
 	msleep(50);		// to need time to write new data
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+	if(!data->mxt_knock_on_enable && data->mxt_password_enable) {
+#endif
 	DO_IF(__mxt_read_reg(data->client, object->start_address, 1, buf) != 0, error);
 
 	if(buf[0] != 50){
@@ -2073,7 +2146,12 @@ retry:
 	}
 
 	TOUCH_INFO_MSG("t37[2] tap number is %d\n",	tap_num);
-
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+	}
+	else {
+		tap_num = 2;
+	}
+#endif
 	kfree(buf);
 #ifdef ALPHA_FW
 	msg_size = tap_num * 9 ; 	// 1tap has 10 byte data : press 4byte, release 4byte, reserve 1byte, dummy 1byte (EB 9byte, EE 10byte)
@@ -2240,9 +2318,12 @@ static void mxt_proc_t35_messages(struct mxt_data *data, u8 *message)
 		mxt_proc_t37_message(data, message);
 		data->is_lpwg_report_enable = 0;
 		wake_lock_timeout(&touch_wake_lock, msecs_to_jiffies(3000));
-		send_uevent(lpwg_event);
-		write_partial_configs(data, UDF_off_configs_);
-		TOUCH_INFO_MSG("T35 DISABLE\n");
+
+		if(data->mxt_knock_on_enable || data->mxt_password_enable) {
+			send_uevent(lpwg_event);
+			write_partial_configs(data, UDF_off_configs_);
+			TOUCH_INFO_MSG("T35 DISABLE\n");
+		}
 #endif
 	}
 }
@@ -2308,15 +2389,32 @@ static void mxt_proc_t93_messages(struct mxt_data *data, u8 *message)
 		write_partial_configs(data, UDF_off_configs_);
 		//mxt_t6_command(data, MXT_COMMAND_CALIBRATE, 1, false);
 		TOUCH_INFO_MSG("T93 DISABLE\n");
+		TOUCH_INFO_MSG("T93_KNOCKCODE!!\n");
 #ifdef WAITED_UDF
 		//timer on
 		hrtimer_try_to_cancel(&data->multi_tap_timer);
 		if (!hrtimer_callback_running(&data->multi_tap_timer))
 			hrtimer_start(&data->multi_tap_timer, ktime_set(0, MS_TO_NS(WWAITED_UDF_TIME)), HRTIMER_MODE_REL);
 #else
-		send_uevent(lpwg_event);
+		if(data->mxt_knock_on_enable || data->mxt_password_enable)
+			send_uevent(lpwg_event);
 #endif
 	}
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+	else if(msg & 0x02) {
+		mxt_t6_command(data, MXT_COMMAND_DIAGNOSTIC, 50, false);
+#ifdef UDF_CONTROL_CLEAR_T37_DATA
+		set_t93_sequence_arm(data, 0);
+#endif
+		data->is_lpwg_report_enable = 0;
+		wake_lock_timeout(&touch_wake_lock, msecs_to_jiffies(3000));
+		write_partial_configs(data, UDF_off_configs_);
+		TOUCH_INFO_MSG("T93 DISABLE\n");
+		TOUCH_INFO_MSG("T93_KNOCKON!!\n");
+		if(data->mxt_knock_on_enable || data->mxt_password_enable)
+			send_uevent(knockon_event);
+	}
+#endif
 }
 #endif
 static void mxt_proc_t24_messages(struct mxt_data *data, u8 *message)
@@ -2373,7 +2471,8 @@ static void mxt_proc_t24_messages(struct mxt_data *data, u8 *message)
 #else
 		dev_info(dev, "Double_Tap!!     %d     %d \n",x,y);
 #endif
-		send_uevent(knockon_event);
+		if(data->mxt_knock_on_enable || data->mxt_password_enable)
+			send_uevent(knockon_event);
 	}
 }
 
@@ -3356,9 +3455,11 @@ static int mxt_parse_object_table(struct mxt_data *data)
 		case MXT_SPT_SELFTEST_T25:
 			data->T25_address = object->start_address;
 			break;
+#ifndef CONFIG_MACH_MSM8926_B2LN_KR
 		case MXT_PROCI_GRIPSUPPRESSION_T40:
 			data->T40_address = object->start_address;
 			break;
+#endif
 		case MXT_PROCI_TOUCHSUPPRESSION_T42:
 			data->T42_address = object->start_address;
 			break;
@@ -4931,6 +5032,57 @@ static ssize_t mxt_knock_on_store(struct mxt_data *data, const char *buf, size_t
 }
 #endif
 
+#ifdef CONFIG_MACH_MSM8926_B2LN_KR
+static void set_knock_area(struct mxt_data *data, u32 value)
+{
+	int error = 0;
+	struct mxt_object *object = NULL;  //T100
+
+	u8* t100_8  = NULL;		//XORIGN
+	u8* t100_9  = NULL;		//XSIZE
+	u8* t100_19 = NULL;		//YORIGN
+	u8* t100_20 = NULL;		//YSIZE
+
+	object = mxt_get_object(data, MXT_TOUCH_MULTITOUCHSCREEN_T100);
+
+	t100_8  = kmalloc(sizeof(u8), GFP_KERNEL);
+	t100_9  = kmalloc(sizeof(u8), GFP_KERNEL);
+	t100_19 = kmalloc(sizeof(u8), GFP_KERNEL);
+	t100_20 = kmalloc(sizeof(u8), GFP_KERNEL);
+	TOUCH_INFO_MSG("%s quick_cover_status: %d \n", __func__, value);
+
+	if(t100_8 == NULL || t100_9 == NULL || t100_19 == NULL || t100_20 == NULL) {
+			TOUCH_INFO_MSG("%s() malloc fail\n", __func__);
+			goto alloc_free;
+	}
+
+	if(value == 1){     //cover closed
+		*t100_8  = 0x11;
+		*t100_9  = 0x09;
+		*t100_19 = 0x03;
+		*t100_20 = 0x0C;
+	}else{
+		*t100_8  = 0x00;
+		*t100_9  = 0x1E;
+		*t100_19 = 0x00;
+		*t100_20 = 0x11;
+	}
+
+	error = __mxt_write_reg(data->client, object->start_address + 8, 1, t100_8);
+	error = __mxt_write_reg(data->client, object->start_address + 9, 1, t100_9);
+	error = __mxt_write_reg(data->client, object->start_address + 19, 1, t100_19);
+	error = __mxt_write_reg(data->client, object->start_address + 20, 1, t100_20);
+alloc_free:
+	if(t100_8)
+		kfree(t100_8);
+	if(t100_9)
+		kfree(t100_9);
+	if(t100_19)
+		kfree(t100_19);
+	if(t100_20)
+		kfree(t100_20);
+}
+#endif
 static ssize_t store_quick_cover_status(struct mxt_data *data, const char *buf, size_t size)
 {
 	int value;
@@ -4940,8 +5092,15 @@ static ssize_t store_quick_cover_status(struct mxt_data *data, const char *buf, 
 
 	if( (value == 1) && (quick_cover_status == 0) ){
 		quick_cover_status = 1;
+#ifdef CONFIG_MACH_MSM8926_B2LN_KR
+		if(data->suspended == true)    //suspend
+			set_knock_area(data,quick_cover_status); // cover closed
+#endif
 	} else if( (value == 0) && (quick_cover_status == 1) ){
 		quick_cover_status = 0;
+#ifdef CONFIG_MACH_MSM8926_B2LN_KR
+		set_knock_area(data,quick_cover_status);
+#endif
 	} else
 		return size;
 
@@ -5276,27 +5435,32 @@ static void change_ime_drumming_func(struct work_struct *work_ime_drumming)
 	int ret = 0;
 	u8 enable;
 	u8 jump_limit = 15;
+#ifndef CONFIG_MACH_MSM8926_B2LN_KR
 	u8 grip_suppresion_enable = 0;
 	u8 xlogrip, xhigrip, ylogrip, yhigrip;
-
+#endif
 	if(data->power_status == MXT_POWER_OFF)
 		return;
 
 	if (ime_drumming_status && !data->suspended){
 		enable = 0;
 		jump_limit = 15;
+#ifndef CONFIG_MACH_MSM8926_B2LN_KR
 		grip_suppresion_enable = 17;
 		xlogrip = 0;
 		xhigrip = 0;
 		ylogrip = 0;
 		yhigrip = 0;
+#endif
 	} else {
 		enable = 35;
+#ifndef CONFIG_MACH_MSM8926_B2LN_KR
 		grip_suppresion_enable = 0;
 		xlogrip = 40;
 		xhigrip = 40;
 		ylogrip = 40;
 		yhigrip = 40;
+#endif
 		if(touch_test_dev->charging_mode){ //TA mode
 			jump_limit = 15;
 		} else {
@@ -5309,7 +5473,7 @@ static void change_ime_drumming_func(struct work_struct *work_ime_drumming)
 		dev_err(&data->client->dev, "change_ime_drumming_func error. jump_limit(T100[43]))\n");
 	}
 	dev_dbg(&data->client->dev, "change_ime_drumming_func. Jump Limit %d\n", jump_limit);
-
+#ifndef CONFIG_MACH_MSM8926_B2LN_KR
 	ret = mxt_write_reg(data->client, data->T40_address, grip_suppresion_enable);
 	if (ret) {
 		dev_err(&data->client->dev, "change_ime_drumming_func error. grip_suppresion_enable(T40[0])\n");
@@ -5339,7 +5503,7 @@ static void change_ime_drumming_func(struct work_struct *work_ime_drumming)
 		dev_err(&data->client->dev, "change_ime_drumming_func error. yhigrip(T40[4])\n");
 	}
 	dev_dbg(&data->client->dev, "change_ime_drumming_func. yhigrip %d\n",yhigrip);
-
+#endif
 	ret = mxt_write_reg(data->client, data->T42_address, enable);
 	if (ret) {
 		dev_err(&data->client->dev, "change_ime_drumming_func error. Palm Detect(T42))\n");
@@ -5588,13 +5752,22 @@ static void lpwg_early_suspend(struct mxt_data *data)
     mutex_lock(&mxt_early_mutex);
 	mxt_reset_slots(data);
     mutex_unlock(&mxt_early_mutex);
+#ifdef CONFIG_MACH_MSM8926_B2LN_KR
+	if(quick_cover_status == 1){		// cover closed
+		set_knock_area(data,1);
+	}else{
+		set_knock_area(data,0);
+	}
+#endif
 	switch (data->lpwg_mode) {
 			case LPWG_DOUBLE_TAP:
+				data->mxt_password_enable = 0;
 				data->mxt_knock_on_enable= 1;
 				data->is_lpwg_report_enable = 1;
 				gesture_control(data, 1);
 				break;
 			case LPWG_PASSWORD:
+				data->mxt_knock_on_enable= 0;
 				data->mxt_password_enable = 1;
 				data->is_lpwg_report_enable = 1;
 				gesture_control(data, 1);
@@ -5615,7 +5788,11 @@ static void lpwg_late_resume(struct mxt_data *data)
 	data->mxt_knock_on_enable= 0;
 	data->mxt_password_enable = 0;
 	gesture_control(data, 0);
-
+#ifdef CONFIG_MACH_MSM8926_B2LN_KR
+	if(quick_cover_status == 1){	// cover closed
+		set_knock_area(data,0);
+	}
+#endif
 	if(!data->mxt_suspended){
 		dev_info(&data->client->dev, "Recovery IRQ status!!!\n");
 		touch_enable_irq(data->irq);
@@ -5625,6 +5802,134 @@ static void lpwg_late_resume(struct mxt_data *data)
 	memset(g_tci_report, 0, sizeof(g_tci_report));
 
 	dev_info(&data->client->dev, "%s End\n", __func__);
+}
+#endif
+
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+static void lpwg_double_tap_check(struct mxt_data *data, u32 value)
+{
+	int error = 0;
+	struct mxt_object *object = NULL;
+	u8* post = NULL;
+
+	object = mxt_get_object(data, MXT_T93_NEW);
+	post = kmalloc(sizeof(u8), GFP_KERNEL);
+
+	if(post == NULL) {
+		TOUCH_INFO_MSG("%s() postwindow malloc fail\n", __func__);
+		return;
+	}
+
+	TOUCH_INFO_MSG("%s Double Tap check(1) value:%d\n", __func__, value);
+
+	if (value == 1) {
+		data->is_knockCodeDelay = true;
+		*post = 0x32;
+	}
+	else {
+		data->is_knockCodeDelay = false;
+		*post = 0x00;
+	}
+
+	error = __mxt_write_reg(data->client, object->start_address + 19, 1, post);
+
+	if(post)
+		kfree(post);
+}
+static void lpwg_double_tap(struct mxt_data *data, u32 value)
+{
+	int error = 0;
+	struct mxt_object *object = NULL;
+	u8* post = NULL;
+	u8* pre = NULL;
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined(CONFIG_MACH_MSM8926_B2LN_KR)
+	u8* t93_17 = NULL;
+#endif
+	u8* t93_22 = NULL;
+	u8* t93_20 = NULL;
+	u8* t93_11 = NULL;
+
+	object = mxt_get_object(data, MXT_T93_NEW);
+	
+	post = kmalloc(sizeof(u8), GFP_KERNEL);
+	pre = kmalloc(sizeof(u8), GFP_KERNEL);
+	t93_11 = kmalloc(sizeof(u8), GFP_KERNEL);
+	t93_17 = kmalloc(sizeof(u8), GFP_KERNEL);
+	t93_20 = kmalloc(sizeof(u8), GFP_KERNEL);
+	t93_22 = kmalloc(sizeof(u8), GFP_KERNEL);
+
+	if(value == 1) {
+		if(post == NULL) {
+			TOUCH_INFO_MSG("%s() postwindow malloc fail\n", __func__);
+			goto alloc_free;
+		}
+
+		TOUCH_INFO_MSG("%s Double Tap check(2) value:%d\n", __func__, data->is_knockCodeDelay);
+
+		if (data->is_knockCodeDelay == 1) {
+			*post = 0x32;
+		}
+		else {
+			*post = 0x00;
+		}
+
+		error = __mxt_write_reg(data->client, object->start_address + 19, 1, post);
+
+		*t93_20 = 0x60;
+		*t93_22 = 0x60;
+		*t93_11 = 0x84;
+	}
+	else {
+		if(post == NULL) {
+			TOUCH_INFO_MSG("%s() postwindow malloc fail\n", __func__);
+			goto alloc_free;
+		}
+		if(pre == NULL) {
+			TOUCH_INFO_MSG("%s() prewindow malloc fail\n", __func__);
+			goto alloc_free;
+		}
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT)
+		if(t93_17 == NULL) {
+			TOUCH_INFO_MSG("%s() t93_17 malloc fail\n", __func__);
+			goto alloc_free;
+		}
+#endif
+		*post = 0x00;
+		*pre = 0x00;
+
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT)
+		*t93_17 = 0x02;
+#endif
+		*t93_11 = 0xF4;
+		*t93_20 = 0xD8;
+		*t93_22 = 0xD8;
+
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT)
+		error = __mxt_write_reg(data->client, object->start_address + 17, 1, t93_17);
+#endif
+		error = __mxt_write_reg(data->client, object->start_address + 18, 1, pre);
+		error = __mxt_write_reg(data->client, object->start_address + 19, 1, post);
+	}
+
+	error = __mxt_write_reg(data->client, object->start_address + 11, 1, t93_11);
+	error = __mxt_write_reg(data->client, object->start_address + 20, 1, t93_20);
+	error = __mxt_write_reg(data->client, object->start_address + 22, 1, t93_22);
+
+alloc_free:
+	if(post)
+		kfree(post);
+	if(pre)
+		kfree(pre);
+	if(t93_11)
+		kfree(t93_11);
+#if defined(CONFIG_MACH_MSM8926_X10_VZW) || defined(CONFIG_MACH_MSM8926_B2L_ATT)
+	if(t93_17)
+		kfree(t93_17);
+#endif
+	if(t93_20)
+		kfree(t93_20);
+	if(t93_22)
+		kfree(t93_22);
 }
 #endif
 
@@ -5737,6 +6042,11 @@ err_t atmel_ts_lpwg(struct i2c_client* client, u32 code, u32 value, struct point
 		else if(value == 1)
 			lpwg_late_resume(data);
 		break;
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+	case LPWG_DOUBLE_TAP_CHECK:
+		lpwg_double_tap_check(data, value);
+		break;
+#endif
 	default:
 		break;
 	}
@@ -5825,6 +6135,9 @@ static ssize_t store_lpwg_notify(struct mxt_data *data, const char *buf, size_t 
 		break;
 	case 6 :
 		atmel_ts_lpwg(data->client, LPWG_EARLY_MODE, value[0], NULL);
+		break;
+	case 8 :
+		atmel_ts_lpwg(data->client, LPWG_DOUBLE_TAP_CHECK, value[0], NULL);
 		break;
 	default:
 		break;
@@ -6063,15 +6376,30 @@ static int gesture_control(struct mxt_data *data, int on)
 		if(factorymode)
 			goto mode_keep;
 #endif
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+		if(data->mxt_knock_on_enable && !data->mxt_password_enable) { // Only Knock on
+			DO_SAFE(write_partial_configs(data, UDF_on_configs_knock_on), error);
+			msleep(MXT_WAKEUP_TIME);
+		}
+		else if(!data->mxt_knock_on_enable && data->mxt_password_enable) { // Knock code + on
+			DO_SAFE(write_partial_configs(data, UDF_on_configs_knock_code), error);
+			msleep(MXT_WAKEUP_TIME);
+		}
+		else
+		{
+			dev_info(&data->client->dev, " knock_on_enable:%d, mxt_password_enable:%d both disable\n",data->mxt_knock_on_enable, data->mxt_password_enable );
+		}
+		dev_info(&data->client->dev, " knock_on_enable:%d, mxt_password_enable:%d\n",data->mxt_knock_on_enable, data->mxt_password_enable );
+#endif
 		if (data->charging_mode) {
-			if(data->lpwg_mode == LPWG_DOUBLE_TAP){
+			if((data->lpwg_mode == LPWG_DOUBLE_TAP) && data->mxt_knock_on_enable && !data->mxt_password_enable){
 				if(data->ta_status != MXT_PATCH_KNOCKON_TA_MODE_EVENT) {
 					dev_info(&data->client->dev, " KNOCKON_TA_MODE %d\n", MXT_PATCH_KNOCKON_TA_MODE_EVENT);
 					data->ta_status = MXT_PATCH_KNOCKON_TA_MODE_EVENT;
 					mxt_patch_test_event(data, MXT_PATCH_KNOCKON_TA_MODE_EVENT);
 					goto mode_change;
 				}
-			}else if(data->lpwg_mode == LPWG_PASSWORD){
+			}else if((data->lpwg_mode == LPWG_PASSWORD) && !data->mxt_knock_on_enable && data->mxt_password_enable){
 				if(data->ta_status != MXT_PATCH_PASSWORD_TA_MODE_EVENT) {
 					dev_info(&data->client->dev, " PASSWORD_TA_MODE %d\n", MXT_PATCH_PASSWORD_TA_MODE_EVENT);
 					data->ta_status = MXT_PATCH_PASSWORD_TA_MODE_EVENT;
@@ -6080,14 +6408,14 @@ static int gesture_control(struct mxt_data *data, int on)
 				}
 			}
 		} else {
-			if(data->lpwg_mode == LPWG_DOUBLE_TAP){
+			if((data->lpwg_mode == LPWG_DOUBLE_TAP) && data->mxt_knock_on_enable && !data->mxt_password_enable){
 				if(data->ta_status != MXT_PATCH_KNOCKON_BAT_MODE_EVENT) {
 					dev_info(&data->client->dev, " KNOCKON_BAT_MODE %d\n", MXT_PATCH_KNOCKON_BAT_MODE_EVENT);
 					data->ta_status = MXT_PATCH_KNOCKON_BAT_MODE_EVENT;
 					mxt_patch_test_event(data, MXT_PATCH_KNOCKON_BAT_MODE_EVENT);
 					goto mode_change;
 				}
-			}else if(data->lpwg_mode == LPWG_PASSWORD){
+			}else if((data->lpwg_mode == LPWG_PASSWORD) && !data->mxt_knock_on_enable && data->mxt_password_enable){
 				if(data->ta_status != MXT_PATCH_PASSWORD_BAT_MODE_EVENT) {
 					dev_info(&data->client->dev, " PASSWORD_BAT_MODE %d\n", MXT_PATCH_PASSWORD_BAT_MODE_EVENT);
 					data->ta_status = MXT_PATCH_PASSWORD_BAT_MODE_EVENT;
@@ -6096,6 +6424,14 @@ static int gesture_control(struct mxt_data *data, int on)
 				}
 			}
 		}
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+		if(!data->mxt_knock_on_enable && data->mxt_password_enable) { // Knock code + on
+			lpwg_double_tap(data, 1);
+		}
+		else if(data->mxt_knock_on_enable && !data->mxt_password_enable) { // Only Knock on
+			lpwg_double_tap(data, 0);
+		}
+#endif
 	}
 	else {
 		if (data->charging_mode) {
@@ -6200,10 +6536,6 @@ mode_change:
 	}
 
 #endif
-	if(!on && quick_cover_status){
-		mxt_write_reg(data->client, data->T47_address, 0);
-		dev_info(&data->client->dev, "Gesture_control Pen Disable!!\n");
-	}
 #ifdef MXT_LPWG
 	dev_info(&data->client->dev,"Gesture_control Mode Change (%s)  KnockOn: %d / PASSWD : %d\n",
 				on ? "SUSPEND":"RESUME", data->mxt_knock_on_enable, data->mxt_password_enable);
@@ -6214,7 +6546,8 @@ mode_keep:
 #endif
 	dev_info(&data->client->dev,"Gesture_control not Mode Change\n");
 	return NO_ERROR;
-#ifndef TSP_PATCH
+
+#if !defined(TSP_PATCH) || defined(CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5)
 error:
 	return -ERROR;
 #endif
@@ -6408,8 +6741,10 @@ static int mxt_parse_config(struct device *dev, struct device_node *np,
 		,"atmel,config_t18"
 		,"atmel,config_t19"
 		,"atmel,config_t23"
+#ifndef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
 #ifdef MXT_GESTURE_RECOGNIZE
 		,"atmel,config_t24"
+#endif
 #endif
 		,"atmel,config_t25"
 		,"atmel,config_t40"
@@ -6427,10 +6762,14 @@ static int mxt_parse_config(struct device *dev, struct device_node *np,
 		,"atmel,config_t78"
 		,"atmel,config_t80"
 #ifndef ALPHA_FW
+#ifndef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
 		,"atmel,config_t84"
 #endif
+#endif
 #ifdef MXT_LPWG
+#ifndef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
 		,"atmel,config_t92"
+#endif
 		,"atmel,config_t93"
 #endif
 		,"atmel,config_t100"
@@ -6439,6 +6778,9 @@ static int mxt_parse_config(struct device *dev, struct device_node *np,
 		,"atmel,config_t103"
 		,"atmel,config_t104"
 		,"atmel,config_t105"
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+		,"atmel,config_t240"
+#endif
 	};
 
 	memset(&info->config_t, 0, sizeof(info->config_t));

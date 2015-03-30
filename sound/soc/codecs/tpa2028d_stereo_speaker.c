@@ -146,11 +146,11 @@ inline void set_amp_gain(int amp_no, int amp_state)
 		//msleep(5);
 		mdelay(5);
 		if (amp_data[amp_no]->pdata->enable)
-#ifdef CONFIG_SND_SOC_TPA2028D_E10WIFI
+#ifdef CONFIG_SND_SOC_TPA2028D_STEREO_E9
 			fail = amp_data[amp_no]->pdata->enable(1, amp_data[amp_no]->pdata->enable_gpio, amp_no);
 #else
 			fail = amp_data[amp_no]->pdata->enable(1);
-#endif
+#endif //CONFIG_SND_SOC_TPA2028D_STEREO_E9
 		/*need 10 msec for chip ready*/
 		//msleep(10);
 		mdelay(10);
@@ -159,19 +159,19 @@ inline void set_amp_gain(int amp_no, int amp_state)
 		break;
 	case SPK_OFF:
 		if (amp_data[amp_no]->pdata->enable)
-#ifdef CONFIG_SND_SOC_TPA2028D_E10WIFI
+#ifdef CONFIG_SND_SOC_TPA2028D_STEREO_E9
 			//fail = amp_data[amp_no]->pdata->enable(2, amp_data[amp_no]->pdata->enable_gpio, amp_no);
 			//delete bypass
 #else
 			fail = amp_data[amp_no]->pdata->enable(2);
-#endif
+#endif //CONFIG_SND_SOC_TPA2028D_STEREO_E9
 		fail = tpa2028d_powerdown();
 		if (amp_data[amp_no]->pdata->enable)
-#ifdef CONFIG_SND_SOC_TPA2028D_E10WIFI
+#ifdef CONFIG_SND_SOC_TPA2028D_STEREO_E9
 			fail = amp_data[amp_no]->pdata->enable(0, amp_data[amp_no]->pdata->enable_gpio, amp_no);
 #else
 			fail = amp_data[amp_no]->pdata->enable(0);
-#endif
+#endif //CONFIG_SND_SOC_TPA2028D_STEREO_E9
 		if (amp_data[amp_no]->pdata->power)
 			fail = amp_data[amp_no]->pdata->power(0);
 		//amp_data[amp_no]->state = SPK_OFF;
@@ -189,11 +189,11 @@ inline void irrc_amp_off(int amp_no, int amp_state)
 	D("irrc_amp_off : amp_no[%d] amp_state[%d]\n", amp_no, amp_state);
 
 	if (amp_data[amp_no]->pdata->enable)
-#ifdef CONFIG_SND_SOC_TPA2028D_E10WIFI
+#ifdef CONFIG_SND_SOC_TPA2028D_STEREO_E9
 		fail = amp_data[amp_no]->pdata->enable(0, amp_data[amp_no]->pdata->enable_gpio, amp_no);
 #else
 		fail = amp_data[amp_no]->pdata->enable(0);
-#endif
+#endif //CONFIG_SND_SOC_TPA2028D_STEREO_E9
 	if (amp_data[amp_no]->pdata->power)
 		fail = amp_data[amp_no]->pdata->power(0);
 }
@@ -444,7 +444,7 @@ static struct device_attribute tpa2028d2_device_attrs[] = {
 
 };
 
-#ifdef CONFIG_SND_SOC_TPA2028D_E10WIFI
+#ifdef CONFIG_SND_SOC_TPA2028D_STEREO_E9
 int amp_enable(int on_state, int enable_gpio, int amp_no)
 {
 	int err = 0;
@@ -492,7 +492,7 @@ static int tpa2028d_parse_dt(struct device *dev,
 	pdata->enable = amp_enable;
 	return ret;
 }
-#endif
+#endif //CONFIG_SND_SOC_TPA2028D_STEREO_E9
 
 static int tpa2028d_amp_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
@@ -511,7 +511,7 @@ static int tpa2028d_amp_probe(struct i2c_client *client,
 		return err;
 	}
 
-#ifdef CONFIG_SND_SOC_TPA2028D_E10WIFI
+#ifdef CONFIG_SND_SOC_TPA2028D_STEREO_E9
 	if (&client->dev.of_node) {
 		pdata = devm_kzalloc(&client->dev,
 				sizeof(struct audio_amp_platform_data),
@@ -528,7 +528,7 @@ static int tpa2028d_amp_probe(struct i2c_client *client,
 	}
 #else
 	pdata = client->dev.platform_data;
-#endif
+#endif //CONFIG_SND_SOC_TPA2028D_STEREO_E9
 	if (pdata == NULL) {
 		D("platform data is null\n");
 		return -ENODEV;
@@ -563,14 +563,14 @@ static int tpa2028d_amp_probe(struct i2c_client *client,
 	
 	i2c_set_clientdata(client, data);
 
-#ifdef CONFIG_SND_SOC_TPA2028D_E10WIFI
+#ifdef CONFIG_SND_SOC_TPA2028D_STEREO_E9
 	err = gpio_request(amp_data[amp_no]->pdata->enable_gpio, "speaker amp enable");
 	if (err) {
 		pr_err("%s : Error requesting GPIO %d err(%d)\n",
 				__func__, amp_data[amp_no]->pdata->enable_gpio, err);
 		return err;
 	}
-#endif
+#endif //CONFIG_SND_SOC_TPA2028D_STEREO_E9
 	set_amp_gain(amp_no, SPK_OFF);
 
 	return 0;
@@ -586,7 +586,7 @@ static int tpa2028d_amp_remove(struct i2c_client *client)
 }
 
 
-#ifdef CONFIG_SND_SOC_TPA2028D_E10WIFI
+#ifdef CONFIG_SND_SOC_TPA2028D_STEREO_E9
 static struct of_device_id tpa2028d_amp_match_table[] = {
 	{ .compatible = "speaker_amp,tpa2028d1",},
 	{ },
@@ -596,7 +596,7 @@ static struct of_device_id tpa2028d_amp2_match_table[] = {
 	{ .compatible = "speaker_amp,tpa2028d2",},
 	{ },
 };
-#endif
+#endif //CONFIG_SND_SOC_TPA2028D_STEREO_E9
 static struct i2c_device_id tpa2028d_amp_idtable[] = {
 	{ "tpa2028d_amp", 1 },
 };
@@ -611,9 +611,9 @@ static struct i2c_driver tpa2028d_amp_driver = {
 	.id_table = tpa2028d_amp_idtable,
 	.driver = {
 		.name = "tpa2028d",
-#ifdef CONFIG_SND_SOC_TPA2028D_E10WIFI
+#ifdef CONFIG_SND_SOC_TPA2028D_STEREO_E9
 		.of_match_table = tpa2028d_amp_match_table,
-#endif
+#endif //CONFIG_SND_SOC_TPA2028D_STEREO_E9
 	},
 };
 
@@ -623,9 +623,9 @@ static struct i2c_driver tpa2028d_amp2_driver = {
 	.id_table = tpa2028d_amp2_idtable,
 	.driver = {
 		.name = "tpa2028d2",
-#ifdef CONFIG_SND_SOC_TPA2028D_E10WIFI
+#ifdef CONFIG_SND_SOC_TPA2028D_STEREO_E9
 		.of_match_table = tpa2028d_amp2_match_table,
-#endif
+#endif //CONFIG_SND_SOC_TPA2028D_STEREO_E9
 	},
 };
 

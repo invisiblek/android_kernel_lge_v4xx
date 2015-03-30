@@ -238,7 +238,9 @@ void __init lge_add_qsdl_device(void);
 int lge_get_kswitch_status(void);
 #endif
 
-
+#ifdef CONFIG_LGE_LCD_OFF_DIMMING
+int lge_get_bootreason(void);
+#endif
 
 #endif
 

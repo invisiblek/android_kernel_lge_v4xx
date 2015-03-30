@@ -86,5 +86,21 @@ config SENSOR_SX9500
 
       To compile this driver as a module, choose M here: the
       module will be called sx8651.
+
+config SENSOR_SX9311
+    tristate "SX9311 based capacitive touch button"
+    depends on I2C
+    help
+      Say Y here if you have a SX9311.
+      If unsure, say N.
+
+      To compile this driver as a module, choose M here: the
+      module will be called sx8651.
+
+config SENSOR_ATMF04
+    bool "ATMF04 Support"
+    depends on I2C
+    help
+      Support ATMF04 as an input device.
 endif
 # LGE_CHANGE_E

@@ -443,6 +443,10 @@ static int android_irrc_probe(struct platform_device *pdev)
 {
 	int rc;
 	struct timed_irrc_data *irrc;
+#if defined(CONFIG_MACH_MSM8926_E9LTE_VZW_US) | defined(CONFIG_MACH_MSM8926_T8LTE)
+#define BOOST_GPIO 447;
+	int boost_gpio = BOOST_GPIO;
+#endif
 
 	INFO_MSG("probe\n");
 
@@ -451,6 +455,14 @@ static int android_irrc_probe(struct platform_device *pdev)
 		ERR_MSG("Can not allocate memory.\n");
 		goto err_1;
 	}
+
+#if defined(CONFIG_MACH_MSM8926_E9LTE_VZW_US) | defined(CONFIG_MACH_MSM8926_T8LTE)
+	INFO_MSG("***work-around set boost gpio low\n");
+	gpio_request(boost_gpio , "BOOST_GPIO_TEMP");
+	gpio_direction_output(boost_gpio, 0);
+	gpio_free(boost_gpio);
+#endif
+
 
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node) {

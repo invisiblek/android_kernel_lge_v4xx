@@ -117,11 +117,13 @@ static int mit_isc_mass_erase(struct mms_data *ts)
 	if (mms_i2c_write_block(ts->client, tmp, 6) < 0) {
 		TOUCH_ERR_MSG("failed to send message for erase\n");
 		return -EIO;
-		}
+	}
+
 	if (mit_isc_check_status(ts) < 0) {
 		TOUCH_ERR_MSG("failed to erase check status\n");
 		return -EIO;
 	}
+
 	if (mit_isc_verify_erased(ts) < 0) {
 		TOUCH_ERR_MSG("failed to erase verify\n");
 		return -EIO;
@@ -149,7 +151,7 @@ static int mit_fw_version_check(struct mms_data *ts, struct touch_fw_info *info)
 		return 1;
 	}
 
-	if (strcmp(ts->pdata->fw_product, ts->module.product_code) != 0) {
+	if ((strcmp(ts->pdata->fw_product, ts->module.product_code) != 0) && (strcmp(ts->pdata->p3_fw_product, ts->module.product_code) != 0)) {
 		TOUCH_INFO_MSG("F/W Product is not matched [%s] \n", ts->module.product_code);
 		if (ts->module.product_code[0] == 0)
 			return 2;
@@ -210,7 +212,7 @@ static int mit_isc_page_write(struct mms_data *ts, const u8 *wdata, int addr)
 	if (mit_isc_check_status(ts) < 0) {
 		TOUCH_ERR_MSG("failed to check writing status\n");
 		return -1;
-		}
+	}
 
 	return 0;
 }
@@ -249,7 +251,7 @@ static int mit_flash_section(struct mms_data *ts, struct touch_fw_info *info, bo
 
 	TOUCH_INFO_MSG("F/W Writing... \n");
 
-	for(addr = ((int)info->fw->size) - FW_BLOCK_SIZE; addr >= 0; addr -= FW_BLOCK_SIZE ) {
+	for (addr = ((int)info->fw->size) - FW_BLOCK_SIZE; addr >= 0; addr -= FW_BLOCK_SIZE ) {
 		if ( mit_isc_page_write(ts, &info->fw->data[addr], addr) ) {
 			return -1;
 		}
@@ -292,6 +294,8 @@ int mit_isc_fwupdate(struct mms_data *ts, struct touch_fw_info *info)
 
 	TOUCH_TRACE_FUNC();
 
+	ts->thermal_info_send_block = 1;
+
 	while (retires--) {
 		ret = mit_fw_version_check(ts, info);
 		if (ret) {
@@ -315,6 +319,7 @@ int mit_isc_fwupdate(struct mms_data *ts, struct touch_fw_info *info)
 		goto START;
 	}
 
+	ts->thermal_info_send_block = 0;
 	return 0;
 
 START :
@@ -340,6 +345,7 @@ START :
 	}
 
 	mit_isc_exit(ts);
+	ts->thermal_info_send_block = 0;
 	mms_power_reset(ts);
 	return ret;
 }
@@ -356,7 +362,12 @@ static int get_intensity(struct mms_data *ts)
 
 	TOUCH_TRACE_FUNC();
 
-	for(col = 0 ; col < ts->dev.col_num ; col++) {
+	if (ts->dev.col_num > MAX_COL) {
+		TOUCH_INFO_MSG("Err : ts->dev.col_num > MAX_COL, EXIT\n");
+		return -1;
+	}
+
+	for (col = 0 ; col < ts->dev.col_num ; col++) {
 		write_buf[0] = MIT_REGH_CMD;
 		write_buf[1] = MIT_REGL_UCMD;
 		write_buf[2] = 0x70;
@@ -385,6 +396,10 @@ static int get_intensity(struct mms_data *ts)
 		}
 
 		nLength = read_buf[0];
+		if ( nLength > sizeof(read_buf)) {
+			TOUCH_ERR_MSG("stack overflow - nLength: %d > read_buf size:%d \n", nLength, sizeof(read_buf));
+			return -1;
+		}
 		write_buf[0] = MIT_REGH_CMD;
 		write_buf[1] = MIT_REGL_UCMD_RESULT;
 
@@ -401,18 +416,21 @@ static int get_intensity(struct mms_data *ts)
 		}
 
 		nLength >>= 1;
-		for(row = 0 ; row <nLength ; row++) {
-			temp_data[col][row] = (s16)(read_buf[2*row] | (read_buf[2*row+1] << 8));
+		if (nLength > MAX_ROW) {
+			TOUCH_INFO_MSG("Err : nLeangth > MAX_ROW, EXIT\n");
+			return -1;
 		}
 
+		for (row = 0 ; row <nLength ; row++) {
+			temp_data[col][row] = (s16)(read_buf[2*row] | (read_buf[2*row+1] << 8));
+		}
 	}
 
-	for(row = 0; row < MAX_ROW; row++) {
-		for(col = 0; col < MAX_COL; col++) {
+	for (row = 0; row < MAX_ROW; row++) {
+		for (col = 0; col < MAX_COL; col++) {
 			ts->intensity_data[row][col] = temp_data[col][row];
 		}
 	}
-
 
 	return 0;
 }
@@ -424,10 +442,10 @@ static int  print_intensity(struct mms_data *ts, char *buf) {
 
 	ret += sprintf(buf + ret, "Start-Intensity\n\n");
 
-	for(row = 0 ; row < MAX_ROW ; row++) {
+	for (row = 0 ; row < MAX_ROW ; row++) {
 		printk("[Touch] [%2d]  ", row);
 		ret += sprintf(buf + ret,"[%2d]  ", row);
-		for(col = 0 ; col < MAX_COL ; col++) {
+		for (col = 0 ; col < MAX_COL ; col++) {
 			ret += sprintf(buf + ret,"%4d ", ts->intensity_data[row][col]);
 			printk("%4d ", ts->intensity_data[row][col]);
 		}
@@ -446,13 +464,18 @@ ssize_t mit_delta_show(struct i2c_client *client, char *buf)
 
 	TOUCH_TRACE_FUNC();
 
-	for( i = 0 ; i < MAX_ROW ; i++) {
+	if (ts->pdata->curr_pwr_state == POWER_OFF) {
+		TOUCH_INFO_MSG("intensity printf failed - Touch POWER OFF\n");
+		return 0;
+	}
+
+	for ( i = 0 ; i < MAX_ROW ; i++) {
 		memset(ts->intensity_data[i], 0, sizeof(uint16_t) * MAX_COL);
 	}
 
 	touch_disable(ts->client->irq);
 	if (get_intensity(ts) == -1) {
-		TOUCH_INFO_MSG("intensity printf failed");
+		TOUCH_INFO_MSG("intensity printf failed\n");
 		goto error;
 	}
 	ret = print_intensity(ts, buf);
@@ -468,11 +491,10 @@ ssize_t mit_delta_show(struct i2c_client *client, char *buf)
 error :
 	touch_enable(ts->client->irq);
 	return -1;
-
 }
 
-
-static int mit_enter_test(struct mms_data *ts) {
+static int mit_enter_test(struct mms_data *ts)
+{
 	struct i2c_client *client = ts->client;
 	u8 cmd[3] ={ MIT_REGH_CMD, MIT_REGL_UCMD, MIT_UNIV_ENTER_TESTMODE};
 	u8 marker;
@@ -494,47 +516,53 @@ static int mit_enter_test(struct mms_data *ts) {
 	};
 
 	if (i2c_transfer(client->adapter, &msg[0], 1)!=1) {
-		dev_err(&client->dev,"failed enter Test-Mode\n");
+		ret = -1;
+		TOUCH_ERR_MSG("failed enter Test-Mode\n");
+		goto TESTOUT;
 	}
-	do{
-		do{
+
+	do {
+		do {
 			udelay(100);
 			iterator ++;
-		}while(gpio_get_value(ts->pdata->int_pin) && (iterator < MAX_ITERATOR));
+		} while(gpio_get_value(ts->pdata->int_pin) && (iterator < MAX_ITERATOR));
+
 		if (iterator >= MAX_ITERATOR) {
 			ret = -1;
+			TOUCH_ERR_MSG("failed int_pin timeout\n");
+			mms_power_reset(ts);
 			goto TESTOUT;
 		}
 		msg[0].len = 2;
 		cmd[1] = MIT_REGL_EVENT_PKT_SZ;
 		if (i2c_transfer(client->adapter, msg ,ARRAY_SIZE(msg))!=ARRAY_SIZE(msg)) {
-			dev_err(&client->dev,"ENTER Test-Mode MIT_REGL_EVENT_PKT_SZ ERROR!\n");
+			TOUCH_ERR_MSG("ENTER Test-Mode MIT_REGL_EVENT_PKT_SZ ERROR!\n");
 			ret = -1;
 			goto TESTOUT;
 		}
 		cmd[1] = MIT_REGL_INPUT_EVENT;
 
 		if (i2c_transfer(client->adapter, msg,ARRAY_SIZE(msg))!=ARRAY_SIZE(msg)) {
-			dev_err(&client->dev,"ENTER Test-Mode MIT_REGL_INPUT_EVETN ERROR!\n");
+			TOUCH_ERR_MSG("ENTER Test-Mode MIT_REGL_INPUT_EVENT ERROR!\n");
 			ret = -1;
 			goto TESTOUT;
 		}
+
 		if (count) {
 			count--;
-		}else{
+		} else {
 			ret = -1;
+			TOUCH_ERR_MSG("failed retry count over to make marker 0x0C\n");
 			goto TESTOUT;
 		}
 	}while(marker !=0x0C);
-	return ret;
 
 TESTOUT:
-	dev_err(&client->dev,"ENTER TEST MODE maker is not 0x0C\n");
 	return ret;
 }
 
-
-static int mit_exit_test(struct mms_data *ts) {
+static int mit_exit_test(struct mms_data *ts)
+{
 	struct i2c_client *client = ts->client;
 	u8 cmd[3] ={ MIT_REGH_CMD, MIT_REGL_UCMD, MIT_UNIV_EXIT_TESTMODE};
 	u8 marker;
@@ -556,49 +584,52 @@ static int mit_exit_test(struct mms_data *ts) {
 	};
 
 	if (i2c_master_send(client, cmd, 3)!=3) {
-		dev_err(&client->dev,"failed exit Test-Mode\n");
+		ret = -1;
+		TOUCH_ERR_MSG("failed exit Test-Mode\n");
+		goto TESTEXITOUT;
 	}
-	do{
-		do{
+
+	do {
+		do {
 			udelay(100);
 			iterator ++;
 		} while(gpio_get_value(ts->pdata->int_pin) && (iterator < MAX_ITERATOR));
 		if (iterator >= MAX_ITERATOR) {
 			ret = -1;
+			TOUCH_ERR_MSG("failed int_pin timeout\n");
+			mms_power_reset(ts);
 			goto TESTEXITOUT;
 		}
 		msg[0].len 	= 2;
 		cmd[1] = MIT_REGL_EVENT_PKT_SZ;
 		if (i2c_transfer(client->adapter, msg,ARRAY_SIZE(msg))!=ARRAY_SIZE(msg)) {
-			dev_err(&client->dev,"EXIT Test-Mode MIT_REGL_EVENT_PKT_SZ ERROR!\n");
+			TOUCH_ERR_MSG("EXIT Test-Mode MIT_REGL_EVENT_PKT_SZ ERROR!\n");
 			ret = -1;
 			goto TESTEXITOUT;
 		}
 		cmd[1] = MIT_REGL_INPUT_EVENT;
 
 		if (i2c_transfer(client->adapter, msg,ARRAY_SIZE(msg))!=ARRAY_SIZE(msg)) {
-			dev_err(&client->dev,"EXIT Test-Mode MIT_REGL_INPUT_EVETN ERROR!\n");
+			TOUCH_ERR_MSG("EXIT Test-Mode MIT_REGL_INPUT_EVENT ERROR!\n");
 			ret = -1;
 			goto TESTEXITOUT;
 		}
+
 		if (count) {
 			count--;
-		}else{
+		} else {
 			ret = -1;
+			TOUCH_ERR_MSG("failed retry count over to make marker 0x0C\n");
 			goto TESTEXITOUT;
 		}
 	}while(marker !=0x0C);
 
-	return ret;
-
 TESTEXITOUT:
-	dev_err(&client->dev,"exit TEST MODE maker is not 0x0C\n");
 	return ret;
 }
 
-
-static int mit_select_test(struct mms_data *ts) {
-
+static int mit_select_test(struct mms_data *ts)
+{
 	struct i2c_client *client = ts->client;
 	u8 cmd[3] ={ MIT_REGH_CMD, MIT_REGL_UCMD, };
 	u8 marker;
@@ -626,46 +657,56 @@ static int mit_select_test(struct mms_data *ts) {
 		cmd[2] = MIT_UNIV_TESTA_START;
 		break;
 	case OPENSHORT :
+	case OPENSHORT_STORE:
 	case CRACK_CHECK :
 		cmd[2] = MIT_UNIV_TESTB_START;
 		break;
 	}
 
 	if (i2c_transfer(client->adapter,&msg[0], 1)!=1) {
-		dev_err(&client->dev,"failed enter Test-Mode\n");
+		ret = -1;
+		TOUCH_ERR_MSG("failed enter Test-Mode\n");
+		goto TESTOUT;
 	}
-	do{
-		do{
+
+	do {
+		do {
 			udelay(100);
 			iterator ++;
-		}while(gpio_get_value(ts->pdata->int_pin) && (iterator < MAX_ITERATOR));
+		} while(gpio_get_value(ts->pdata->int_pin) && (iterator < MAX_ITERATOR));
+
 		if (iterator >= MAX_ITERATOR) {
 			ret = -1;
+			TOUCH_ERR_MSG("failed int_pin timeout\n");
+			mms_power_reset(ts);
 			goto TESTOUT;
 		}
+
 		msg[0].len =2;
 		cmd[1] = MIT_REGL_EVENT_PKT_SZ;
 		if (i2c_transfer(client->adapter, msg,ARRAY_SIZE(msg))!=ARRAY_SIZE(msg)) {
-			dev_err(&client->dev,"SELECT Test-Mode MIT_REGL_EVENT_PKT_SZ ERROR!\n");
+			TOUCH_ERR_MSG("SELECT Test-Mode MIT_REGL_EVENT_PKT_SZ ERROR!\n");
 			ret = -1;
 			goto TESTOUT;
 		}
+
 		cmd[1] = MIT_REGL_INPUT_EVENT;
 		if (i2c_transfer(client->adapter, msg,ARRAY_SIZE(msg))!=ARRAY_SIZE(msg)) {
-			dev_err(&client->dev,"SELECT Test-Mode MIT_REGL_INPUT_EVETN ERROR!\n");
+			TOUCH_ERR_MSG("SELECT Test-Mode MIT_REGL_INPUT_EVENT ERROR!\n");
 			ret = -1;
 			goto TESTOUT;
 		}
+
 		if (count) {
 			count--;
-		}else{
+		} else {
 			ret = -1;
+			TOUCH_ERR_MSG("failed retry count over to make marker 0x0C\n");
 			goto TESTOUT;
 		}
 	}while(marker !=0x0C);
-	return ret;
+
 TESTOUT:
-	dev_err(&client->dev,"ENTER TESTB MODE maker is not 0x0C\n");
 	return ret;
 }
 
@@ -674,6 +715,8 @@ static int get_rawdata(struct mms_data *ts)
 	struct i2c_client *client = ts->client;
 	int col = 0;
 	int row = 0;
+	u32 limit_upper = 0;
+	u32 limit_lower = 0;
 	u8 write_buf[8] = {0,};
 	u8 read_buf[25 * 8] = {0,};
 	u8 nLength = 0;
@@ -681,8 +724,12 @@ static int get_rawdata(struct mms_data *ts)
 	uint16_t temp_data[MAX_COL][MAX_ROW]={{0}};
 	TOUCH_TRACE_FUNC();
 
+	if (ts->dev.col_num > MAX_COL) {
+		TOUCH_INFO_MSG("Err : ts->dev.col_num > MAX_COL, EXIT\n");
+		return -1;
+	}
 
-	for(col = 0 ; col < ts->dev.col_num ; col++) {
+	for (col = 0 ; col < ts->dev.col_num ; col++) {
 		write_buf[0] = MIT_REGH_CMD;
 		write_buf[1] = MIT_REGL_UCMD;
 		write_buf[2] = MIT_UNIV_GET_RAWDATA;
@@ -708,6 +755,10 @@ static int get_rawdata(struct mms_data *ts)
 		}
 
 		nLength = read_buf[0];
+		if ( nLength > sizeof(read_buf)) {
+			TOUCH_ERR_MSG("stack overflow - nLength: %d > read_buf size:%d \n", nLength, sizeof(read_buf));
+			return -1;
+		}
 		write_buf[0] = MIT_REGH_CMD;
 		write_buf[1] = MIT_REGL_UCMD_RESULT;
 
@@ -722,16 +773,30 @@ static int get_rawdata(struct mms_data *ts)
 		}
 
 		nLength >>=1;
-		for(row = 0 ; row <nLength ; row++) {
+		if (nLength > MAX_ROW) {
+			TOUCH_INFO_MSG("Err : nLeangth > MAX_ROW, EXIT\n");
+			return -1;
+		}
+
+		for (row = 0 ; row <nLength ; row++) {
 			nReference = (u16)(read_buf[2*row] | (read_buf[2*row+1] << 8));
 			temp_data[col][row] = nReference;
 		}
 	}
-	for(row = 0; row < MAX_ROW; row++) {
-		for(col = 0; col < MAX_COL; col++) {
+
+	if (ts->module.otp == OTP_APPLIED) {
+		limit_upper = ts->pdata->limit->raw_data_otp_max + ts->pdata->limit->raw_data_margin;
+		limit_lower = ts->pdata->limit->raw_data_otp_min - ts->pdata->limit->raw_data_margin;
+	} else {
+		limit_upper = ts->pdata->limit->raw_data_max + ts->pdata->limit->raw_data_margin;
+		limit_lower = ts->pdata->limit->raw_data_min - ts->pdata->limit->raw_data_margin;
+	}
+
+	for (row = 0; row < MAX_ROW; row++) {
+		for (col = 0; col < MAX_COL; col++) {
 			ts->mit_data[row][col]	= temp_data[col][row];
-			if (ts->mit_data[row][col] < ts->pdata->limit->raw_data_min|| ts->mit_data[row][col] > ts->pdata->limit->raw_data_max)
-				ts->pdata->selfdiagnostic_state[0] = 0;
+			if (ts->mit_data[row][col] < limit_lower || ts->mit_data[row][col] > limit_upper)
+				ts->pdata->selfdiagnostic_state[SD_RAWDATA] = 0;
 		}
 	}
 	return 0;
@@ -747,10 +812,18 @@ static int get_openshort(struct mms_data *ts)
 	u8 nLength = 0;
 	u16 nReference = 0;
 	uint16_t temp_data[MAX_COL][MAX_ROW]={{0}};
+	ts->count_short = 0;
+
+	if (ts->pdata->check_openshort == 0)
+		return 0;
 
 	TOUCH_TRACE_FUNC();
+	if (ts->dev.col_num > MAX_COL) {
+		TOUCH_INFO_MSG("Err : ts->dev.col_num > MAX_COL, EXIT\n");
+		return -1;
+	}
 
-	for(col = 0 ; col < ts->dev.col_num ; col++) {
+	for (col = 0 ; col < ts->dev.col_num ; col++) {
 		write_buf[0] = MIT_REGH_CMD;
 		write_buf[1] = MIT_REGL_UCMD;
 		write_buf[2] = MIT_UNIV_GET_OPENSHORT_TEST;
@@ -776,6 +849,10 @@ static int get_openshort(struct mms_data *ts)
 		}
 
 		nLength = read_buf[0];
+		if ( nLength > sizeof(read_buf) ) {
+			TOUCH_ERR_MSG("stack overflow - nLength: %d > read_buf size:%d \n", nLength, sizeof(read_buf));
+			return -1;
+		}
 		write_buf[0] = MIT_REGH_CMD;
 		write_buf[1] = MIT_REGL_UCMD_RESULT;
 
@@ -790,17 +867,22 @@ static int get_openshort(struct mms_data *ts)
 		}
 
 		nLength >>=1;
-		for(row = 0 ; row <nLength ; row++) {
+		if (nLength > MAX_ROW) {
+			TOUCH_INFO_MSG("Err : nLeangth > MAX_ROW, EXIT\n");
+			return -1;
+		}
+
+		for (row = 0 ; row <nLength ; row++) {
 			nReference = (u16)(read_buf[2*row] | (read_buf[2*row+1] << 8));
 			temp_data[col][row] = nReference;
 		}
 	}
 
-	for(row = 0; row < MAX_ROW ; row++) {
-		for(col = 0; col < MAX_COL; col++) {
+	for (row = 0; row < MAX_ROW ; row++) {
+		for (col = 0; col < MAX_COL; col++) {
 			ts->mit_data[row][col] = temp_data[col][row];
-			if (ts->mit_data[row][col] < ts->pdata->limit->open_short_min || ts->mit_data[row][col] > ts->pdata->limit->open_short_max) {
-				ts->pdata->selfdiagnostic_state[1] = 0;
+			if (ts->mit_data[row][col] < ts->pdata->limit->open_short_min) {
+				ts->pdata->selfdiagnostic_state[SD_OPENSHORT] = 0;
 				ts->count_short++;
 			}
 		}
@@ -809,128 +891,173 @@ static int get_openshort(struct mms_data *ts)
 	return 0;
 }
 
-static int  print_rawdata(struct mms_data *ts, char *buf,int type) {
+static int  print_rawdata(struct mms_data *ts, char *buf,int type)
+{
 	int col = 0;
 	int row = 0;
 	int ret = 0;
-	int min = 0;
-	int max = 0;
+	ts->r_min = ts->mit_data[0][0];
+	ts->r_max = ts->mit_data[0][0];
 
-	min = ts->mit_data[0][0];
-	max = ts->mit_data[0][0];
-
-	for(row = 0 ; row < MAX_ROW ; row++) {
+	for (row = 0 ; row < MAX_ROW ; row++) {
 		if (type == RAW_DATA_SHOW) {
 			ret += sprintf(buf + ret,"[%2d]  ",row);
 			printk("[Touch] [%2d]  ",row);
 		}
-		for(col = 0 ; col < MAX_COL ; col++) {
-			min = (min > ts->mit_data[row][col]) ? ts->mit_data[row][col] : min;
-			max = (max < ts->mit_data[row][col]) ? ts->mit_data[row][col] : max;
+
+		for (col = 0 ; col < MAX_COL ; col++) {
 			ret += sprintf(buf + ret,"%5d ", ts->mit_data[row][col]);
 			printk("%5d ", ts->mit_data[row][col]);
 			if (type == RAW_DATA_STORE) {
 				ret += sprintf(buf + ret,",");
 			}
+			ts->r_min = (ts->r_min > ts->mit_data[row][col]) ? ts->mit_data[row][col] : ts->r_min;
+			ts->r_max = (ts->r_max < ts->mit_data[row][col]) ? ts->mit_data[row][col] : ts->r_max;
 		}
+
 		if (type == RAW_DATA_SHOW) {
 			ret += sprintf(buf + ret,"\n");
 			printk("\n");
 		}
 	}
+
 	if (type == RAW_DATA_SHOW) {
-			ret += sprintf(buf + ret,"MAX = %d,  MIN = %d  (MAX - MIN = %d)\n\n",max , min, max - min);
-			TOUCH_INFO_MSG("MAX : %d,  MIN : %d  (MAX - MIN = %d)\n\n",max , min, max - min);
+		ret += sprintf(buf + ret,"MAX = %d,  MIN = %d  (MAX - MIN = %d)\n\n",ts->r_max , ts->r_min,ts->r_max - ts->r_min);
+		TOUCH_INFO_MSG("MAX : %d,  MIN : %d  (MAX - MIN = %d)\n\n",ts->r_max , ts->r_min, ts->r_max - ts->r_min);
 	}
 
 	return ret;
 }
 
-static int  print_openshort_data(struct mms_data *ts, char *buf) {
+static int  print_openshort_data(struct mms_data *ts, char *buf, int type)
+{
 	int col = 0;
 	int row = 0;
 	int ret = 0;
+	ts->o_min = ts->mit_data[0][0];
+	ts->o_max = ts->mit_data[0][0];
 
-	for(row = 0 ; row < MAX_ROW ; row++) {
-		printk("[Touch] [%2d]  ", row);
-		ret += sprintf(buf + ret,"[%2d]  ", row);
-		for(col = 0 ; col < MAX_COL ; col++) {
+	for (row = 0 ; row < MAX_ROW ; row++) {
+		if (type == OPENSHORT) {
+			printk("[Touch] [%2d]  ", row);
+			ret += sprintf(buf + ret,"[%2d]  ", row);
+		}
+
+		for (col = 0 ; col < MAX_COL ; col++) {
 			printk("%5d ", ts->mit_data[row][col]);
 			ret += sprintf(buf + ret,"%5d ", ts->mit_data[row][col]);
+			if (type == OPENSHORT_STORE) {
+				ret += sprintf(buf + ret,",");
+			}
+			ts->o_min = (ts->o_min > ts->mit_data[row][col]) ? ts->mit_data[row][col] : ts->o_min;
+			ts->o_max = (ts->o_max < ts->mit_data[row][col]) ? ts->mit_data[row][col] : ts->o_max;
 		}
+
+		if (type == OPENSHORT) {
+			ret += sprintf(buf + ret,"\n");
+			printk("\n");
+		}
+	}
+
+	if (type == OPENSHORT) {
 		printk("\n");
 		ret += sprintf(buf + ret,"\n");
-	}
-	printk("\n");
-	ret += sprintf(buf + ret,"\n");
+		ret += sprintf(buf + ret,"MAX = %d, MIN = %d (MAX - MIN = %d)\n\n",ts->o_max , ts->o_min, ts->o_max - ts->o_min);
+		TOUCH_INFO_MSG("MAX : %d, MIN : %d (MAX - MIN = %d)\n\n",ts->o_max , ts->o_min, ts->o_max - ts->o_min);
+		TOUCH_INFO_MSG("OPEN / SHORT TEST SPEC(LOWER : %d)\n", ts->pdata->limit->open_short_min);
+		ret += sprintf(buf + ret,"OPEN / SHORT TEST SPEC(LOWER : %d)\n", ts->pdata->limit->open_short_min);
 
-	TOUCH_INFO_MSG("OPEN / SHORT TEST SPEC(UPPER : %d  LOWER : %d)\n", ts->pdata->limit->open_short_max, ts->pdata->limit->open_short_min);
-	ret += sprintf(buf + ret,"OPEN / SHORT TEST SPEC(UPPER : %d  LOWER : %d)\n", ts->pdata->limit->open_short_max, ts->pdata->limit->open_short_min);
-
-	if (ts->pdata->selfdiagnostic_state[1] == 0 || ret == 0) {
-		for(row = 0 ; row < MAX_ROW ; row++) {
-			printk("[Touch] [%2d]  ",row);
-			ret += sprintf(buf + ret,"[%2d]  ",row);
-			for(col = 0 ; col < MAX_COL ; col++) {
-				if (ts->mit_data[row][col] <= ts->pdata->limit->open_short_max && ts->mit_data[row][col] >= ts->pdata->limit->open_short_min ) {
-					printk(" ,");
-					ret += sprintf(buf + ret," ,");
-				}else{
-					printk("X,");
-					ret += sprintf(buf + ret,"X,");
-					ts->pdata->selfdiagnostic_state[1] = 0;
+		if (ts->pdata->selfdiagnostic_state[SD_OPENSHORT] == 0 || ret == 0) {
+			for (row = 0 ; row < MAX_ROW ; row++) {
+				printk("[Touch] [%2d]  ",row);
+				ret += sprintf(buf + ret,"[%2d]  ",row);
+				for (col = 0 ; col < MAX_COL ; col++) {
+					if (ts->mit_data[row][col] >= ts->pdata->limit->open_short_min ) {
+						printk(" ,");
+						ret += sprintf(buf + ret," ,");
+					}else{
+						printk("X,");
+						ret += sprintf(buf + ret,"X,");
+						ts->pdata->selfdiagnostic_state[SD_OPENSHORT] = 0;
+					}
 				}
+				printk("\n");
+				ret += sprintf(buf + ret,"\n");
 			}
-			printk("\n");
-			ret += sprintf(buf + ret,"\n");
+			TOUCH_INFO_MSG("OpenShort Test : Fail\n\n");
+			ret += sprintf(buf + ret,"OpenShort Test : FAIL\n\n");
+		} else {
+			TOUCH_INFO_MSG("OpenShort Test : Pass\n\n");
+			ret += sprintf(buf + ret,"OpenShort Test : PASS\n\n");
 		}
-		TOUCH_INFO_MSG("OpenShort Test : Fail\n\n");
-		ret += sprintf(buf + ret,"OpenShort Test : FAIL\n\n");
-	} else {
-		TOUCH_INFO_MSG("OpenShort Test : Pass\n\n");
-		ret += sprintf(buf + ret,"OpenShort Test : PASS\n\n");
 	}
 	return ret;
 }
 
-static int  check_slope_data(struct mms_data *ts, char *buf) {
+static int  check_slope_data(struct mms_data *ts, char *buf)
+{
 	int row = 0;
 	int col = 0;
 	int ret = 0;
+	uint16_t denominator = 1;
 	uint16_t get_data[MAX_ROW][MAX_COL]={{0}};
+	ts->s_min = 500;
+	ts->s_max = 0;
 
-	for(col = 0 ; col < MAX_COL ; col++) {
-		for(row = 1 ; row < MAX_ROW - 1 ; row++) {
-			get_data[row][col] = (2 * ts->mit_data[row][col] * 100)/(ts->mit_data[row - 1][col] + ts->mit_data[row + 1][col]);
+	for (col = 0 ; col < MAX_COL ; col++) {
+		for (row = 1 ; row < MAX_ROW - 1 ; row++) {
+			denominator = (ts->mit_data[row - 1][col] + ts->mit_data[row + 1][col]) / 2;
+
+			if (denominator != 0) {
+				get_data[row][col] = (ts->mit_data[row][col] * 100) / denominator;
+			} else {
+				get_data[row][col] = 0;
+			}
+
 			if (get_data[row][col] > 999) {
 				get_data[row][col] = 999;
 			}
-			if (get_data[row][col] < ts->pdata->limit->slope_min || get_data[row][col] > ts->pdata->limit->slope_max)
-				ts->pdata->selfdiagnostic_state[2] = 0;
+
+			if (get_data[row][col] < ts->pdata->limit->slope_min || get_data[row][col] > ts->pdata->limit->slope_max){
+				ts->pdata->selfdiagnostic_state[SD_SLOPE] = 0;
+			}
+
+			ts->s_min = (ts->s_min > get_data[row][col]) ? get_data[row][col] : ts->s_min;
+			ts->s_max = (ts->s_max < get_data[row][col]) ? get_data[row][col] : ts->s_max;
+
 		}
 	}
-	for(row = 1 ; row < MAX_ROW - 1 ; row++) {
+
+	for (row = 1 ; row < MAX_ROW - 1 ; row++) {
 		ret += sprintf(buf + ret,"[%2d]  ",row);
 		printk("[Touch] [%2d]  ",row);
 
-		for(col = 0 ; col < MAX_COL ; col++) {
-			ret += sprintf(buf + ret,"%3d ", get_data[row][col]);
-			printk("%3d ", get_data[row][col]);
+		for (col = 0 ; col < MAX_COL ; col++) {
+			if (get_data[row][col] == 0) {
+				ret += sprintf(buf + ret,"ERR ");
+				printk("ERR ");
+			} else {
+				ret += sprintf(buf + ret,"%3d ", get_data[row][col]);
+				printk("%3d ", get_data[row][col]);
+			}
 		}
 		printk("\n");
 		ret += sprintf(buf + ret,"\n");
 	}
 	printk("\n");
 	ret += sprintf(buf + ret,"\n");
+
+	ret += sprintf(buf + ret,"MAX = %d, MIN = %d (MAX - MIN = %d)\n\n",ts->s_max , ts->s_min, ts->s_max - ts->s_min);
+	TOUCH_INFO_MSG("MAX : %d, MIN : %d (MAX - MIN = %d)\n\n",ts->s_max , ts->s_min, ts->s_max - ts->s_min);
 
 	ret += sprintf(buf + ret,"Slope Spec(UPPER : %d  LOWER : %d)\n", ts->pdata->limit->slope_max, ts->pdata->limit->slope_min);
 	TOUCH_INFO_MSG("Slope Spec(UPPER : %d  LOWER : %d)\n", ts->pdata->limit->slope_max, ts->pdata->limit->slope_min);
 
-	if (ts->pdata->selfdiagnostic_state[2] == 0) {
-		for(row = 1 ; row < MAX_ROW-1 ; row++) {
+	if (ts->pdata->selfdiagnostic_state[SD_SLOPE] == 0) {
+		for (row = 1 ; row < MAX_ROW - 1 ; row++) {
 			ret += sprintf(buf + ret,"[%2d]  ",row);
 			printk("[Touch] [%2d]  ",row);
-			for(col = 0 ; col < MAX_COL ; col++) {
+			for (col = 0 ; col < MAX_COL ; col++) {
 				if (get_data[row][col] >= ts->pdata->limit->slope_min && get_data[row][col] <= ts->pdata->limit->slope_max) {
 					ret += sprintf(buf + ret," ,");
 					printk(" ,");
@@ -961,65 +1088,84 @@ ssize_t mit_get_test_result(struct i2c_client *client, char *buf, int type)
 	int ret = 0;
 	int fd = 0;
 	char data_path[64] = {0,};
-	char *read_buf;
+	char *read_buf = NULL;
+	int retry_max = 3;
+	int retry_count = 0;
 	mm_segment_t old_fs = get_fs();
 
-	for( i = 0 ; i < MAX_ROW ; i++) {
+	for ( i = 0 ; i < MAX_ROW ; i++) {
 		memset(ts->mit_data[i], 0, sizeof(uint16_t) * MAX_COL);
 	}
 
-	read_buf=kzalloc(sizeof(u8)*4096,GFP_KERNEL);
+	read_buf = kzalloc(sizeof(u8) * 4096,GFP_KERNEL);
 	if (read_buf == NULL) {
-		TOUCH_ERR_MSG("read_buf mem_error");
+		TOUCH_ERR_MSG("read_buf mem_error\n");
 		goto mem_error;
 	}
 
 	ts->test_mode = type;
 
-	if (mit_enter_test(ts) == -1) {
-			TOUCH_ERR_MSG("test enter failed");
-			goto error;
-		}
-		if (mit_select_test(ts)==-1) {
-			TOUCH_ERR_MSG("test select failed");
-			goto error;
-		}
-	if (ts->test_mode == RAW_DATA_SHOW || ts->test_mode == RAW_DATA_STORE || ts->test_mode == SLOPE) {
-			if (get_rawdata(ts) == -1) {
-				TOUCH_ERR_MSG("getting raw data failed");
-				goto error;
-			}
-	} else {
-		if (get_openshort(ts) == -1) {
-			TOUCH_ERR_MSG("getting open_short data failed");
-			goto error;
-		}
-	}
-	if (mit_exit_test(ts)==-1) {
-		TOUCH_ERR_MSG("test exit failed");
+RETRY :
+	if (retry_count > 0 && retry_count <= retry_max) {
+		TOUCH_INFO_MSG("%s retry (%d/%d) \n", __func__, retry_count, retry_max);
+		mms_power_reset(ts);
+		mdelay(100);
+	} else if (retry_count > retry_max) {
+		TOUCH_INFO_MSG("%s all retry failed \n", __func__);
 		goto error;
 	}
+
+	retry_count++;
+
+	if (mit_enter_test(ts) == -1) {
+		TOUCH_ERR_MSG("test enter failed\n");
+		goto RETRY;
+	}
+
+	if (mit_select_test(ts) == -1) {
+		TOUCH_ERR_MSG("test select failed\n");
+		goto RETRY;
+	}
+
+	if (ts->test_mode == RAW_DATA_SHOW || ts->test_mode == RAW_DATA_STORE || ts->test_mode == SLOPE) {
+		if (get_rawdata(ts) == -1) {
+			TOUCH_ERR_MSG("getting raw data failed\n");
+			goto RETRY;
+		}
+	} else {
+		if (get_openshort(ts) == -1) {
+			TOUCH_ERR_MSG("getting open_short data failed\n");
+			goto RETRY;
+		}
+	}
+
+	if (mit_exit_test(ts) == -1) {
+		TOUCH_ERR_MSG("test exit failed\n");
+		goto RETRY;
+	}
+
 	switch(type) {
 		case RAW_DATA_SHOW:
 			ret = print_rawdata(ts, buf, type);
-			if (ret < 1) {
+			if (ret < 0) {
 				TOUCH_ERR_MSG("fail to print raw data\n");
-				ts->pdata->selfdiagnostic_state[0] = 0;
+				ts->pdata->selfdiagnostic_state[SD_RAWDATA] = 0;
 				goto error;
 			}
 			break;
 		case RAW_DATA_STORE:
-			snprintf(temp_buf,strlen(buf),"%s",buf);
-			sprintf(data_path,"/sdcard/%s.csv",temp_buf);
+			snprintf(temp_buf, strlen(buf), "%s", buf);
+			sprintf(data_path,"/sdcard/%s.csv", temp_buf);
 
 			ret = print_rawdata(ts, read_buf, type);
-			if (ret < 1) {
+			if (ret < 0) {
 				TOUCH_ERR_MSG("fail to print raw data\n");
-				ts->pdata->selfdiagnostic_state[0] = 0;
+				ts->pdata->selfdiagnostic_state[SD_RAWDATA] = 0;
 				goto error;
 			}
+
 			set_fs(KERNEL_DS);
-			fd = sys_open(data_path, O_WRONLY|O_CREAT, 0666);
+			fd = sys_open(data_path, O_WRONLY | O_CREAT, 0666);
 			if (fd >= 0) {
 				sys_write(fd, read_buf, 4096);
 				sys_close(fd);
@@ -1029,31 +1175,58 @@ ssize_t mit_get_test_result(struct i2c_client *client, char *buf, int type)
 			}
 			set_fs(old_fs);
 			break;
-		case OPENSHORT :
-			ret = print_openshort_data(ts,buf);
-			if ( ret < 1) {
+		case OPENSHORT:
+			if(ts->pdata->check_openshort == 1) {
+				ret = print_openshort_data(ts, buf, type);
+			}
+			if ( ret < 0) {
 				TOUCH_ERR_MSG("fail to print open short data\n");
-				ts->pdata->selfdiagnostic_state[1] = 0;
+				ts->pdata->selfdiagnostic_state[SD_OPENSHORT] = 0;
 				goto error;
 			}
 			break;
+		case OPENSHORT_STORE :
+			snprintf(temp_buf,strlen(buf),"%s", buf);
+			sprintf(data_path,"/sdcard/%s_openshort.csv",temp_buf);
+
+			if(ts->pdata->check_openshort == 1) {
+				ret = print_openshort_data(ts, read_buf, type);
+			}
+			if ( ret < 0) {
+				TOUCH_ERR_MSG("fail to print open short data\n");
+				ts->pdata->selfdiagnostic_state[SD_OPENSHORT] = 0;
+				goto error;
+			}
+
+			set_fs(KERNEL_DS);
+			fd = sys_open(data_path, O_WRONLY | O_CREAT, 0666);
+			if (fd >= 0) {
+				sys_write(fd, read_buf, 4096);
+				sys_close(fd);
+				TOUCH_INFO_MSG("%s saved \n", data_path);
+			} else {
+				TOUCH_INFO_MSG("%s open failed \n", data_path);
+			}
+			set_fs(old_fs);
+			break;
 		case SLOPE :
 			ret = check_slope_data(ts, buf);
-			if ( ret < 1) {
+			if ( ret < 0) {
 				TOUCH_ERR_MSG("fail to print open short data\n");
-				ts->pdata->selfdiagnostic_state[2] = 0;
+				ts->pdata->selfdiagnostic_state[SD_SLOPE] = 0;
 				goto error;
 			}
 			break;
 		case CRACK_CHECK :
 			break;
 		default :
-			TOUCH_INFO_MSG("type = default[%d]\n",type);
+			TOUCH_INFO_MSG("type = default[%d]\n", type);
 			break;
 		}
 
 	if (read_buf != NULL)
 		kfree(read_buf);
+
 	return ret;
 
 error :

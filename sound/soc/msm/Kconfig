@@ -183,6 +183,7 @@ config SND_SOC_MSM8974
 	select SND_DYNAMIC_MINORS
 	select AUDIO_OCMEM
 	select DOLBY_DAP
+	select SND_HWDEP
 	help
 	 To add support for SoC audio on MSM8974.
 	 This will enable sound soc drivers which
@@ -303,15 +304,15 @@ config SND_SOC_HFP
     help
      To support HFP for QPAIR Call
 
-config LGE_STEREO_SPEAKER
-	bool "LGE STEREO SPEAKER"
-	depends on (MACH_MSM8226_E9WIFI || MACH_MSM8226_E9WIFIN)
-	help
-	 To support stereo speaker for msm8x26
+config SND_SOC_HFP_WB
+    bool "HFP WIDE BAND SUPPORT"
+    default n
+    help
+     To support HFP for wide band
 
 config LGE_SW_IRRC_MUTE_SPEAKER
 	bool "LGE SW IRRC MUTE SPEAKER"
-	depends on ((MACH_MSM8226_E9WIFI || MACH_MSM8226_E9WIFIN) && LGE_STEREO_SPEAKER)
+	depends on SND_SOC_TPA2028D_STEREO_E9
 	help
 	 To support mute stereo speaker for msm8x26
 endmenu

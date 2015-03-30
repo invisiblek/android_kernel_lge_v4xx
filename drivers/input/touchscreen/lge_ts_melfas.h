@@ -189,7 +189,7 @@ enum {
 };
 
 enum {
-	NONE		=0,
+	NONE = 0,
 	RAW_DATA,
 	OPENSHORT,
 };
@@ -268,7 +268,7 @@ struct mms_data {
 	bool need_update[SECTION_NUM];
 	struct mms_section ts_section[SECTION_NUM];
 	struct mms_bin_hdr *fw_hdr;
-	struct mms_fw_img* fw_img[SECTION_NUM];
+	struct mms_fw_img *fw_img[SECTION_NUM];
 	struct mms_module module;
 	char buf[PACKET_SIZE];
 	struct mms_log log;
@@ -293,12 +293,12 @@ int mms_100s_isc(struct mms_data *ts, struct touch_fw_info *info);
 int mms_100a_fw_upgrade(struct mms_data *ts, struct touch_fw_info *info);
 int mit_isc_fwupdate(struct mms_data *ts, struct touch_fw_info *info);
 int mms_set_gpio_mode(struct touch_platform_data *pdata, int mode);
-int mms_power_ctrl(struct i2c_client* client, int power_ctrl);
+int mms_power_ctrl(struct i2c_client *client, int power_ctrl);
 int mms_power_reset(struct mms_data *ts);
 ssize_t mit_delta_show(struct i2c_client *client, char *buf);
-ssize_t mit_rawdata_show(struct i2c_client *client,char *buf);
+ssize_t mit_rawdata_show(struct i2c_client *client, char *buf);
 ssize_t mit_openshort_show(struct i2c_client *client, char *buf);
 int mit_isc_page_read(struct mms_data *ts, u8 *rdata, int addr);
 int mit_isc_exit(struct mms_data *ts);
-#endif //                
+#endif /*                */
 

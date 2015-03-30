@@ -31,4 +31,5 @@
 
 &android_usb {
         qcom,streaming-func = "ecm", "mtp";
+	lge,factory-cable-reset;
 };

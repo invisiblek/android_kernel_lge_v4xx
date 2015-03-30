@@ -11,6 +11,8 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
+source "drivers/input/touchscreen/synaptics_dsx/Kconfig"
+
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
 	depends on MFD_88PM860X
@@ -170,6 +172,17 @@ config TOUCHSCREEN_ATMEL_T1664
 	  To compile this driver as a module, choose M here: the
 	  module will be called atmel_t1664.
       
+config TOUCHSCREEN_ATMEL_T1066
+	tristate "Atmel mXT 1066T3 I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have Atmel mXT series I2C touchscreen,
+	  such as AT42QT602240/ATMXT224, connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atmel_t1066.
 
 config TOUCHSCREEN_ATMEL_MAXTOUCH_TS
 	tristate "Atmel Maxtouch Touchscreen Family"
@@ -1278,6 +1291,13 @@ config TOUCHSCREEN_LGE_MELFAS
 	help
          Say Y here if you have a Mefas MMS-100S or MMS-100A I2C touchscreen
          connected to your system.
+
+config LGE_ATMEL_S540_KNOCK_CODE_2_5
+	bool "Atmel s540 Knock code 2.5"
+	depends on TOUCHSCREEN_ATMEL_S540
+	default n
+	help
+         Say Y here if you use knock code 2.5 in Atmel s540.
 
 config TOUCHSCREEN_GT9XX
 	bool "Goodix touchpanel GT9xx series"

@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2008 Google, Inc.
  * Author: Brian Swetland <swetland@google.com>
- * Copyright (c) 2009-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2014, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -202,6 +202,20 @@ enum msm_otg_id_state {
 };
 
 /**
+ * Maintain state for hvdcp external charger status
+ * DEFAULT	This is used when DCP is detected
+ * ACTIVE	This is used when ioctl is called to block LPM
+ * INACTIVE	This is used when ioctl is called to unblock LPM
+ */
+
+enum usb_ext_chg_status {
+	DEFAULT = 1,
+	ACTIVE,
+	INACTIVE,
+};
+
+
+/**
  * struct msm_otg_platform_data - platform device data
  *              for msm_otg driver.
  * @phy_init_seq: PHY configuration sequence. val, reg pairs
@@ -279,6 +293,10 @@ struct msm_otg_platform_data {
 	bool enable_ahb2ahb_bypass;
 	bool disable_retention_with_vdd_min;
 	bool factory_cable_reset;
+#ifdef CONFIG_LGE_SUPPORT_TYPE_A_USB
+	int hub_en_gpio;
+	int hub_res_gpio;
+#endif
 };
 
 /* phy related flags */
@@ -339,6 +357,10 @@ struct msm_otg_platform_data {
  * @regs: ioremapped register base address.
  * @inputs: OTG state machine inputs(Id, SessValid etc).
  * @sm_work: OTG state machine work.
+ * @pm_suspended: OTG device is system(PM) suspended.
+ * @pm_notify: Notifier to receive system wide PM transition events.
+		It is used to defer wakeup events processing until
+		system is RESUMED.
  * @in_lpm: indicates low power mode (LPM) state.
  * @async_int: IRQ line on which ASYNC interrupt arrived in LPM.
  * @cur_power: The amount of mA available from downstream port.
@@ -362,6 +384,10 @@ struct msm_otg_platform_data {
  *               very slow plug in of wall charger.
  * @pm_done: Indicates whether USB is PM resumed.
  * @ui_enabled: USB Intterupt is enabled or disabled.
+ * @pm_done: It is used to increment the pm counter using pm_runtime_get_sync.
+	     This handles the race case when PM resume thread returns before
+	     the charger detection starts. When USB is disconnected pm_done
+	     is set to true.
  */
 struct msm_otg {
 	struct usb_phy phy;
@@ -399,12 +425,17 @@ struct msm_otg {
 	struct work_struct sm_work;
 	bool sm_work_pending;
 	atomic_t pm_suspended;
+	struct notifier_block pm_notify;
 	atomic_t in_lpm;
 	int async_int;
 	unsigned cur_power;
 	struct delayed_work chg_work;
 	struct delayed_work pmic_id_status_work;
 	struct delayed_work suspend_work;
+#if defined(CONFIG_CHG_DETECTOR_MAX14656)
+	struct delayed_work lge_chg_work;
+	int chg_det_cnt;
+#endif
 	enum usb_chg_state chg_state;
 	enum usb_chg_type chg_type;
 	unsigned dcd_time;
@@ -475,11 +506,10 @@ struct msm_otg {
 	struct class *ext_chg_class;
 	struct device *ext_chg_device;
 	bool ext_chg_opened;
-	bool ext_chg_active;
+	enum usb_ext_chg_status ext_chg_active;
 	struct completion ext_chg_wait;
+	int ui_enabled;
 	bool pm_done;
-        int ui_enabled;
-
 #ifdef CONFIG_LGE_PM_USB_ID
 	struct qpnp_vadc_chip *vadc_dev;
 	struct qpnp_adc_tm_btm_param adc_param;
@@ -487,10 +517,13 @@ struct msm_otg {
 	enum msm_otg_id_state id_state;
 	struct qpnp_adc_tm_chip *adc_tm_dev;
 	bool id_adc_detect;
+#else
+	struct qpnp_vadc_chip	*vadc_dev;
 #endif
 #ifdef CONFIG_LGE_PM_VZW_FAST_CHG
 	int chg_det_count;
 #endif
+	struct power_supply *ac_psy;
 
 };
 
@@ -550,6 +583,7 @@ struct msm_usb_host_platform_data {
 	bool use_sec_phy;
 	bool no_selective_suspend;
 	int resume_gpio;
+	bool is_uicc;
 };
 
 /**

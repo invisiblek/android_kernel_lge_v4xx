@@ -871,6 +871,7 @@ try_again:
 	   ((*rocr & 0x41000000) == 0x41000000)) {
 		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180, true);
 		if (err) {
+			mmc_power_cycle(host);
 			ocr &= ~SD_OCR_S18R;
 			goto try_again;
 		}
@@ -1163,12 +1164,12 @@ static void mmc_sd_remove(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	pr_debug("%s: %s\n", mmc_hostname(host), __func__);
+	mmc_exit_clk_scaling(host);
 
 	mmc_remove_card(host->card);
 
 	mmc_claim_host(host);
 	host->card = NULL;
-	mmc_exit_clk_scaling(host);
 	mmc_release_host(host);
 }
 
@@ -1238,7 +1239,7 @@ static void mmc_sd_detect(struct mmc_host *host)
 		break;
 	}
 	if (!retries) {
-#if defined(CONFIG_MACH_MSM8X10_W3DS_OPEN_SCA) || defined(CONFIG_MACH_MSM8X10_W3_GLOBAL_SCA) || defined(CONFIG_LGE_REINIT_SDCARD_FOR_DETECT_FAIL) || defined(CONFIG_MACH_MSM8X10_W5DS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8X10_W5_GLOBAL_COM) || defined(CONFIG_MACH_MSM8X10_W55DS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8X10_W55_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_E8LTE)
+#if defined(CONFIG_MACH_MSM8X10_W3DS_OPEN_SCA) || defined(CONFIG_MACH_MSM8926_E9LTE) || defined(CONFIG_MACH_MSM8X10_W3_GLOBAL_SCA) || defined(CONFIG_LGE_REINIT_SDCARD_FOR_DETECT_FAIL) || defined(CONFIG_MACH_MSM8X10_W5DS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8X10_W5_GLOBAL_COM) || defined(CONFIG_MACH_MSM8X10_W55DS_GLOBAL_COM) || defined(CONFIG_MACH_MSM8X10_W55_GLOBAL_COM)
 	// Try re-init the card when card detection is failed.
         pr_warning("%s(%s): Unable to re-detect card (%d)\n", __func__, mmc_hostname(host), err); 
         mmc_power_off(host); 
@@ -1506,15 +1507,11 @@ int mmc_attach_sd(struct mmc_host *host)
 	 */
 #ifdef CONFIG_MMC_PARANOID_SD_INIT
 	retries = 5;
-#ifdef CONFIG_MACH_MSM8926_MMC_ABORT_RESCAN_IN_SUSPEND
 	/*
 	 * Some bad cards may take a long time to init, give preference to
 	 * suspend in those cases.
 	 */
 	while (retries && !host->rescan_disable) {
-#else
-	while (retries) {
-#endif
 		err = mmc_sd_init_card(host, host->ocr, NULL);
 		if (err) {
 			retries--;
@@ -1532,10 +1529,9 @@ int mmc_attach_sd(struct mmc_host *host)
 		       mmc_hostname(host), err);
 		goto err;
 	}
-#ifdef CONFIG_MACH_MSM8926_MMC_ABORT_RESCAN_IN_SUSPEND
+
 	if (host->rescan_disable)
 		goto err;
-#endif
 #else
 	err = mmc_sd_init_card(host, host->ocr, NULL);
 	if (err)
@@ -1571,7 +1567,6 @@ remove_card:
 	mmc_claim_host(host);
 err:
 	mmc_detach_bus(host);
-
 #ifdef CONFIG_MMC_DAMAGED_SDCARD_CTRL
 	/*                                    
                                                          
@@ -1583,15 +1578,9 @@ err:
 		host->damaged = 1;
 	}
 #endif
-
-#ifdef CONFIG_MACH_MSM8926_MMC_ABORT_RESCAN_IN_SUSPEND
 	if (err)
 		pr_err("%s: error %d whilst initialising SD card: rescan: %d\n",
 		       mmc_hostname(host), err, host->rescan_disable);
-#else
-	pr_err("%s: error %d whilst initialising SD card\n",
-		mmc_hostname(host), err);
-#endif
 
 	return err;
 }

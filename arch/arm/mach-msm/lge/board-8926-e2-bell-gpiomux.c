@@ -362,7 +362,7 @@ static struct gpiomux_setting touch_int_config[] = {
 	{ /* Suspend */
 		.func = GPIOMUX_FUNC_GPIO,
 		.drv = GPIOMUX_DRV_2MA,
-		.pull = GPIOMUX_PULL_DOWN,
+		.pull = GPIOMUX_PULL_UP,
 		.dir = GPIOMUX_IN,
 	}
 };
@@ -372,7 +372,7 @@ static struct gpiomux_setting touch_reset_config[] = {
 		.func = GPIOMUX_FUNC_GPIO,
 		.drv = GPIOMUX_DRV_2MA,
 		.pull = GPIOMUX_PULL_NONE,
-		.dir = GPIOMUX_OUT_HIGH,
+		.dir = GPIOMUX_OUT_LOW,
 	},
 	{ /* Suspend */
 		.func = GPIOMUX_FUNC_GPIO,
@@ -385,13 +385,13 @@ static struct gpiomux_setting touch_reset_config[] = {
 static struct gpiomux_setting touch_ldo_enable_config[] = {
 	{ /* Active */
 		.func = GPIOMUX_FUNC_GPIO,
-		.drv = GPIOMUX_DRV_8MA,
+		.drv = GPIOMUX_DRV_2MA,
 		.pull = GPIOMUX_PULL_UP,
-		.dir = GPIOMUX_OUT_HIGH,
+		.dir = GPIOMUX_OUT_LOW,
 	},
 	{ /* Suspend */
 		.func = GPIOMUX_FUNC_GPIO,
-		.drv = GPIOMUX_DRV_8MA,
+		.drv = GPIOMUX_DRV_2MA,
 		.pull = GPIOMUX_PULL_NONE,
 		.dir = GPIOMUX_OUT_LOW,
 	}
@@ -410,6 +410,13 @@ static struct msm_gpiomux_config msm_touch_configs[] __initdata = {
 		.settings = {
 			[GPIOMUX_ACTIVE] = &touch_reset_config[0],
 			[GPIOMUX_SUSPENDED] = &touch_reset_config[1],
+		},
+	},
+	{
+		.gpio = 110,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &touch_ldo_enable_config[0],
+			[GPIOMUX_SUSPENDED] = &touch_ldo_enable_config[1],
 		},
 	},
 	{

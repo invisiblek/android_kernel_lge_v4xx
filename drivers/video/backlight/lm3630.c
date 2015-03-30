@@ -253,7 +253,7 @@ void lm3630_backlight_on(int level)
 #else
 
 		/*  OVP(24V),OCP(1.0A) , Boost Frequency(500khz) */
-#if !defined(CONFIG_MACH_MSM8926_X10_VZW) && !defined(CONFIG_MACH_MSM8926_B2L_ATT) && !defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
+#if !defined(CONFIG_MACH_MSM8926_X10_VZW) && !defined(CONFIG_MACH_MSM8926_B2L_ATT) && !defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGNM_BELL) || defined(CONFIG_MACH_MSM8926_JAGC_SPR)
 		lm3630_write_reg(main_lm3630_dev->client, 0x02, 0x30);
 #else
 		lm3630_write_reg(main_lm3630_dev->client, 0x02, 0x50);  /*B1L Rev0,A... OVP = 32V */
@@ -274,7 +274,7 @@ void lm3630_backlight_on(int level)
 		lm3630_write_reg(main_lm3630_dev->client, 0x05, 0x16);
 
 		/* Enable LED A to Exponential, LED2 is connected to BANK_A */
-#if !defined(CONFIG_MACH_MSM8926_X10_VZW) && !defined(CONFIG_MACH_MSM8926_B2L_ATT) && !defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
+#if !defined(CONFIG_MACH_MSM8926_X10_VZW) && !defined(CONFIG_MACH_MSM8926_B2L_ATT) && !defined(CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_JAGNM_BELL) || defined(CONFIG_MACH_MSM8926_JAGC_SPR)
 		lm3630_write_reg(main_lm3630_dev->client, 0x00, 0x15);
 #else
 		if(HW_REV_0 == hw_rev)
@@ -592,7 +592,7 @@ static int lm3630_probe(struct i2c_client *i2c_dev,
 	int err;
 
 	pr_debug("[LCD][DEBUG] %s: i2c probe start\n", __func__);
-	
+
 #ifdef CONFIG_OF
 	if (&i2c_dev->dev.of_node) {
 		pdata = devm_kzalloc(&i2c_dev->dev,

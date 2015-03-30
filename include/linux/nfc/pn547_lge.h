@@ -69,7 +69,10 @@ struct pn547_dev {
     unsigned int        ven_gpio;
     unsigned int        firm_gpio;
     unsigned int        irq_gpio;
-    unsigned int        count_irq;
+#ifdef CONFIG_LGE_NFC_USE_PMIC
+    struct clk          *clk_cont;
+    struct clk          *clk_pin;
+#endif
     bool            irq_enabled;
     spinlock_t      irq_enabled_lock;
 };
@@ -85,7 +88,7 @@ struct pn547_gpio {
 #if defined(CONFIG_LGE_NFC_DEBUG_MESSAGE)
 #define dprintk(fmt, args...) printk(fmt, ##args)
 #else
-#define dprintk(fmt, args...) do{ } while(0)
+#define dprintk(fmt, args...) do { } while (0)
 #endif
 
 #endif /*               */

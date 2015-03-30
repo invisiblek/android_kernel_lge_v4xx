@@ -5870,8 +5870,8 @@ err:
 }
 
 #if defined( CONFIG_BCMDHD )  //joon For device tree.
-extern int sdc3_status_register(void (*cb)(int card_present, void *dev), void *dev);
-extern unsigned int sdc3_status(struct device* );
+extern int wcf_status_register(void (*cb)(int card_present, void *dev), void *dev);
+extern unsigned int wcf_status(struct device *);
 #endif
 
 static int
@@ -6252,8 +6252,8 @@ msmsdcc_probe(struct platform_device *pdev)
             printk("J:%s-%d> plat->nonremovable = %d\n", __FUNCTION__, host->pdev->id, plat->nonremovable );
             if( host->pdev->id == 3 )
             {
-                plat->register_status_notify = sdc3_status_register;
-                plat->status = sdc3_status;
+			plat->register_status_notify = wcf_status_register;
+			plat->status = wcf_status;
             }
 #endif
         

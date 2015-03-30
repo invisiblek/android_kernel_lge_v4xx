@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,7 +18,7 @@
 #define PLATFORM_DRIVER_NAME "msm_camera_mt9m114"
 #define mt9m114_obj mt9m114_##obj
 
-#define CONFIG_MSMB_CAMERA_DEBUG 1
+//#define CONFIG_MSMB_CAMERA_DEBUG 1
 
 #undef CDBG
 #ifdef CONFIG_MSMB_CAMERA_DEBUG
@@ -28,16 +28,6 @@
 #endif
 
 DEFINE_MSM_MUTEX(mt9m114_mut);
-
-#if 0
-/* Sysctl registers */
-#define MT9M114_COMMAND_REGISTER                0x0080
-#define MT9M114_COMMAND_REGISTER_APPLY_PATCH    (1 << 0)
-#define MT9M114_COMMAND_REGISTER_SET_STATE      (1 << 1)
-#define MT9M114_COMMAND_REGISTER_REFRESH        (1 << 2)
-#define MT9M114_COMMAND_REGISTER_WAIT_FOR_EVENT (1 << 3)
-#define MT9M114_COMMAND_REGISTER_OK             (1 << 15)
-#endif
 
 typedef enum {
   MT9M114_60HZ,
@@ -141,7 +131,7 @@ static struct msm_sensor_power_setting mt9m114_power_setting[] = {
 		.delay = 0,
 	},
 /*                                                                     */
-#if defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
+#if defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E8LTE_KR) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US) || defined (CONFIG_MACH_MSM8926_E9LTE_VZW_US)
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_VDIG,
@@ -170,7 +160,7 @@ static struct msm_sensor_power_setting mt9m114_power_setting[] = {
 		.config_val = GPIO_OUT_HIGH,
 		.delay = 15,
 	},
-#if defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
+#if defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E8LTE_KR) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US) || defined (CONFIG_MACH_MSM8926_E9LTE_VZW_US)
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_VANA,
@@ -212,60 +202,6 @@ static struct msm_sensor_power_setting mt9m114_power_setting[] = {
 	},
 };
 
-#if 0
-static struct msm_camera_i2c_reg_conf mt9m114_720p_settings[] = {
-	{0xdc00, 0x50, MSM_CAMERA_I2C_BYTE_DATA, MSM_CAMERA_I2C_CMD_WRITE},
-	{MT9M114_COMMAND_REGISTER, MT9M114_COMMAND_REGISTER_SET_STATE,
-		MSM_CAMERA_I2C_UNSET_WORD_MASK, MSM_CAMERA_I2C_CMD_POLL},
-	{MT9M114_COMMAND_REGISTER, (MT9M114_COMMAND_REGISTER_OK |
-		MT9M114_COMMAND_REGISTER_SET_STATE), MSM_CAMERA_I2C_WORD_DATA,
-		MSM_CAMERA_I2C_CMD_WRITE},
-	{MT9M114_COMMAND_REGISTER, MT9M114_COMMAND_REGISTER_SET_STATE,
-		MSM_CAMERA_I2C_UNSET_WORD_MASK, MSM_CAMERA_I2C_CMD_POLL},
-	{0xDC01, 0x52, MSM_CAMERA_I2C_BYTE_DATA, MSM_CAMERA_I2C_CMD_POLL},
-
-	{0x098E, 0, MSM_CAMERA_I2C_BYTE_DATA},
-	{0xC800, 0x007C,},/*y_addr_start = 124*/
-	{0xC802, 0x0004,},/*x_addr_start = 4*/
-	{0xC804, 0x0353,},/*y_addr_end = 851*/
-	{0xC806, 0x050B,},/*x_addr_end = 1291*/
-	{0xC808, 0x02DC,},/*pixclk = 48000000*/
-	{0xC80A, 0x6C00,},/*pixclk = 48000000*/
-	{0xC80C, 0x0001,},/*row_speed = 1*/
-	{0xC80E, 0x00DB,},/*fine_integ_time_min = 219*/
-	{0xC810, 0x05BD,},/*fine_integ_time_max = 1469*/
-	{0xC812, 0x03E8,},/*frame_length_lines = 1000*/
-	{0xC814, 0x0640,},/*line_length_pck = 1600*/
-	{0xC816, 0x0060,},/*fine_correction = 96*/
-	{0xC818, 0x02D3,},/*cpipe_last_row = 723*/
-	{0xC826, 0x0020,},/*reg_0_data = 32*/
-/*                                                                    */
-#if defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN)
-	{0xC834, 0x0000,},/*sensor_control_read_mode = 0*/
-#else
-	{0xC834, 0x0003,},/*sensor_control_read_mode = 0*/
-#endif
-/*                                                                    */
-	{0xC854, 0x0000,},/*crop_window_xoffset = 0*/
-	{0xC856, 0x0000,},/*crop_window_yoffset = 0*/
-	{0xC858, 0x0500,},/*crop_window_width = 1280*/
-	{0xC85A, 0x02D0,},/*crop_window_height = 720*/
-	{0xC85C, 0x03, MSM_CAMERA_I2C_BYTE_DATA},  /*crop_cropmode = 3*/
-	{0xC868, 0x0500,},/*output_width = 1280*/
-	{0xC86A, 0x02D0,},/*output_height = 720*/
-	{0xC878, 0x00, MSM_CAMERA_I2C_BYTE_DATA},  /*aet_aemode = 0*/
-	{0xC88C, 0x1E00,},/*aet_max_frame_rate = 7680*/
-	{0xC88E, 0x1E00,},/*aet_min_frame_rate = 7680*/
-	{0xC914, 0x0000,},/*stat_awb_window_xstart = 0*/
-	{0xC916, 0x0000,},/*stat_awb_window_ystart = 0*/
-	{0xC918, 0x04FF,},/*stat_awb_window_xend = 1279*/
-	{0xC91A, 0x02CF,},/*stat_awb_window_yend = 719*/
-	{0xC91C, 0x0000,},/*stat_ae_window_xstart = 0*/
-	{0xC91E, 0x0000,},/*stat_ae_window_ystart = 0*/
-	{0xC920, 0x00FF,},/*stat_ae_window_xend = 255*/
-	{0xC922, 0x008F,},/*stat_ae_window_yend = 143*/
-};
-#endif
 
 static struct msm_camera_i2c_reg_conf mt9m114_recommend_settings[] = {
 	{0xFFFD, 0x0564},	 /* [POLLING CMD(16)], [TIME(8) | COUNT(8)] */
@@ -301,7 +237,7 @@ static struct msm_camera_i2c_reg_conf mt9m114_recommend_settings[] = {
 	{0xC816, 0x0060,},	//cam_sensor_cfg_fine_correction = 96
 	{0xC818, 0x03C3,},	//cam_sensor_cfg_cpipe_last_row = 963
 	{0xC826, 0x0020,},	//cam_sensor_cfg_reg_0_data = 32
-#if defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN)
+#if defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || defined(CONFIG_MACH_MSM8926_E9LTE_VZW_US)
 	{0xC834, 0x0000,},/*sensor_control_read_mode = 0*/
 #else
 	{0xC834, 0x0003,},/*sensor_control_read_mode = 0*/
@@ -687,7 +623,7 @@ static struct msm_camera_i2c_reg_conf mt9m114_recommend_settings[] = {
 // start of test for AE window //2014-04-09
 //[AE weight update 1]
 /*                                                            */
-#if defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN)
+#if defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || defined(CONFIG_MACH_MSM8926_E9LTE_VZW_US)
 	{0x098E, 0x2404,},       // LOGICAL_ADDRESS_ACCESS [AE_RULE_ALGO]
 	{0xA404, 0x0001,},      // AE_RULE_ALGO
 	{0x098E, 0xA407,},     // LOGICAL_ADDRESS_ACCESS [AE_RULE_AE_WEIGHT_TABLE_0_0]
@@ -1272,6 +1208,10 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		for (i = 0; i < SUB_MODULE_MAX; i++)
 			cdata->cfg.sensor_info.subdev_id[i] =
 				s_ctrl->sensordata->sensor_info->subdev_id[i];
+		cdata->cfg.sensor_info.is_mount_angle_valid =
+			s_ctrl->sensordata->sensor_info->is_mount_angle_valid;
+		cdata->cfg.sensor_info.sensor_mount_angle =
+			s_ctrl->sensordata->sensor_info->sensor_mount_angle;
 		CDBG("%s:%d sensor name %s\n", __func__, __LINE__,
 			cdata->cfg.sensor_info.sensor_name);
 		CDBG("%s:%d session id %d\n", __func__, __LINE__,
@@ -1279,6 +1219,9 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		for (i = 0; i < SUB_MODULE_MAX; i++)
 			CDBG("%s:%d subdev_id[%d] %d\n", __func__, __LINE__, i,
 				cdata->cfg.sensor_info.subdev_id[i]);
+		CDBG("%s:%d mount angle valid %d value %d\n", __func__,
+			__LINE__, cdata->cfg.sensor_info.is_mount_angle_valid,
+			cdata->cfg.sensor_info.sensor_mount_angle);
 
 		break;
 	case CFG_SET_INIT_SETTING:
@@ -1286,18 +1229,6 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		/* 1. Write Recommend settings */
 		/* 2. Set Manual Flicker */
 		/* 3. Write change settings */
-#if 0
-		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->
-			i2c_write_conf_tbl(
-			s_ctrl->sensor_i2c_client, mt9m114_recommend_settings,
-			ARRAY_SIZE(mt9m114_recommend_settings), MSM_CAMERA_I2C_WORD_DATA);
-
-		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->
-			i2c_write_conf_tbl(
-			s_ctrl->sensor_i2c_client, mt9m114_config_change_settings,
-			ARRAY_SIZE(mt9m114_config_change_settings), MSM_CAMERA_I2C_WORD_DATA);
-
-#endif
 		rc = mt9m114_sensor_config_control(
 			s_ctrl->sensor_i2c_client, mt9m114_recommend_settings,
 			ARRAY_SIZE(mt9m114_recommend_settings), MSM_CAMERA_I2C_WORD_DATA);
@@ -1319,32 +1250,17 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		pr_err("%s:%d CFG_SET_INIT_SETTING - done\n", __func__, __LINE__);
 		break;
 	case CFG_SET_RESOLUTION:
-		#if 0
-		pr_err("%s:%d CFG_SET_RESOLUTION\n", __func__, __LINE__);
-		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->
-			i2c_write_conf_tbl(
-			s_ctrl->sensor_i2c_client, mt9m114_720p_settings,
-			ARRAY_SIZE(mt9m114_720p_settings),
-			MSM_CAMERA_I2C_WORD_DATA);
-	 	#endif
-		break;
 	case CFG_SET_STOP_STREAM:
 		break;
 	case CFG_SET_START_STREAM:
-		pr_err("%s:%d CFG_SET_START_STREAM\n", __func__, __LINE__);
-#if 0
-		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->
-			i2c_write_conf_tbl(
-			s_ctrl->sensor_i2c_client,
-			mt9m114_config_change_settings,
-			ARRAY_SIZE(mt9m114_config_change_settings),
-			MSM_CAMERA_I2C_WORD_DATA);
-#endif
-		pr_err("START_STREAM X\n");
 		break;
 	case CFG_GET_SENSOR_INIT_PARAMS:
-		cdata->cfg.sensor_init_params =
-			*s_ctrl->sensordata->sensor_init_params;
+		cdata->cfg.sensor_init_params.modes_supported =
+			s_ctrl->sensordata->sensor_info->modes_supported;
+		cdata->cfg.sensor_init_params.position =
+			s_ctrl->sensordata->sensor_info->position;
+		cdata->cfg.sensor_init_params.sensor_mount_angle =
+			s_ctrl->sensordata->sensor_info->sensor_mount_angle;
 		CDBG("%s:%d init params mode %d pos %d mount %d\n", __func__,
 			__LINE__,
 			cdata->cfg.sensor_init_params.modes_supported,
@@ -1353,12 +1269,13 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		break;
 	case CFG_SET_SLAVE_INFO: {
 		struct msm_camera_sensor_slave_info sensor_slave_info;
-		struct msm_sensor_power_setting_array *power_setting_array;
+		struct msm_camera_power_ctrl_t *p_ctrl;
+		uint16_t size;
 		int slave_index = 0;
 		pr_err("%s:%d CFG_SET_SLAVE_INFO\n", __func__, __LINE__);
 		if (copy_from_user(&sensor_slave_info,
-		    (void *)cdata->cfg.setting,
-		    sizeof(struct msm_camera_sensor_slave_info))) {
+			(void *)cdata->cfg.setting,
+			sizeof(struct msm_camera_sensor_slave_info))) {
 			pr_err("%s:%d failed\n", __func__, __LINE__);
 			rc = -EFAULT;
 			break;
@@ -1374,27 +1291,30 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			sensor_slave_info.addr_type;
 
 		/* Update power up / down sequence */
-		s_ctrl->power_setting_array =
-			sensor_slave_info.power_setting_array;
-		power_setting_array = &s_ctrl->power_setting_array;
-		power_setting_array->power_setting = kzalloc(
-			power_setting_array->size *
-			sizeof(struct msm_sensor_power_setting), GFP_KERNEL);
-		if (!power_setting_array->power_setting) {
-			pr_err("%s:%d failed\n", __func__, __LINE__);
-			rc = -ENOMEM;
-			break;
+		p_ctrl = &s_ctrl->sensordata->power_info;
+		size = sensor_slave_info.power_setting_array.size;
+		if (p_ctrl->power_setting_size < size) {
+			struct msm_sensor_power_setting *tmp;
+			tmp = kmalloc(sizeof(struct msm_sensor_power_setting)
+				      * size, GFP_KERNEL);
+			if (!tmp) {
+				pr_err("%s: failed to alloc mem\n", __func__);
+				rc = -ENOMEM;
+				break;
+			}
+			kfree(p_ctrl->power_setting);
+			p_ctrl->power_setting = tmp;
 		}
-		if (copy_from_user(power_setting_array->power_setting,
-		    (void *)sensor_slave_info.power_setting_array.power_setting,
-		    power_setting_array->size *
-		    sizeof(struct msm_sensor_power_setting))) {
-			kfree(power_setting_array->power_setting);
+		p_ctrl->power_setting_size = size;
+
+		rc = copy_from_user(p_ctrl->power_setting, (void *)
+			sensor_slave_info.power_setting_array.power_setting,
+			size * sizeof(struct msm_sensor_power_setting));
+		if (rc) {
 			pr_err("%s:%d failed\n", __func__, __LINE__);
 			rc = -EFAULT;
 			break;
 		}
-		s_ctrl->free_power_setting = true;
 		CDBG("%s sensor id %x\n", __func__,
 			sensor_slave_info.slave_addr);
 		CDBG("%s sensor addr type %d\n", __func__,
@@ -1404,19 +1324,14 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		CDBG("%s sensor id %x\n", __func__,
 			sensor_slave_info.sensor_id_info.sensor_id);
 		for (slave_index = 0; slave_index <
-			power_setting_array->size; slave_index++) {
+			p_ctrl->power_setting_size; slave_index++) {
 			CDBG("%s i %d power setting %d %d %ld %d\n", __func__,
 				slave_index,
-				power_setting_array->power_setting[slave_index].
-				seq_type,
-				power_setting_array->power_setting[slave_index].
-				seq_val,
-				power_setting_array->power_setting[slave_index].
-				config_val,
-				power_setting_array->power_setting[slave_index].
-				delay);
+				p_ctrl->power_setting[slave_index].seq_type,
+				p_ctrl->power_setting[slave_index].seq_val,
+				p_ctrl->power_setting[slave_index].config_val,
+				p_ctrl->power_setting[slave_index].delay);
 		}
-		kfree(power_setting_array->power_setting);
 		break;
 	}
 	case CFG_WRITE_I2C_ARRAY: {
@@ -1493,8 +1408,7 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		break;
 	}
 
-	case CFG_POWER_UP:{
-
+	case CFG_POWER_UP:
 		if (s_ctrl->sensor_state != MSM_SENSOR_POWER_DOWN) {
 			pr_err("%s:%d failed: invalid state %d\n", __func__,
 				__LINE__, s_ctrl->sensor_state);
@@ -1516,9 +1430,8 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			rc = -EFAULT;
 		}
 		break;
-	}
-	case CFG_POWER_DOWN:{
 
+	case CFG_POWER_DOWN:
 		kfree(s_ctrl->stop_setting.reg_setting);
 		s_ctrl->stop_setting.reg_setting = NULL;
 		if (s_ctrl->sensor_state != MSM_SENSOR_POWER_UP) {
@@ -1543,7 +1456,6 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			rc = -EFAULT;
 		}
 		break;
-	}
 /*                                                              */
 	case CFG_PAGE_MODE_READ_I2C_ARRAY:{
 		int16_t size=0;
@@ -1553,7 +1465,7 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		struct msm_camera_i2c_reg_setting conf_array;
 		struct msm_camera_i2c_reg_array *reg_setting = NULL;
 
-		pr_err("[WX] %s CFG_PAGE_MODE_READ_I2C_ARRAY\n", __func__);
+		CDBG("[WX] %s CFG_PAGE_MODE_READ_I2C_ARRAY\n", __func__);
 		if (copy_from_user(&conf_array,
 			(void *)cdata->cfg.setting,
 			sizeof(struct msm_camera_i2c_reg_setting))) {
@@ -1564,7 +1476,7 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		size = conf_array.size; 	//size for write(page_mode) and read
 		read_data_size = size - 1;	//size for read
 
-		pr_err("[WX] %s: size : %d rsize : %d\n", __func__, size, read_data_size);
+		CDBG("[WX] %s: size : %d rsize : %d\n", __func__, size, read_data_size);
 
 		if (!size || !read_data_size) {
 			pr_err("%s:%d failed\n", __func__, __LINE__);
@@ -1612,7 +1524,7 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			}
 			else{
 				rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(s_ctrl->sensor_i2c_client, conf_array.reg_setting->reg_addr, read_data, conf_array.data_type);
-				pr_err("[WX] %s read_data : %d\n", __func__, *read_data);
+				CDBG("[WX] %s read_data : %d\n", __func__, *read_data);
 				read_data++;
 				}
 
@@ -1633,7 +1545,7 @@ int32_t mt9m114_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		read_data = NULL;
 		read_data_head = NULL;
 
-		pr_err("[WX] %s done\n", __func__);
+		CDBG("[WX] %s done\n", __func__);
 
 		break;
 	}

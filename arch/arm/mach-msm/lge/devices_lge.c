@@ -35,6 +35,7 @@
 #ifdef CONFIG_USB_G_LGE_ANDROID
 #include <linux/platform_data/lge_android_usb.h>
 #endif
+#include <linux/power_supply.h>
 
 static int cn_arr_len = 3;
 
@@ -281,7 +282,22 @@ void __init lge_add_mmc_strength_devices(void)
 {
 	platform_device_register(&lge_mmc_strength_device);
 }
+#endif
 
+#ifdef CONFIG_LGE_DIAG_USB_ACCESS_LOCK
+static struct platform_device lg_diag_cmd_device = {
+	.name = "lg_diag_cmd",
+	.id = -1,
+	.dev    = {
+		.platform_data = 0, /* &lg_diag_cmd_pdata */
+	},
+};
+
+static int __init lge_diag_devices_init(void)
+{
+	return platform_device_register(&lg_diag_cmd_device);
+}
+arch_initcall(lge_diag_devices_init);
 #endif
 
 #ifdef CONFIG_LGE_PM_USB_ID
@@ -440,6 +456,8 @@ void lge_pm_set_usb_cable_to_minimum(void){
 
 
 #ifdef CONFIG_LGE_PM_BATTERY_ID_CHECKER
+struct power_supply *ac_psy;
+struct power_supply *usb_psy;
 
 #if defined(CONFIG_MACH_MSM8926_X5_VZW) || defined(CONFIG_MACH_MSM8926_X3C_TRF_US) || \
 	defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_AME) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) || \
@@ -451,12 +469,22 @@ int lge_battery_info = BATT_ID_UNKNOWN;
 
 bool is_lge_battery_valid(void)
 {
+	union power_supply_propval ac_val = {0,}, usb_val = {0,};
 #ifdef CONFIG_LGE_PM_BATTERY_4_2VOLT
 	return true;
 #else
-	if(lge_pm_get_cable_type()== CABLE_56K ||
+	if (!ac_psy)
+		ac_psy = power_supply_get_by_name("ac");
+	if (!usb_psy)
+		usb_psy = power_supply_get_by_name("usb");
+	if (!ac_psy || !usb_psy)
+		return false;
+	ac_psy->get_property(ac_psy, POWER_SUPPLY_PROP_PRESENT, &ac_val);
+	usb_psy->get_property(usb_psy, POWER_SUPPLY_PROP_PRESENT, &usb_val);
+	if((lge_pm_get_cable_type()== CABLE_56K ||
 		lge_pm_get_cable_type()== CABLE_130K ||
-		lge_pm_get_cable_type()== CABLE_910K)
+		lge_pm_get_cable_type()== CABLE_910K) &&
+		(ac_val.intval || usb_val.intval))
 		return true;
 
 	if (lge_battery_info == BATT_ID_DS2704_N ||
@@ -900,4 +928,31 @@ int lge_get_kswitch_status(void)
 	return kswitch_status;
 }
 #endif
+#ifdef CONFIG_LGE_LCD_OFF_DIMMING
+static int lge_boot_reason = -1; /*  undefined for error checking */
+static int __init lge_check_bootreason(char *reason)
+{
+	int ret = 0;
 
+	/*  handle corner case of kstrtoint */
+	if (!strcmp(reason, "0xffffffff")) {
+		lge_boot_reason = 0xffffffff;
+		return 1;
+	}
+
+	ret = kstrtoint(reason, 16, &lge_boot_reason);
+	if (!ret)
+		printk(KERN_INFO "LGE REBOOT REASON: %x\n", lge_boot_reason);
+	else
+		printk(KERN_INFO "LGE REBOOT REASON: Couldn't get bootreason - %d\n",
+				ret);
+
+	return 1;
+}
+__setup("lge.bootreason=", lge_check_bootreason);
+
+int lge_get_bootreason(void)
+{
+	return lge_boot_reason;
+}
+#endif

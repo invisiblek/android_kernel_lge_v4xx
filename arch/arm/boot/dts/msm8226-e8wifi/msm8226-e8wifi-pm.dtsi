@@ -428,7 +428,7 @@
 		usb_adc_table@200{
 			status = "okay";
 			lge,no-init-cable = <197000 500 500>;
-			lge,cable-56k = <496875 1500 1500>;
+			lge,cable-56k = <496875 500 500>;
 			lge,cable-100k = <654545 500 500>;
 			lge,cable-130k = <780861 1500 1500>;
 			lge,cable-180k = <876316 1300 500>;
@@ -456,7 +456,6 @@
 	qcom,tchg-mins = <480>;
 	qcom,btc-disabled = <1>;
 	qcom,ext-ovp-present = <1>;
-	qcom,power-stage-reduced;
 
 	/* If you want to enable external OVP, use below GPIO_2 setting */
 	lge,ext_ovp_gpio = <&pm8226_gpios 2 0x00>;

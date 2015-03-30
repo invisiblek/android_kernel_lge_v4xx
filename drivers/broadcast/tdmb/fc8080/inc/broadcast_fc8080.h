@@ -26,6 +26,7 @@ extern int broadcast_fc8080_drv_if_get_msc(char** buffer_ptr, unsigned int* buff
 extern int broadcast_fc8080_drv_if_reset_ch(void);
 extern int broadcast_fc8080_drv_if_user_stop(int mode);
 extern int broadcast_fc8080_drv_if_select_antenna(unsigned int sel);
+extern int broadcast_fc8080_drv_if_is_on(void);
 extern int broadcast_fc8080_drv_if_isr(void);
 
 
@@ -41,6 +42,18 @@ void tdmb_fc8080_interrupt_free(void);
 int tdmb_fc8080_spi_write_read(uint8* tx_data, int tx_length, uint8 *rx_data, int rx_length);
 void tdmb_fc8080_set_userstop(int mode);
 int tdmb_fc8080_tdmb_is_on(void);
+/*[BCAST002][S] 20140804 seongeun.jin - modify chip init check timing issue on BLT*/
+#ifdef FEATURE_POWER_ON_RETRY
 int tdmb_fc8080_power_on_retry(void);
 #endif
+/*[BCAST002][E]*/
 
+#if defined(CONFIG_ARCH_MSM8994)
+#define __broadcast_dev_exit_p(x)		x
+#define __broadcast_dev_init			__init
+#elif defined(CONFIG_ARCH_MSM8226)
+#define __broadcast_dev_exit_p(x)		__devexit_p(x)
+#define __broadcast_dev_init			__devinit
+#endif
+
+#endif

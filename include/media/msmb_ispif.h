@@ -108,13 +108,8 @@ enum ispif_cfg_type_t {
 	ISPIF_SET_VFE_INFO,
 };
 
-/*                                               */
-/* uint32_t session_id variable has been added due to the shutter lag patch. */
-/* if we do not distinguish Front and Rear Camera with that id,                     */
-/*  then kernel crash comes out in case of switching camera to the front       */
 struct ispif_cfg_data {
 	enum ispif_cfg_type_t cfg_type;
-	uint32_t session_id;					  /* ISPIF_SESSION[0] */
 	union {
 		int reg_dump;                        /* ISPIF_ENABLE_REG_DUMP */
 		uint32_t csid_version;               /* ISPIF_INIT */

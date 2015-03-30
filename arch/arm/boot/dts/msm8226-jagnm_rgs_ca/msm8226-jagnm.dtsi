@@ -22,6 +22,14 @@
 /include/ "msm8226-jagnm-bt.dtsi" /* LGE_CHANGE, [BT] Bring up */
 /include/ "msm8226-jagnm-sound.dtsi"
 
+/{
+        memory {
+                secure_mem: secure_region {
+                        status = "disabled";
+                };
+	};
+};
+
 &soc {
 	serial@f991f000 {
 		status = "disable";
@@ -93,19 +101,11 @@
 		status = "disabled";
 	};
 
-	/* LGE_CHANGE_S, 2014-02-26, cheolyong.yu@lge.com, IrRC Bring up */
-	lge_sw_irrc {
-		compatible = "lge,sw_irrc";
-		vreg_irrc-supply = <&pm8226_l19>;
-		vreg2_irrc-supply = <&pm8226_lvs1>;
-		lge,gp-cmd-rcgr = <0xFD8C3420>;
-		lge,pwm-gpio = <&msmgpio 33 0x00>;
-		lge,pwm-gpio-func = <3>;
-		lge,clk-name = "cam_gp0_clk";
-		lge,clk-rate = <96000>; //This must match with clk_freq_tbl.
-		status = "ok";
+	qcom,ion {
+		qcom,ion-heap@8 { /* CP_MM HEAP */
+			status = "disabled";
+		};
 	};
-	/* LGE_CHANGE_E, 2014-02-26, cheolyong.yu@lge.com, IrRC Bring up */
 };
 
 &soc {

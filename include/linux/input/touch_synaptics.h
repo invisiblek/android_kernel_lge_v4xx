@@ -18,7 +18,7 @@
 #ifndef LGE_TOUCH_SYNAPTICS_H
 #define LGE_TOUCH_SYNAPTICS_H
 
-//#define ARRAYED_TOUCH_FW_BIN
+/*#define ARRAYED_TOUCH_FW_BIN */
 
 #define NUM_OF_EACH_FINGER_DATA_REG		5
 #define MAX_NUM_OF_FINGERS				5
@@ -59,8 +59,7 @@ struct cur_touch_data {
 	struct button_data	button;
 };
 
-struct synaptics_ts_fw_info
-{
+struct synaptics_ts_fw_info {
 	u8		fw_rev;
 	u8		fw_image_rev;
 	u8		manufacturer_id;
@@ -78,10 +77,10 @@ struct synaptics_ts_data {
 	u8  double_tap_enable;
 	u8	multi_tap_enable;
 	u8	multi_tap_count;
-	struct regulator*	regulator_vdd;
-	struct regulator*	regulator_vio;
-	struct i2c_client*	client;
-	struct touch_platform_data*		pdata;
+	struct regulator *regulator_vdd;
+	struct regulator *regulator_vio;
+	struct i2c_client *client;
+	struct touch_platform_data *pdata;
 	struct ts_ic_function	common_fc;
 	struct ts_ic_function	finger_fc;
 	struct ts_ic_function	button_fc;

@@ -71,7 +71,7 @@ static struct msm_sensor_power_setting hi543_power_setting_rev_a[] = {
 		.delay = 1,
 	},
 #endif
-#if defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
+#if defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US) || defined(CONFIG_MACH_MSM8926_E9LTE_VZW_US)
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_VAF,
@@ -234,7 +234,7 @@ static struct msm_sensor_power_setting hi543_power_setting_e9_rev_a[] = {
 /*                                                                                    */
 
 /*                                                                                         */
-#if defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US) || defined (CONFIG_MACH_MSM8926_E8LTE)
+#if defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8926_E9LTE_VZW_US)
 static struct msm_sensor_power_setting hi543_power_setting_e7lte_rev_b[] = {
 	{  /* Set GPIO_RESET to low to disable power on reset*/
 		.seq_type = SENSOR_GPIO,
@@ -483,7 +483,7 @@ static int __init hi543_init_module(void)
 	}
 /*                                                                                      */
 /*                                                                                         */
-#elif defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US) || defined (CONFIG_MACH_MSM8926_E8LTE)
+#elif defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8926_E9LTE_VZW_US)
 	switch(lge_get_board_revno()) {
 		case HW_REV_0:
 		case HW_REV_A:

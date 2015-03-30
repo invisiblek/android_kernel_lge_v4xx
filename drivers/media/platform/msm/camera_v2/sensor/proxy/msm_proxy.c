@@ -36,7 +36,6 @@
 #define SYSRANGE__MAX_CONVERGENCE_TIME			0x01C
 #define SYSRANGE__EARLY_CONVERGENCE_ESTIMATE	0x022
 #define SYSTEM__FRESH_OUT_OF_RESET				0x016
-#define SYSRANGE__PART_TO_PART_RANGE_OFFSET	0x024
 #define SYSRANGE__CROSSTALK_COMPENSATION_RATE	0x01E
 #define SYSRANGE__CROSSTALK_VALID_HEIGHT		0x021
 #define SYSRANGE__RANGE_IGNORE_VALID_HEIGHT		0x025
@@ -107,6 +106,7 @@ uint32_t m_chipid = 0;
 uint16_t LastMeasurements[8] = {0,0,0,0,0,0,0,0};
 uint16_t AverageOnXSamples = 4;
 uint16_t CurrentIndex = 0;
+int8_t st_offset = 0; /*                                                                                                                          */
 
 void BabyBear_ParameterOptimization(u32 ambientRate);
 u32 BabyBear_damper(u32 inData, u32 ambientRate, u32 LowLightRatio, u32 HighLightRatio);
@@ -206,9 +206,15 @@ int32_t proxy_i2c_e2p_write(uint16_t addr, uint16_t data, enum msm_camera_i2c_da
            int32_t ret = 0;
            struct msm_camera_i2c_client *proxy_i2c_client = NULL;
            proxy_i2c_client = &msm_proxy_t.i2c_client;
-
+#if defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
+	proxy_i2c_client->cci_client->sid = msm_proxy_t.sid_e2p >> 1; /*                                                                                                        */
+	ret = proxy_i2c_client->i2c_func_tbl->i2c_write(proxy_i2c_client, addr, data, data_type);
+	if(ret < 0)
+		pr_err("proxy_i2c_e2p_write() fail !!! ret = %d\n", ret);
+#else
            proxy_i2c_client->cci_client->sid = 0xA0 >> 1;
            ret = proxy_i2c_client->i2c_func_tbl->i2c_write(proxy_i2c_client, addr, data, data_type);
+#endif
            proxy_i2c_client->cci_client->sid = msm_proxy_t.sid_proxy;
            return ret;
 }
@@ -219,8 +225,15 @@ int32_t proxy_i2c_e2p_read(uint16_t addr, uint16_t *data, enum msm_camera_i2c_da
 	struct msm_camera_i2c_client *proxy_i2c_client = NULL;
 	proxy_i2c_client = &msm_proxy_t.i2c_client;
 
+#if defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
+	proxy_i2c_client->cci_client->sid = msm_proxy_t.sid_e2p >> 1; /*                                                                                                        */
+	ret = proxy_i2c_client->i2c_func_tbl->i2c_read(proxy_i2c_client, addr, data, data_type);
+	if(ret < 0)
+		pr_err("proxy_i2c_e2p_read() fail !!! ret = %d\n", ret);
+#else
 	proxy_i2c_client->cci_client->sid = 0xA0 >> 1;
 	ret = proxy_i2c_client->i2c_func_tbl->i2c_read(proxy_i2c_client, addr, data, data_type);
+#endif
 	proxy_i2c_client->cci_client->sid = msm_proxy_t.sid_proxy;
 
 	return ret;
@@ -242,7 +255,8 @@ int16_t OffsetCalibration(void)
 		pr_err("OffsetCalibration start!\n");
 
             //Set offset to zero
-           proxy_i2c_write( SYSRANGE__PART_TO_PART_RANGE_OFFSET,0, 1);
+           //                                                                                                                                                                                           
+           proxy_i2c_write( SYSRANGE__PART_TO_PART_RANGE_OFFSET,st_offset, 1); /*                                                                                                        */
 
             // Disable CrossTalkCompensation
            proxy_i2c_write( SYSRANGE__CROSSTALK_COMPENSATION_RATE, 0, 1);
@@ -784,6 +798,9 @@ static int32_t msm_proxy_platform_probe(struct platform_device *pdev)
 	msm_proxy_t.i2c_fail_cnt = 0;
 	msm_proxy_t.proxy_cal = 0;
 	msm_proxy_t.proxy_stat.cal_done = 0;
+#if defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
+	msm_proxy_t.sid_e2p = 0xA0; /*                                                                                                        */
+#endif
 
 	CDBG("Exit\n");
 
@@ -839,10 +856,11 @@ int msm_init_proxy(void)
 	int i;
 	uint8_t byteArray[4];
 	int8_t offsetByte;
+	int8_t combined_offset; /*                                                                                                                          */
 	int16_t fin_val;
 	uint8_t cal_count;
 	//s8 check_offset;
-	//int8_t rangeTemp = 0;
+	int8_t rangeTemp = 0; /*                                                                                                                          */
 	uint16_t modelID = 0;
 	uint16_t revID = 0;
 	uint16_t chipidRange = 0;
@@ -868,6 +886,28 @@ int msm_init_proxy(void)
 #ifdef __USE_MULTIMODULE__
 	uint16_t module_id = 0;
 	uint8_t shift_module_id = 0;
+#endif
+
+#if defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)
+/*                                                                                                          */
+	int32_t ret = 0;
+	uint16_t sensor_chipid = 0;
+	struct msm_camera_i2c_client *proxy_i2c_client = NULL;
+	proxy_i2c_client = &msm_proxy_t.i2c_client;
+
+	proxy_i2c_client->cci_client->sid = 0x34 >> 1; // both imx219 and imx091 can use 0x34 for slave address.
+	ret = proxy_i2c_client->i2c_func_tbl->i2c_read(proxy_i2c_client, 0x00, &sensor_chipid, 2); // 2 : WORD_DATA
+	if(ret < 0)
+		pr_err("%s, sensor_chipid id read fail !!! ret = %d\n", __func__, ret);
+
+	proxy_i2c_client->cci_client->sid = msm_proxy_t.sid_proxy;
+
+	pr_err("%s sensor_chipid = 0x%04x\n", __func__, sensor_chipid);
+	if(sensor_chipid == 0x0219) // imx219
+		msm_proxy_t.sid_e2p = 0xA0;
+	else if(sensor_chipid == 0x0091) // imx091
+		msm_proxy_t.sid_e2p = 0xA6;
+/*                                                                                                          */
 #endif
 
 	pr_err("msm_init_proxy ENTER!\n");
@@ -1020,6 +1060,20 @@ int msm_init_proxy(void)
 		byteArray[i] = (u8)(((u16)((u16)85 & 0x01ff) & dataMask) >> shift);
 		proxy_i2c_write( RANGE__RANGE_SCALER + i, byteArray[i], 1);
 	}
+
+    /*                                                                                                                            */
+	//                                                                                                                                                                                                   
+	proxy_i2c_read( SYSRANGE__PART_TO_PART_RANGE_OFFSET, &chipidRangeMax, 1); // add test for seonyoung.kim
+	pr_err("st offset = %d from eeprom\n", chipidRangeMax);
+	rangeTemp = (int8_t)chipidRangeMax;
+	if(rangeTemp > 0x7F) {
+		rangeTemp -= 0xFF;
+		}
+	rangeTemp /= 3;
+	rangeTemp = rangeTemp +1; //roundg
+	st_offset = rangeTemp;
+    /*                                                                                                                            */
+
 	//readRangeOffset
 	#if 0
 	proxy_i2c_read( SYSRANGE__PART_TO_PART_RANGE_OFFSET, &chipidRangeMax, 1);
@@ -1051,9 +1105,10 @@ int msm_init_proxy(void)
 		}
 		//	offsetByte -= 255;
 		msm_proxy_t.proxy_stat.cal_count = cal_count;
+		offsetByte += st_offset;  /*                                                                                                                          */
 		pr_err("inot read offset = %d from eeprom\n", offsetByte);
-		proxy_i2c_write( SYSRANGE__PART_TO_PART_RANGE_OFFSET, offsetByte, 1);
-
+		combined_offset = *((u8*)(&offsetByte));  /*                                                                                                                          */
+		proxy_i2c_write( SYSRANGE__PART_TO_PART_RANGE_OFFSET, combined_offset, 1);  /*                                                                                                                          */
 	}
 	else if(shift_module_id == 0x03)           //fj module
  	{	
@@ -1067,23 +1122,28 @@ int msm_init_proxy(void)
 		}
 		//	offsetByte -= 255;
 		msm_proxy_t.proxy_stat.cal_count = cal_count;
+		offsetByte += st_offset;  /*                                                                                                                          */
 		pr_err("fj read offset = %d from eeprom\n", offsetByte);
-		proxy_i2c_write( SYSRANGE__PART_TO_PART_RANGE_OFFSET, offsetByte, 1);
+		combined_offset = *((u8*)(&offsetByte));  /*                                                                                                                          */
+		proxy_i2c_write( SYSRANGE__PART_TO_PART_RANGE_OFFSET, combined_offset, 1);  /*                                                                                                                          */
 	
 	}
 #else
 	proxy_i2c_e2p_read(0x800, &fin_val, 2);
 	offsetByte = 0x00FF & fin_val;
 	cal_count = (0xFF00 & fin_val) >> 8;
-	if((offsetByte <= -21) || (offsetByte >= 11) || (cal_count >= 100)) {
+	if((offsetByte <= -21) || (offsetByte >= 11) || (cal_count >= 100) || (cal_count == 0)) {/*                                                                                                                          */
 		proxy_i2c_e2p_write(0x800, 0, 2);
 		cal_count = 0;		
 		offsetByte = 0;
 	}
 	//	offsetByte -= 255;
 	msm_proxy_t.proxy_stat.cal_count = cal_count;
-	pr_err("read offset = %d from eeprom\n", offsetByte);
-	proxy_i2c_write( SYSRANGE__PART_TO_PART_RANGE_OFFSET, offsetByte, 1);
+	pr_err("LG read offset = %d from eeprom\n", offsetByte);   /*                                                                                                                          */
+	offsetByte += st_offset;  /*                                                                                                                          */
+	pr_err("sum read offset = %d from eeprom\n", offsetByte);   /*                                                                                                                          */
+	combined_offset = *((u8*)(&offsetByte));   /*                                                                                                                          */
+	proxy_i2c_write( SYSRANGE__PART_TO_PART_RANGE_OFFSET, combined_offset, 1);   /*                                                                                                                          */
 #endif
 	#endif
 

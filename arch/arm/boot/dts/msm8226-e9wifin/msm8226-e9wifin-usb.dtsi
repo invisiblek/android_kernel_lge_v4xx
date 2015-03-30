@@ -27,8 +27,14 @@
 	lge,factory-cable-reset;
 	lge,hsusb-otg-adc-low-threshold = <100>;
 	lge,hsusb-otg-adc-high-threshold = <110>;
+
+	qcom,hsusb-otg-phy-init-seq =
+		<0x44 0x80 0x64 0x81 0x3C 0x82 0x13 0x83 0xffffffff>;
+	qcom,hsusb-otg-phy-init-host-seq =
+		<0x44 0x80 0x60 0x81 0x0b 0x82 0x13 0x83 0xffffffff>;
 };
 
 &android_usb {
 	qcom,streaming-func = "ecm", "mtp";
+	lge,factory-cable-reset;
 };

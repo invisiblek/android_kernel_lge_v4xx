@@ -52,4 +52,7 @@
 			qcom,supply-max-voltage = <3000000>;
 		};
 	};
+  mdss_mdp: qcom,mdss_mdp@fd900000 {
+    /delete-property/ qcom,mdss-clk-levels;
+  };
 };

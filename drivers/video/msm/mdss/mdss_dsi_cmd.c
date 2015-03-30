@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -70,6 +70,7 @@ char *mdss_dsi_buf_init(struct dsi_buf *dp)
 		off = 8 - off;
 	dp->data += off;
 	dp->len = 0;
+	dp->read_cnt = 0;
 	return dp->data;
 }
 
@@ -90,6 +91,7 @@ int mdss_dsi_buf_alloc(struct dsi_buf *dp, int size)
 
 	dp->data = dp->start;
 	dp->len = 0;
+	dp->read_cnt = 0;
 	return size;
 }
 
@@ -509,7 +511,7 @@ static int mipi_dsi_generic_lwrite_ppp(struct dsi_buf *dp, struct dsi_cmd_desc *
 	char *bp;
 	u32 *hp;
 	int i, len;
-	
+
 	printk("mipi_dsi_generic_lwrite_ppp \n");
 
 	bp = mdss_dsi_buf_reserve_hdr(dp, DSI_HOST_HDR_SIZE);
@@ -637,10 +639,10 @@ int mdss_dsi_cmd_dma_add(struct dsi_buf *dp, struct dsi_cmd_desc *cm)
 
 	switch (dchdr->dtype) {
 #ifdef CONFIG_FB_MSM_MIPI_LGD_LH500WX9_VIDEO_HD_PT_PANEL
-	case MIPI_DSI_V_SYNC_START :
+	case MIPI_DSI_V_SYNC_START:
 		len = mipi_dsi_generic_swrite_vsync(dp, cm);
 			break;
-	case MIPI_DSI_H_SYNC_START :
+	case MIPI_DSI_H_SYNC_START:
 		len = mipi_dsi_generic_swrite_hsync(dp, cm);
 			break;
 	case MIPI_DSI_PACKED_PIXEL_STREAM_24:
@@ -711,6 +713,7 @@ int mdss_dsi_short_read1_resp(struct dsi_buf *rp)
 	/* strip out dcs type */
 	rp->data++;
 	rp->len = 1;
+	rp->read_cnt -= 3;
 	return rp->len;
 }
 
@@ -722,6 +725,7 @@ int mdss_dsi_short_read2_resp(struct dsi_buf *rp)
 	/* strip out dcs type */
 	rp->data++;
 	rp->len = 2;
+	rp->read_cnt -= 2;
 	return rp->len;
 }
 
@@ -730,6 +734,7 @@ int mdss_dsi_long_read_resp(struct dsi_buf *rp)
 	/* strip out dcs header */
 	rp->data += 4;
 	rp->len -= 4;
+	rp->read_cnt -= 6;
 	return rp->len;
 }
 

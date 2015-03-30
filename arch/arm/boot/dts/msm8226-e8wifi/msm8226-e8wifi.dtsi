@@ -26,7 +26,10 @@
 		compatible = "qcom,mdss-dsi-ctrl";
 		label = "MDSS DSI CTRL->0";
 		cell-index = <0>;
-		reg = <0xfd922800 0x600>;
+		reg = 	<0xfd922800 0x1f8>,
+			<0xfd922b00 0x2b0>,
+			<0xfd828000 0x108>;
+		reg-names = "dsi_ctrl", "dsi_phy", "mmss_misc_phys";
 		qcom,mdss-fb-map = <&mdss_fb0>;
 		qcom,mdss-mdp = <&mdss_mdp>;
 		l8_dsi-supply = <&pm8226_l8>;
@@ -67,7 +70,7 @@
 	};
 
 	serial@f991f000 {
-		status = "ok";
+		status = "disable";
 	};
 
 	lge_sw_irrc { /* LGE_UPDATE 20130626 beekay.lee@lge.com WX_IRRC */

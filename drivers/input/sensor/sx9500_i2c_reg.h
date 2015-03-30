@@ -73,4 +73,26 @@
 #define SENSOREN_CS2   0x04
 #define SENSOREN_CS3   0x08
 
+/* Input Capacitance Range */
+#define REG_RANGE_LARGE        0x00
+#define REG_RANGE_MEDIUM_LARGE 0x01
+#define REG_RANGE_MEDIUM_SMALL 0x02
+#define REG_RANGE_SMALL        0x03
+
+#define RANGE_LARGE            146000
+#define RANGE_MEDIUM_LARGE     74000
+#define RANGE_MEDIUM_SMALL     60000
+#define RANGE_SMALL            50000
+
+/* Input Capacitance Range */
+#define REG_GAIN_1X  0x00
+#define REG_GAIN_2X  0x01
+#define REG_GAIN_4X  0x02
+#define REG_GAIN_8X  0x03
+
+#define GAIN_1X      1
+#define GAIN_2X      2
+#define GAIN_4X      4
+#define GAIN_8X      8
+
 #endif /* _SX9500_I2C_REG_H_*/

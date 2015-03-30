@@ -1,6 +1,11 @@
 #Android makefile to build kernel as a part of Android Build
 PERL		= perl
 
+KERNEL_TARGET := $(strip $(INSTALLED_KERNEL_TARGET))
+ifeq ($(KERNEL_TARGET),)
+INSTALLED_KERNEL_TARGET := $(PRODUCT_OUT)/kernel
+endif
+
 ifeq ($(TARGET_PREBUILT_KERNEL),)
 
 KERNEL_OUT := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ
@@ -23,7 +28,7 @@ ifeq "$(KERNEL_USE_OF)" "y"
 # dts path change
 # jungsu06.kim@lge.com
 #DTS_FILES = $(wildcard $(TOP)/kernel/arch/arm/boot/dts/$(DTS_NAME)*.dts)
-DTS_FILES = $(wildcard $(TOP)/kernel/arch/arm/boot/dts/$(DTS_NAME)-$(DTS_TARGET)/$(DTS_NAME)*.dts)
+DTS_FILES = $(wildcard $(TOP)/kernel/arch/arm/boot/dts/$(DTS_TARGET)/$(DTS_NAME)*.dts)
 # LGE_CHANGED_END
 
 DTS_FILE = $(lastword $(subst /, ,$(1)))
@@ -131,8 +136,9 @@ $(TARGET_PREBUILT_INT_KERNEL): $(KERNEL_OUT) $(KERNEL_CONFIG) $(KERNEL_HEADERS_I
 	$(MAKE) -C kernel O=../$(KERNEL_OUT) INSTALL_MOD_PATH=../../$(KERNEL_MODULES_INSTALL) INSTALL_MOD_STRIP=1 ARCH=arm CROSS_COMPILE=arm-eabi- modules_install
 	
 ifeq ($(PRODUCT_SUPPORT_EXFAT), y)
+ifneq ($(PRODUCT_SUPPORT_OPEN_EXFAT), y)
 	@cp -f $(ANDROID_BUILD_TOP)/kernel/tuxera_update.sh $(ANDROID_BUILD_TOP)
-	@sh tuxera_update.sh --target target/lg.d/mobile-mtp-3013.6.27 --use-cache --latest --max-cache-entries 2 --source-dir $(ANDROID_BUILD_TOP)/kernel --output-dir $(ANDROID_BUILD_TOP)/$(KERNEL_OUT) -a --user lg-mobile --pass AumlTsj0ou
+	@sh tuxera_update.sh --target target/lg.d/mobile-mtp-3014.9.10 --use-cache --latest --max-cache-entries 2 --source-dir $(ANDROID_BUILD_TOP)/kernel --output-dir $(ANDROID_BUILD_TOP)/$(KERNEL_OUT) -a --user lg-mobile --pass AumlTsj0ou
 	@tar -xzf tuxera-exfat*.tgz
 	@mkdir -p $(TARGET_OUT_EXECUTABLES)
 	@cp $(ANDROID_BUILD_TOP)/tuxera-exfat*/exfat/kernel-module/texfat.ko $(ANDROID_BUILD_TOP)/$(TARGET_OUT_EXECUTABLES)/../lib/modules/
@@ -141,6 +147,19 @@ ifeq ($(PRODUCT_SUPPORT_EXFAT), y)
 	@rm -f tuxera-exfat*.tgz
 	@rm -rf tuxera-exfat*
 	@rm -f tuxera_update.sh
+endif
+ ifeq ($(PRODUCT_SUPPORT_NTFS), y)
+	@cp -f $(ANDROID_BUILD_TOP)/kernel/tuxera_update.sh $(ANDROID_BUILD_TOP)
+	@sh tuxera_update.sh --target target/lg.d/mobile-msm8926-arm32-4.8 --use-cache --latest --source-dir $(ANDROID_BUILD_TOP)/kernel --output-dir $(ANDROID_BUILD_TOP)/$(KERNEL_OUT) -a --user lg-mobile --pass AumlTsj0ou
+	@tar -xzf tuxera-file*.tgz
+	@mkdir -p $(TARGET_OUT_EXECUTABLES)
+	@cp $(ANDROID_BUILD_TOP)/tuxera-file*/ntfs/kernel-module/tntfs.ko $(ANDROID_BUILD_TOP)/$(TARGET_OUT_EXECUTABLES)/../lib/modules/
+	@cp $(ANDROID_BUILD_TOP)/tuxera-file*/ntfs/tools/* $(TARGET_OUT_EXECUTABLES)
+	@rm -f kheaders*.tar.bz2
+	@rm -f tuxera-file*.tgz
+	@rm -rf tuxera-file*
+	@rm -f tuxera_update.sh
+ endif
 endif
 	$(mv-modules)
 	$(clean-module-folder)

@@ -1584,6 +1584,8 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 		goto out_fail;
 	}
 
+	fat_msg(sb, KERN_ERR, "vfat mounted");
+
 	return 0;
 
 out_invalid:

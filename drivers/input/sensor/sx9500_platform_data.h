@@ -13,13 +13,16 @@
 #define _SX9500_PLATFORM_DATA_H_
 
 
+#include <linux/i2c.h>
+
+#define NUM_SET_REG_DATA  11
 
 struct smtc_reg_data {
     unsigned char reg;
     unsigned char val;
 };
 
-struct _buttonInfo {
+struct _buttoninfo {
     /*! The Key to send to the input */
     int keycode;
     /*! Mask to look for on Touch Status */
@@ -28,71 +31,69 @@ struct _buttonInfo {
     int state;
 };
 
-struct _totalButtonInformation {
-    struct _buttonInfo *buttons;
+struct _totalbuttoninformation {
+    struct _buttoninfo *buttons;
     int buttonSize;
     struct input_dev *input;
 };
 
-struct _touchCheckParameters {
-    u8 defaultStartupMainSensor;
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-    u8 defaultSecondStartupMainSensor;
-#endif
-    u8 defaultStartupRefSensor;  
-    s32 main_csx;
-    s32 ref_csx; // should be a lot less than 16 bits but just in case
-    s32 minimum_threshold;
-    s32 calibratoin_margin;
-    u8 duringTouch_AvgThresh;
-    u8 duringRelease_AvgThresh;
+struct _startupcheckparameters {
+    s32 dynamicthreshold_offset; // used as an offset for startup (calcualted from temperature test)
+    s32 dynamicthreshold_temp_slope; // used for temperature slope
+    s32 dynamicthreshold_hysteresis;
+    s32 calibration_margin;
+    u8 startup_touch_regavgthresh; // capacitance(of dynamicthreshold hysteresis) / 128
+    u8 startup_release_regavgthresh; // same value as regproxctrl4[avgthresh]
 };
 
 struct sx9500_platform_data {
-    int i2c_reg_num;
-    struct smtc_reg_data *pi2c_reg;
-
-    struct _totalButtonInformation *pbuttonInformation;
-
-    struct _touchCheckParameters   *ptouchCheckParameters;
-
     int (*get_is_nirq_low)(void);
 
-    int     (*init_platform_hw)(void);
-    /*int     (*init_platform_hw)(struct i2c_client *client);*/
-    void    (*exit_platform_hw)(void);
+    int     (*init_platform_hw)(struct i2c_client *client);
+    void    (*exit_platform_hw)(struct i2c_client *client);
 
-    bool i2c_pull_up;
-    bool digital_pwr_regulator;
     unsigned int irq_gpio;
 
-    u32 vdd_ana_supply_min;
-    u32 vdd_ana_supply_max;
-    u32 vdd_ana_load_ua;
+    struct regulator *vdd_regulator;
+    struct regulator *svdd_regulator;
 
-    u32 vddio_dig_supply_min;
-    u32 vddio_dig_supply_max;
-    u32 vddio_dig_load_ua;
+    u32 vdd_supply_min;
+    u32 vdd_supply_max;
+    u32 vdd_load_ua;
 
-    u32 vddio_i2c_supply_min;
-    u32 vddio_i2c_supply_max;
-    u32 vddio_i2c_load_ua;
+    u32 svdd_supply_min;
+    u32 svdd_supply_max;
+    u32 svdd_load_ua;
+
+    struct smtc_reg_data pi2c_reg[NUM_SET_REG_DATA];
+    int i2c_reg_num;
+   
+    u32 input_pins_num; // not include ref sensor pin
+    u8 input_mainsensor;  // 0x00 ~ 0x03, refer regsensorsel
+    u8 input_main2sensor; // 0x00 ~ 0x03, refer regsensorsel
+    u8 input_refsensor;   // 0x00 ~ 0x03, refer regsensorsel
+
+    struct _totalbuttoninformation *pButtonInformation;
+
+    struct _startupcheckparameters *pStartupCheckParameters;
+
+    u32 capacitance_range;
+    u32 gain_factor;
 };
 
 /*! \struct sx9500
  * Specialized struct containing input event data, platform data, and
  * last cap state read if needed.
  */
-struct sx9500
-{
-    struct _totalButtonInformation *pbuttonInformation;
-    struct _touchCheckParameters *ptouchCheckParameters;
+struct sx9500 {
+    struct _totalbuttoninformation *pButtonInformation;
+    struct _startupcheckparameters *pStartupCheckParameters;
     struct sx9500_platform_data *hw; /* specific platform data settings */
 };
 
 //static int initialize_device(struct sx86XX *this);
-void touchCheckWithReferenceSensor(struct sx86XX *this,
-                                          unsigned char mainSensor,
-                                          unsigned char refSensor);
+void StartupTouchCheckWithReferenceSensor(struct sx86XX *this,
+                                        unsigned char mainSensor,
+                                        unsigned char refSensor);
 
 #endif

@@ -37,7 +37,11 @@
 #ifdef MXT_GESTURE_RECOGNIZE
 #ifdef MXT_LPWG
 #ifdef ALPHA_FW
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+#define MXT_LATEST_FW_VERSION       0x51
+#else
 #define MXT_LATEST_FW_VERSION       0x50
+#endif
 #define MXT_LATEST_FW_BUILD         0xAA
 #else
 #define MXT_LATEST_FW_VERSION       0x10
@@ -305,6 +309,7 @@ enum{
 	LPWG_REPLY,
 	LPWG_LENGTH_BETWEEN_TAP,
 	LPWG_EARLY_MODE,
+	LPWG_DOUBLE_TAP_CHECK,
 };
 
 enum{
@@ -370,7 +375,9 @@ enum { MXT_T6 = 0,
 	MXT_T19,
 	MXT_T23,
 #ifdef MXT_GESTURE_RECOGNIZE
+#ifndef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
 	MXT_T24,
+#endif
 #endif
 	MXT_T25,
 	MXT_T40,
@@ -388,10 +395,14 @@ enum { MXT_T6 = 0,
 	MXT_T78,
 	MXT_T80,
 #ifndef ALPHA_FW
+#ifndef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
 	MXT_T84,
 #endif
+#endif
 #ifdef MXT_LPWG
+#ifndef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
 	MXT_T92,
+#endif
 	MXT_T93,
 #endif
 	MXT_T100,
@@ -400,6 +411,9 @@ enum { MXT_T6 = 0,
 	MXT_T103,
 	MXT_T104,
 	MXT_T105,
+#ifdef CONFIG_LGE_ATMEL_S540_KNOCK_CODE_2_5
+	MXT_T204,
+#endif
 	MXT_TMAX,
 };
 
@@ -695,6 +709,7 @@ struct mxt_data {
 	struct work_struct  multi_tap_work;
 #endif
 	int mfts_enable;
+	bool is_knockCodeDelay;
 };
 #ifdef TSP_PATCH
 int mxt_write_object(struct mxt_data *data, u8 type, u8 offset, int value);

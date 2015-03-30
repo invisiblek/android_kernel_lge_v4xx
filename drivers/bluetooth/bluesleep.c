@@ -196,6 +196,8 @@ static struct timer_list tx_timer;
 /** Lock for state transitions */
 static spinlock_t rw_lock;
 
+static unsigned int lpm_mode = 1;
+
 /*                                                      */
 #ifndef CONFIG_LGE_BLUESLEEP
 /** Notifier block for HCI events */
@@ -206,6 +208,21 @@ struct notifier_block hci_event_nblock = {
 /*                                                      */
 
 struct proc_dir_entry *bluetooth_dir, *sleep_dir;
+
+
+
+/**
+ * @return 1 if the Host can go to sleep, 0 otherwise.
+ */
+static inline int bluesleep_can_sleep(void)
+{
+    BT_INFO("");
+    /* check if MSM_WAKE_BT_GPIO and BT_WAKE_MSM_GPIO are both deasserted */
+    return gpio_get_value(bsi->ext_wake) &&
+        gpio_get_value(bsi->host_wake) &&
+        (bsi->uport != NULL);
+}
+
 
 /*
  * Local functions
@@ -218,23 +235,16 @@ static void hsuart_power(int on)
 		msm_hs_request_clock_on(bsi->uport);
 		msm_hs_set_mctrl(bsi->uport, TIOCM_RTS);
 	} else {
-		msm_hs_set_mctrl(bsi->uport, 0);
-		msm_hs_request_clock_off(bsi->uport);
-	}
+            if (lpm_mode && bluesleep_can_sleep()) {
+                msm_hs_set_mctrl(bsi->uport, 0);
+                msm_hs_request_clock_off(bsi->uport);
+            } else {
+                BT_INFO("hsuart power : OFF is rejected because low power mode is off or wakeup is low");
+                clear_bit(BT_ASLEEP, &flags);
+            }
+    }
 }
 
-
-/**
- * @return 1 if the Host can go to sleep, 0 otherwise.
- */
-static inline int bluesleep_can_sleep(void)
-{
-	BT_INFO("");
-	/* check if MSM_WAKE_BT_GPIO and BT_WAKE_MSM_GPIO are both deasserted */
-	return gpio_get_value(bsi->ext_wake) &&
-		gpio_get_value(bsi->host_wake) &&
-		(bsi->uport != NULL);
-}
 
 void bluesleep_sleep_wakeup(void)
 {
@@ -255,7 +265,7 @@ void bluesleep_sleep_wakeup(void)
 
 #ifdef BT_DMA_QOS_REQUEST
 		if(bsi->dma_qos_request == REQUESTED) {
-			pm_qos_update_request(&bsi->dma_qos, 19); 
+			pm_qos_update_request(&bsi->dma_qos, 19);
 		}
 #endif /* BT_DMA_QOS_REQUEST */
 
@@ -301,7 +311,7 @@ static void bluesleep_sleep_work(struct work_struct *work)
 /*                                                      */
 #ifndef CONFIG_LGE_BLUESLEEP
 		if (msm_hs_tx_empty(bsi->uport)) {
-#endif /*                    */			
+#endif /*                    */
 /*                                                      */
 			BT_DBG("going to sleep...");
 			set_bit(BT_ASLEEP, &flags);
@@ -696,7 +706,7 @@ static void bluesleep_stop(int uart_off)
         bsi->dma_qos_request = NOT_REQUESTED;
     }
 #endif /* BT_DMA_QOS_REQUEST */
-	
+
 //                                             
 //ADD: 0019639: [F200][BT] Support Bluetooth low power mode
 #ifdef CONFIG_LGE_BLUESLEEP
@@ -880,6 +890,64 @@ static int bluesleep_write_proc_proto(struct file *file, const char *buffer,
 //BT_E : [PSIX-6850] LPM_SLEEP_MODE_DO_NOT_UART_CLOSE
     else
         bluesleep_start();
+
+    /* claim that we wrote everything */
+    return count;
+}
+
+/**
+ * Read the low-power protocol being enabled.
+ * When this function returns, <code>page</code> will contain a 1 LPM
+ * is enabled , 0 otherwise.
+ * @param page Buffer for writing data.
+ * @param start Not used.
+ * @param offset Not used.
+ * @param count Not used.
+ * @param eof Whether or not there is more data to be read.
+ * @param data Not used.
+ * @return The number of bytes written.
+ */
+static int bluesleep_read_proc_lpm(char *page, char **start, off_t offset,
+					int count, int *eof, void *data)
+{
+
+	BT_INFO("");
+	*eof = 1;
+	return sprintf(page, "%u\n", lpm_mode);
+//    return lpm_mode;
+}
+
+/**
+ * Modify the low-power mode enable or disable.
+ * @param file Not used.
+ * @param buffer The buffer to read from.
+ * @param count The number of bytes to be written.
+ * @param data Not used.
+ * @return On success, the number of bytes written. On error, -1, and
+ * <code>errno</code> is set appropriately.
+ */
+static int bluesleep_write_proc_lpm(struct file *file, const char *buffer,
+                    unsigned long count, void *data)
+{
+    char lpm;
+
+    BT_INFO("");
+
+    if (count < 1)
+        return -EINVAL;
+
+    if (copy_from_user(&lpm, buffer, 1))
+        return -EFAULT;
+
+    if (lpm == '0')
+    {
+        lpm_mode = 0;
+    }
+    else
+    {
+        lpm_mode = 1;
+        clear_bit(BT_ASLEEP, &flags);
+     }
 
     /* claim that we wrote everything */
     return count;
@@ -1201,6 +1269,16 @@ static int __init bluesleep_init(void)
 		retval = -ENOMEM;
 		goto fail;
 	}
+
+	/* read/write proc entries */
+	ent = create_proc_entry("lpm", 0, sleep_dir);
+	if (ent == NULL) {
+		BT_ERR("Unable to create /proc/%s/lpm entry", PROC_DIR);
+		retval = -ENOMEM;
+		goto fail;
+	}
+	ent->read_proc = bluesleep_read_proc_lpm;
+	ent->write_proc = bluesleep_write_proc_lpm;
 
 	flags = 0; /* clear all status bits */
 

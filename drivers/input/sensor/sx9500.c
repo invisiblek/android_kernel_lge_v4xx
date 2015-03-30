@@ -55,120 +55,46 @@
 #define OFF_SENSOR          2
 #define COLLECT_NUM         20
 #define FILTER_NUM          2
-#define PATH_CAPSENSOR_CAL     "/sns/capsensor_cal.dat"
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-#define PATH_CAPSENSOR_CAL2    "/sns/capsensor_cal2.dat"
-#endif
+#define PATH_CAPSENSOR_CAL  "/sns/capsensor_cal.dat"
+#define PATH_CAPSENSOR_CAL2 "/sns/capsensor_cal2.dat"
+#define PATH_CAL_BACKUP     "/sns/capsensor_cal_backup.dat"
 #define SCANPERIOD_CAL      0x0
 #define PATH_XO_THERM       "/sys/class/hwmon/hwmon0/device/xo_therm_pu2"
 
 #ifdef CONFIG_OF
-enum sensor_dt_entry_status {
-    DT_REQUIRED,
-    DT_SUGGESTED,
-    DT_OPTIONAL,
-};
-
 enum sensor_dt_entry_type {
+    DT_U8,
+    DT_U8_ARRAY,
     DT_U32,
     DT_GPIO,
-    DT_BOOL,
 };
 
-struct sensor_dt_to_pdata_map {
+struct sensor_dt_to_platformdata {
     const char                  *dt_name;
     void                        *ptr_data;
-    enum sensor_dt_entry_status status;
     enum sensor_dt_entry_type   type;
-    int                         default_val;
 };
 #endif
 
-/* 
- * Define Registers that need to be initialized to values different than default
- * Addr Name           Variable[Bits] - value
- * ---------------------------------------------------------------------------
- * 0x03 RegIrqMsk      CLOSEIRQEN[6] - 1(enable)
- *                     FARIRQEN[5] - 1(enable)
- *                     COMPDONEIRQEN[4] - 1(enable)
- * 0x06 RegProxCtrl0   SCANPERIOD[6:4] - 101(200ms)
- *                     SENSOREN[3:0] - 1100(CS3/CS2 pin enable)
- * 0x07 RegProxCtrl1   SHIELEN[7:6] - 00(off)
- *                     RANGE[1:0] - 10(Medium Small, +/-3pF FS)
- * 0x08 RegProxCtrl2   GAIN[6:5] - 11(x8)
- *                     FREQ[4:3] - 10(167kHz)
- *                     RESOLUTION[2:0] -111(Finest)
- * 0x09 RegProxCtrl3   DOZEEN[6] - 0(disable)
- *                     DOZEPERIOD[5:4] - 00(2x)
- *                     RAWFILT[1:0] - 01(Low)
- * 0x0A RegProxCtrl4   AVGTHRESH[7:0] -  +/-8192 (24576/128=64=0x40)
- * 0x0B RegProxCtrl5   AVGDEB[7:6] - 00(Off)
- *                     AVGNEGFILT[5:3] - 001(Lowest)
- *                     AVGPOSFILT[2:0] - 101(Middle High)
- * 0x0C RegProxCtrl6   PROXTHRESH[4:0] - 01001(180)
- * 0x0D RegProxCtrl7   AVGCOMPDIS[7] - 0(Disable)
- *                     COMPMETHOD[6] - 0(compensate each CSx pin)
- *                     HYST[5:4] -00(32)
- *                     CLOSEDEB[3:2] - 00(Off)
- * 0x0E RegProxCtrl8   STUCK[7:4] - 0000(Off)
- *                     COMPPRD[3:0] - 0000(Off)
- * 0x20 RegSensorSel   SENSORSEL[1:0] - 10(CS2)
- */
-static struct smtc_reg_data sx9500_i2c_reg_setup[] = {
-    { .reg = SX9500_IRQ_ENABLE_REG,   .val = 0x70, },
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-    { .reg = SX9500_CPS_CTRL0_REG,    .val = 0x5D, },
-#else
-    { .reg = SX9500_CPS_CTRL0_REG,    .val = 0x5C, },
-#endif
-    { .reg = SX9500_CPS_CTRL1_REG,    .val = 0x02, },
-    { .reg = SX9500_CPS_CTRL2_REG,    .val = 0x77, },
-    { .reg = SX9500_CPS_CTRL3_REG,    .val = 0x01, },
-    { .reg = SX9500_CPS_CTRL4_REG,    .val = 0x40, },
-    { .reg = SX9500_CPS_CTRL5_REG,    .val = 0x0D, },
-    { .reg = SX9500_CPS_CTRL6_REG,    .val = 0x09, },
-    { .reg = SX9500_CPS_CTRL7_REG,    .val = 0x00, },
-    { .reg = SX9500_CPS_CTRL8_REG,    .val = 0x00, },
-    { .reg = SX9500_SENSORSEL_REG,    .val = 0x02, },
+struct smtc_cal_data {
+    s32 Calculate_CSx;
+    s16 Useful_CSx;
+    u16 Offset_CSx; /* fullbyte */
 };
 
-static struct _buttonInfo psmtcButtons[] = {
+static struct _buttoninfo psmtcButtons[] = {
     { .keycode = KEY_0,    .mask = SX9500_TCHCMPSTAT_TCHSTAT0_FLAG, },
     { .keycode = KEY_1,    .mask = SX9500_TCHCMPSTAT_TCHSTAT1_FLAG, },
     { .keycode = KEY_2,    .mask = SX9500_TCHCMPSTAT_TCHSTAT2_FLAG, },
     { .keycode = KEY_3,    .mask = SX9500_TCHCMPSTAT_TCHSTAT3_FLAG, },
 };
 
-static struct _touchCheckParameters smtcTouchCheckParameters = {
-    .defaultStartupMainSensor = SENSORSEL_CS2,/* Main */
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-    .defaultStartupMainSensor = SENSORSEL_CS0,/* Main */
-    .defaultSecondStartupMainSensor = SENSORSEL_CS2, /* Main2 */
-#endif
-    .defaultStartupRefSensor  = SENSORSEL_CS3,/* Ref */
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-    .main_csx = 82000,
-    .ref_csx  = 6, // Setting this to 0 gives us a static threshold defined by capMain
-    .minimum_threshold = 800,
-    .calibratoin_margin = 0,
-#else
-    .main_csx = 43000,
-    .ref_csx  = 4, // Setting this to 0 gives us a static threshold defined by capMain
-    .minimum_threshold = 600,
-    .calibratoin_margin = 0,
-#endif
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-    .duringTouch_AvgThresh = 0x36, // +/-7000/128=54=0x36
-#else
-    .duringTouch_AvgThresh = 0x29, // +/-5250/128= 41=0x29
-#endif
-    .duringRelease_AvgThresh = 0x40, // Same value (RegProxCtrl4)
-};
-
 static bool running_cal_or_reset = false;
 static bool skip_startup = false;
 static bool check_allnear = false;
 static bool on_sensor = false;
+
+typedef int (*compfn)(const void*, const void*);
 
 static int initialize_device(struct sx86XX *this);
 
@@ -181,7 +107,7 @@ static int initialize_device(struct sx86XX *this);
  */
 static int write_register(struct sx86XX *this, u8 address, u8 value)
 {
-    struct i2c_client *i2c = 0;
+    struct i2c_client *i2c = NULL;
     /*char*/u8 buffer[2];
     int returnValue = 0;
 
@@ -191,8 +117,10 @@ static int write_register(struct sx86XX *this, u8 address, u8 value)
     if (this && this->bus) {
         i2c = this->bus;
 
-        returnValue = i2c_master_send(i2c,buffer,2);
-        dev_dbg(&i2c->dev, "write reg Add=0x%02x Val=0x%02x Ret=%d\n", address, value, returnValue);
+        returnValue = i2c_master_send(i2c, buffer, 2);
+        dev_dbg(&i2c->dev,
+                "write reg Add=0x%02x Val=0x%02x Ret=%d\n",
+                address, value, returnValue);
     }
 
     return returnValue;
@@ -207,7 +135,7 @@ static int write_register(struct sx86XX *this, u8 address, u8 value)
 */
 static int read_register(struct sx86XX *this, u8 address, u8 *value)
 {
-    struct i2c_client *i2c = 0;
+    struct i2c_client *i2c = NULL;
     s32 returnValue = 0;
 
     if (this && value && this->bus) {
@@ -231,8 +159,8 @@ static int read_register(struct sx86XX *this, u8 address, u8 *value)
 
 static void onoff_sensor(struct sx86XX *this, int onoff_mode)
 {
-    struct sx9500 *pDevice = 0;
-    struct sx9500_platform_data *pdata = 0;
+    struct sx9500 *pDevice = NULL;
+    struct sx9500_platform_data *pdata = NULL;
 
     unsigned char val_regproxctrl0;
     unsigned char val_regirqmask;
@@ -262,9 +190,14 @@ static void onoff_sensor(struct sx86XX *this, int onoff_mode)
 
         nparse_mode = onoff_mode & DISABLE_SENSOR_PINS;
         if (nparse_mode == DISABLE_SENSOR_PINS) {
-            for (i = 0; i < pDevice->pbuttonInformation->buttonSize; i++) {
-                pDevice->pbuttonInformation->buttons[i].state = IDLE;
+            for (i = 0; i < pDevice->pButtonInformation->buttonSize; i++) {
+                pDevice->pButtonInformation->buttons[i].state = IDLE;
             }
+
+            // Clear flags because sensor is disabled.
+            this->inStartupTouch = false;
+            running_cal_or_reset = false;
+            check_allnear = false;
 
             write_register(this, SX9500_CPS_CTRL0_REG, ((val_regproxctrl0 >> 4) << 4) | 0x00);
 
@@ -287,27 +220,55 @@ static void onoff_sensor(struct sx86XX *this, int onoff_mode)
     }
 }
 
-static int write_calibration_data(struct sx86XX *this, s32 val, u8 msByte, u8 lsByte)
+static bool valid_multiple_input_pins(struct sx86XX *this)
+{
+    struct sx9500 *pDevice = NULL;
+    struct sx9500_platform_data *pdata = NULL;
+
+    if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw)) {
+        if (pdata->input_pins_num > 1) {
+            if ((pdata->input_main2sensor >= SENSORSEL_CS0) && 
+                (pdata->input_main2sensor <= SENSORSEL_CS3) &&
+                (pdata->input_main2sensor != pdata->input_refsensor)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+static int write_calibration_data(struct sx86XX *this,
+                                s32 nMargin, u16 Offset_CSx, s32 TotalCap_CSx,
+                                bool isMultiInput)
 {
     int fd;
     int ret = 0;
     char buf[50];
+    char path_cal_file[50];
     mm_segment_t old_fs = get_fs();
 
     memset(buf, 0, sizeof(buf));
+    memset(path_cal_file, 0, sizeof(path_cal_file));
 
-    sprintf(buf, "%d %02x %02x", val, msByte, lsByte);
+    if (isMultiInput)
+        strcpy(path_cal_file, PATH_CAPSENSOR_CAL2);
+    else
+        strcpy(path_cal_file, PATH_CAPSENSOR_CAL);
+
+    sprintf(buf, "%d %d %d", nMargin, Offset_CSx, TotalCap_CSx);
 
     dev_info(this->pdev, "buf = %s\n", buf);
 
     set_fs(KERNEL_DS);
-    fd = sys_open(PATH_CAPSENSOR_CAL, O_WRONLY|O_CREAT, 0664);
+    fd = sys_open(path_cal_file, O_WRONLY|O_CREAT, 0664);
 
     if (fd >= 0) {
         sys_write(fd, buf, sizeof(buf));
+        sys_write(fd, "\n", 1);
         sys_fsync(fd); //ensure calibration data write to file system 
         sys_close(fd);
-        sys_chmod(PATH_CAPSENSOR_CAL, 0664);
+        sys_chmod(path_cal_file, 0664);
         set_fs(old_fs);
     }
     else {
@@ -320,29 +281,36 @@ static int write_calibration_data(struct sx86XX *this, s32 val, u8 msByte, u8 ls
     return ret;
 }
 
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-static int write_calibration2_data(struct sx86XX *this, s32 val, u8 msByte, u8 lsByte)
+static int write_calibration_backup_data(struct sx86XX *this,
+                                s32 TotalCap_CSx, s16 Useful_CSx, u16 Offset_CSx)
 {
     int fd;
     int ret = 0;
-    char buf[50];
+    char buf[30];
+    char path_cal_backup_file[50];
     mm_segment_t old_fs = get_fs();
 
     memset(buf, 0, sizeof(buf));
+    memset(path_cal_backup_file, 0, sizeof(path_cal_backup_file));
 
-    sprintf(buf, "%d %02x %02x", val, msByte, lsByte);
+    strcpy(path_cal_backup_file, PATH_CAL_BACKUP);
+
+    sprintf(buf, "%d %d %d", TotalCap_CSx, Useful_CSx, Offset_CSx);
 
     dev_info(this->pdev, "buf = %s\n", buf);
 
     set_fs(KERNEL_DS);
-    fd = sys_open(PATH_CAPSENSOR_CAL2, O_WRONLY|O_CREAT, 0664);
+    fd = sys_open(path_cal_backup_file, O_WRONLY|O_CREAT|O_APPEND, 0664);
 
     if (fd >= 0) {
         sys_write(fd, buf, sizeof(buf));
-        sys_fsync(fd); //ensure calibration data write to file system
+        sys_write(fd, "\n", 1);
+        sys_fsync(fd); //ensure calibration backup data write to file system 
         sys_close(fd);
-        sys_chmod(PATH_CAPSENSOR_CAL2, 0664);
+        sys_chmod(path_cal_backup_file, 0664);
         set_fs(old_fs);
+
+        
     }
     else {
         ret++;
@@ -353,33 +321,41 @@ static int write_calibration2_data(struct sx86XX *this, s32 val, u8 msByte, u8 l
 
     return ret;
 }
-#endif
 
-static void read_calibration_data(struct sx86XX *this, s32 *nMargin, u8 *msByte, u8 *lsByte)
+static void read_calibration_data(struct sx86XX *this,
+                                s32 *nMargin, u16 *Offset_CSx, s32 *TotalCap_CSx,
+                                bool isMultiInput)
 {
     int fd;
     //int ret = 0;
     int len = 0;
     char read_buf[50];
+    char path_cal_file[50];
     mm_segment_t old_fs = get_fs();
 
     s32 nCalMargin = -1;
-    u32 msByte_Offset = 0;
-    u32 lsByte_Offset = 0;
+    s32 unOffset_CSx = 0;
+    s32 nTotalCap_CSx = 0;
 
     *nMargin = (s32) nCalMargin;
-    *msByte = (u8) msByte_Offset;
-    *lsByte = (u8) lsByte_Offset;
+    *Offset_CSx = (u16) unOffset_CSx;
+    *TotalCap_CSx = (s32) nTotalCap_CSx;
 
     memset(read_buf, 0, sizeof(read_buf));
+    memset(path_cal_file, 0, sizeof(path_cal_file));
+
+    if (isMultiInput)
+        strcpy(path_cal_file, PATH_CAPSENSOR_CAL2);
+    else
+        strcpy(path_cal_file, PATH_CAPSENSOR_CAL);
+
     set_fs(KERNEL_DS);
 
-    fd = sys_open(PATH_CAPSENSOR_CAL, O_RDONLY, 0);
-    if(fd >= 0) {
+    fd = sys_open(path_cal_file, O_RDONLY, 0);
+    if (fd >= 0) {
         len = sys_read(fd, read_buf, sizeof(read_buf));
         dev_dbg(this->pdev, "cap sensor calibration file size is = %d\n", len);
-        if(len <= 0)
-        {
+        if (len <= 0) {
             //ret = -1;
             sys_close(fd);
             set_fs(old_fs);
@@ -387,17 +363,16 @@ static void read_calibration_data(struct sx86XX *this, s32 *nMargin, u8 *msByte,
             return;
         }
 
-        sscanf(read_buf, "%d %02x %02x", &nCalMargin, &msByte_Offset, &lsByte_Offset);
+        sscanf(read_buf, "%d %d %d", &nCalMargin, &unOffset_CSx, &nTotalCap_CSx);
 
         *nMargin = (s32) nCalMargin;
-        *msByte = (u8) msByte_Offset;
-        *lsByte = (u8) lsByte_Offset;
+        *Offset_CSx = (u16) unOffset_CSx;
+        *TotalCap_CSx = (s32) nTotalCap_CSx;
 
         sys_close(fd);
         set_fs(old_fs);
     }
-    else
-    {
+    else {
         dev_err(this->pdev, "Read cap sensor cal data. Error[%d]!!!\n",  fd);
         //ret = -1;
         sys_close(fd);
@@ -424,11 +399,10 @@ static void read_xo_therm_data(struct sx86XX *this, int *xo_therm)
     set_fs(KERNEL_DS);
 
     fd = sys_open(PATH_XO_THERM, O_RDONLY, 0);
-    if(fd >= 0) {
+    if (fd >= 0) {
         len = sys_read(fd, read_buf, sizeof(read_buf));
         dev_dbg(this->pdev, "current xo_thermal data file size is = %d\n", len);
-        if(len <= 0)
-        {
+        if (len <= 0) {
             //ret = -1;
             sys_close(fd);
             set_fs(old_fs);
@@ -443,8 +417,7 @@ static void read_xo_therm_data(struct sx86XX *this, int *xo_therm)
         sys_close(fd);
         set_fs(old_fs);
     }
-    else
-    {
+    else {
         dev_err(this->pdev, "Read xo_therm data. Error[%d]!!!\n",  fd);
         //ret = -1;
         sys_close(fd);
@@ -453,62 +426,6 @@ static void read_xo_therm_data(struct sx86XX *this, int *xo_therm)
         return;
     }
 }
-
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-static void read_calibration2_data(struct sx86XX *this, s32 *nMargin, u8 *msByte, u8 *lsByte)
-{
-    int fd;
-    //int ret = 0;
-    int len = 0;
-    char read_buf[50];
-    mm_segment_t old_fs = get_fs();
-
-    s32 nCalMargin = -1;
-    u32 msByte_Offset = 0;
-    u32 lsByte_Offset = 0;
-
-    *nMargin = (s32) nCalMargin;
-    *msByte = (u8) msByte_Offset;
-    *lsByte = (u8) lsByte_Offset;
-
-    memset(read_buf, 0, sizeof(read_buf));
-    set_fs(KERNEL_DS);
-
-    fd = sys_open(PATH_CAPSENSOR_CAL2, O_RDONLY, 0);
-    if(fd >= 0) {
-        len = sys_read(fd, read_buf, sizeof(read_buf));
-        dev_dbg(this->pdev, "cap sensor calibration file size is = %d\n", len);
-        if(len <= 0)
-        {
-            //ret = -1;
-            sys_close(fd);
-            set_fs(old_fs);
-            //return ret;
-            return;
-        }
-
-        sscanf(read_buf, "%d %02x %02x", &nCalMargin, &msByte_Offset, &lsByte_Offset);
-
-        *nMargin = (s32) nCalMargin;
-        *msByte = (u8) msByte_Offset;
-        *lsByte = (u8) lsByte_Offset;
-
-        sys_close(fd);
-        set_fs(old_fs);
-    }
-    else
-    {
-        dev_dbg(this->pdev, "Return error code : %d\n",  fd);
-        //ret = -1;
-        sys_close(fd);
-        set_fs(old_fs);
-        //return ret;
-        return;
-    }
-
-    //return (simple_strtol(read_buf, NULL, 10));
-}
-#endif
 
 static void read_sensor_regdata(struct sx86XX *this, unsigned char nSensorSel,
                              s16 *pUseful_CSx, s16 *pAvg_CSx, s16 *pDiff_CSx, u16 *pOffset_CSx)
@@ -554,14 +471,26 @@ static void read_sensor_regdata(struct sx86XX *this, unsigned char nSensorSel,
     return;
 }
 
-static s32 calculate_CSx_rawdata(struct sx86XX *this, unsigned char channel_num)
+static void calculate_CSx_rawdata(struct sx86XX *this, unsigned char channel_num,
+                                s16 *pUseful_CSx, u16 *pOffset_CSx, s32 *pCalculate_CSx)
 {
+    struct sx9500 *pDevice = NULL;
+    struct sx9500_platform_data *pdata = NULL;
+
     u8 msByte = 0;
     u8 lsByte = 0;
 
     s16 Useful_CSx = 0;
     u16 Offset_CSx = 0; /* fullbyte */
     s32 Calculate_CSx = 0;
+
+    s32 ncapacitance_range = RANGE_MEDIUM_SMALL;
+    s32 ngain_factor = GAIN_8X;
+
+    if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw)) {
+        ncapacitance_range = pdata->capacitance_range;
+        ngain_factor = pdata->gain_factor;
+    }
 
     // Calculate out the CSx Cap information //
     write_register(this, SX9500_SENSORSEL_REG, channel_num);
@@ -578,33 +507,25 @@ static s32 calculate_CSx_rawdata(struct sx86XX *this, unsigned char channel_num)
     msByte = (u8)(Offset_CSx >> 6);
     lsByte = (u8)(Offset_CSx - (((u16) msByte) << 6));
 
-    /*~+/-3.0 *20000  - medium smallm, digital gain factor - 8x */
+    // Calculate total capacitance.
+    // Use offset value, capacitance range, gain_factor.
     Calculate_CSx = 2 * (((s32) msByte * 3600) + ((s32) lsByte * 225)) +
-                                (((s32) Useful_CSx * 60000) / (8 * 65536));
+                            (((s32) Useful_CSx * ncapacitance_range) / (ngain_factor * 65536));
 
     dev_info(this->pdev, "CS[%02x] Useful = %6d, Offset = %6d, Calculate = %6d\n", 
                             channel_num, Useful_CSx, Offset_CSx, Calculate_CSx);
 
-    return Calculate_CSx;
-}
+    if (pUseful_CSx)
+        *pUseful_CSx = (s16) Useful_CSx;
 
-#if 0
-static int compensate_offset_by_temperature(struct sx86XX *this, int nCelsius)
-{
-    if (nCelsius >= 60)
-        return 3;
-    else if (nCelsius >= 50 && nCelsius < 60)
-        return 3;
-    else if (nCelsius >= 40 && nCelsius < 50)
-        return 2;
-    else if (nCelsius >= 30 && nCelsius < 40)
-        return 1;
-    else if (nCelsius < 30)
-        return 0;
+    if (pOffset_CSx)
+        *pOffset_CSx = (u16) Offset_CSx;
 
-    return 0;
+    if (pCalculate_CSx)
+        *pCalculate_CSx = (s32) Calculate_CSx;
+
+    return;
 }
-#endif
 
 /***********************************************************/
 /*! \brief Perform a manual offset calibration
@@ -653,11 +574,47 @@ static ssize_t manual_offset_calibration_store(struct device *dev,
     return count;
 }
 
+static u32 conv_regval_to_range(unsigned char regval)
+{
+    unsigned char val_1bit = (((1 << 1) & regval) >> 1);
+    unsigned char val_0bit = (((1 << 0) & regval) >> 0);
+    unsigned char val_rangebit = ((val_1bit << 1) | val_0bit);
+
+    u32 ncapacitancerange = RANGE_LARGE;
+
+    switch (val_rangebit) {
+        case REG_RANGE_LARGE:        ncapacitancerange = RANGE_LARGE;        break;
+        case REG_RANGE_MEDIUM_LARGE: ncapacitancerange = RANGE_MEDIUM_LARGE; break;
+        case REG_RANGE_MEDIUM_SMALL: ncapacitancerange = RANGE_MEDIUM_SMALL; break;
+        case REG_RANGE_SMALL:        ncapacitancerange = RANGE_SMALL;        break;
+    }
+
+    return ncapacitancerange;
+}
+
+static u32 conv_regval_to_gain(unsigned char regval)
+{
+    unsigned char val_6bit = (((1 << 6) & regval) >> 6);
+    unsigned char val_5bit = (((1 << 5) & regval) >> 5);
+    unsigned char val_gainbit = ((val_6bit << 1) | val_5bit);
+
+    u32 ngainfactor = GAIN_1X;
+
+    switch (val_gainbit) {
+        case REG_GAIN_1X: ngainfactor = GAIN_1X; break;
+        case REG_GAIN_2X: ngainfactor = GAIN_2X; break;
+        case REG_GAIN_4X: ngainfactor = GAIN_4X; break;
+        case REG_GAIN_8X: ngainfactor = GAIN_8X; break;
+    }
+
+    return ngainfactor;
+}
+
 static unsigned char conv_sensorsel_to_sensoren(unsigned char csx_pin)
 {
     unsigned char sensoren_csx;
 
-    switch(csx_pin) {
+    switch (csx_pin) {
         case SENSORSEL_CS0: sensoren_csx = SENSOREN_CS0; break;
         case SENSORSEL_CS1: sensoren_csx = SENSOREN_CS1; break;
         case SENSORSEL_CS2: sensoren_csx = SENSOREN_CS2; break;
@@ -667,9 +624,15 @@ static unsigned char conv_sensorsel_to_sensoren(unsigned char csx_pin)
     return sensoren_csx;
 }
 
-static int cmp_rawdata(const void *a, const void *b)
+static int cmp_rawdata(struct smtc_cal_data *elem1, struct smtc_cal_data *elem2)
 {
-    return (*(s32 *) a) - (*(s32 *) b);
+    // Ascending sort by Capacitance value.
+    if (elem1->Calculate_CSx > elem2->Calculate_CSx)
+        return 1;
+    else if (elem1->Calculate_CSx < elem2->Calculate_CSx)
+        return -1;
+    else
+        return 0;
 }
 
 static ssize_t sx9500_show_skipstartup(struct device *dev,
@@ -722,134 +685,236 @@ static ssize_t sx9500_store_docalibration(struct device *dev,
 {
     struct sx86XX *this = dev_get_drvdata(dev);
     struct sx9500 *pDevice = NULL;
-    unsigned char mainSensor;
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-    unsigned char mainSensor2;
-    u8 capMain2_Offset_msByte = 0;
-    u8 capMain2_Offset_lsByte = 0;
-    s32 capMain2[COLLECT_NUM];
-    s32 avg_capMain2 = 0;
-    s32 capMargin2 = 0;
-#endif
-    unsigned char refSensor;
+
     unsigned char cal_scanperiod = SCANPERIOD_CAL;// Set SCANPERIOD[6:4] - 000(30ms).
     unsigned char write_RegProxCtrl0 = 0x00;
 
-    u8 capMain_Offset_msByte = 0;
-    u8 capMain_Offset_lsByte = 0;
-    s32 capMain[COLLECT_NUM];
-    s32 capRef[COLLECT_NUM];
-    s32 avg_capMain = 0;
-    s32 avg_capRef = 0;
-    s32 min_threshold = 0;
+    unsigned char mainSensor = 0;
+    unsigned char main2Sensor = 0;
+    unsigned char refSensor = 0;
+
+    struct smtc_cal_data capMain_cal_data[COLLECT_NUM];
+    struct smtc_cal_data capMain2_cal_data[COLLECT_NUM];
+    struct smtc_cal_data capRef_cal_data[COLLECT_NUM];
+
+    s32 avg_Capacitance_Main = 0;
+    s32 avg_Useful_Main = 0;
+    s32 avg_Offset_Main = 0;
+
+    s32 avg_Capacitance_Main2 = 0;
+    s32 avg_Useful_Main2 = 0;
+    s32 avg_Offset_Main2 = 0;
+
+    s32 avg_Capacitance_Ref = 0;
+    s32 avg_Useful_Ref = 0;
+    s32 avg_Offset_Ref = 0;
+    s32 avg_Capacitance_Ref_dynamicthreshold = 0;
+
+    s32 nhysteresis = 0;
+
     s32 capMargin = 0;
+    s32 capMargin2 = 0;
+
+    bool is_different_offset = false;
+    bool is_over_gap_useful = false;
+    bool is_over_useful = false;
 
     int ret = 0;
 
     if (this && (pDevice = this->pDevice) && !running_cal_or_reset) {
         int i = 0;
+
         u8 old_RegIrqMsk_val = 0;
         u8 old_RegCtrl0_val = 0;
-        unsigned char conv_mainSensor;
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-        unsigned char conv_mainSensor2;
-#endif
-        unsigned char conv_refSensor;
+
+        unsigned char conv_mainSensor = 0;
+        unsigned char conv_main2Sensor = 0;
+        unsigned char conv_refSensor = 0;
 
         running_cal_or_reset = true;
 
         dev_info(this->pdev, "calibration start!!!\n");
 
-        mainSensor = (unsigned char)pDevice->ptouchCheckParameters->defaultStartupMainSensor;
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-        mainSensor2 = (unsigned char)pDevice->ptouchCheckParameters->defaultSecondStartupMainSensor;
-#endif
-        refSensor = (unsigned char)pDevice->ptouchCheckParameters->defaultStartupRefSensor;
+        mainSensor = (unsigned char)pDevice->hw->input_mainsensor;
+        if (valid_multiple_input_pins(this))
+            main2Sensor = (unsigned char)pDevice->hw->input_main2sensor;
+        refSensor = (unsigned char)pDevice->hw->input_refsensor;
 
         conv_mainSensor = conv_sensorsel_to_sensoren(mainSensor);
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-        conv_mainSensor2 = conv_sensorsel_to_sensoren(mainSensor2);
-#endif
+        if (valid_multiple_input_pins(this))
+            conv_main2Sensor = conv_sensorsel_to_sensoren(main2Sensor);
         conv_refSensor = conv_sensorsel_to_sensoren(refSensor);
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-        write_RegProxCtrl0 = (unsigned char) ((cal_scanperiod << 4) | (conv_mainSensor | conv_mainSensor2 | conv_refSensor));
-#else
-        write_RegProxCtrl0 = (unsigned char) ((cal_scanperiod << 4) | (conv_mainSensor | conv_refSensor));
-#endif
 
+        write_RegProxCtrl0 = (unsigned char) 
+                ((cal_scanperiod << 4) | (conv_mainSensor | conv_main2Sensor | conv_refSensor));
+
+        // Backup RegIrqMask & RegProxCtrl0 value.
+        // And, Change RegIrqMask & RegProxCtrl0(scanperiod) value for calibration.
         read_register(this, SX9500_IRQ_ENABLE_REG, &old_RegIrqMsk_val);
         read_register(this, SX9500_CPS_CTRL0_REG, &old_RegCtrl0_val);
 
         write_register(this, SX9500_IRQ_ENABLE_REG, 0x70);
         write_register(this, SX9500_CPS_CTRL0_REG, write_RegProxCtrl0);
+
         msleep(100); /* make sure everything is running */
+
         manual_offset_calibration(this);
 
-        // Calculate out the Main Cap information.
-        // To sort the collected value. 2 max & 2 min values are excluded.
+        // This should cover most of the scan periods, if extremely large may
+        // want to set this to 500 
+        msleep(500); /* make sure manual offset has been fully done */
+
+        // Clear flags because sensor is calibrationing.
+        this->inStartupTouch = false;
+        check_allnear = false;
+
+        // Calculate out the Cap information for Main/(Main2/)Ref Pins.
         for (i = 0; i < COLLECT_NUM; i++) {
-            capMain[i] = calculate_CSx_rawdata(this, mainSensor);
-            dev_dbg(this->pdev,"capMain[%d] = %d\n", i, capMain[i]);
-            msleep(30);
+            calculate_CSx_rawdata(this, mainSensor,
+                                &capMain_cal_data[i].Useful_CSx,
+                                &capMain_cal_data[i].Offset_CSx,
+                                &capMain_cal_data[i].Calculate_CSx);
+
+            if (valid_multiple_input_pins(this)) {
+                calculate_CSx_rawdata(this, main2Sensor,
+                                    &capMain2_cal_data[i].Useful_CSx,
+                                    &capMain2_cal_data[i].Offset_CSx,
+                                    &capMain2_cal_data[i].Calculate_CSx);
+            }
+
+            calculate_CSx_rawdata(this, refSensor,
+                                &capRef_cal_data[i].Useful_CSx,
+                                &capRef_cal_data[i].Offset_CSx,
+                                &capRef_cal_data[i].Calculate_CSx);
+
+            msleep(50);
         }
-        read_register(this, SX9500_OFFSETMSB_REG, &capMain_Offset_msByte);
-        read_register(this, SX9500_OFFSETLSB_REG, &capMain_Offset_lsByte);
 
-        sort(capMain, COLLECT_NUM, sizeof(s32), cmp_rawdata, NULL);
-        for (i = FILTER_NUM; i < COLLECT_NUM - FILTER_NUM; i++)
-            avg_capMain += capMain[i];
-        avg_capMain = avg_capMain / (COLLECT_NUM - (FILTER_NUM * 2));
-
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-        // Calculate out the Main2 Cap information.
-        // To sort the collected value. 2 max & 2 min values are excluded.
-        for (i = 0; i < COLLECT_NUM; i++) {
-            capMain2[i] = calculate_CSx_rawdata(this, mainSensor2);
-            dev_dbg(this->pdev,"capMain2[%d] = %d\n", i, capMain2[i]);
-            msleep(30);
+        // To sort the collected value. 
+        sort((void *) &capMain_cal_data, COLLECT_NUM, sizeof(struct smtc_cal_data),
+                (compfn) cmp_rawdata, NULL);
+        if (valid_multiple_input_pins(this)) {
+            sort((void *) &capMain2_cal_data, COLLECT_NUM, sizeof(struct smtc_cal_data),
+                    (compfn) cmp_rawdata, NULL);
         }
-        read_register(this, SX9500_OFFSETMSB_REG, &capMain2_Offset_msByte);
-        read_register(this, SX9500_OFFSETLSB_REG, &capMain2_Offset_lsByte);
+        sort((void *) &capRef_cal_data, COLLECT_NUM, sizeof(struct smtc_cal_data),
+                (compfn) cmp_rawdata, NULL);
 
-        sort(capMain2, COLLECT_NUM, sizeof(s32), cmp_rawdata, NULL);
-        for (i = FILTER_NUM; i < COLLECT_NUM - FILTER_NUM; i++)
-            avg_capMain2 += capMain2[i];
-        avg_capMain2 = avg_capMain2 / (COLLECT_NUM - (FILTER_NUM * 2));
-        dev_dbg(this->pdev,"avg_capMain2 = %d\n", avg_capMain2);
-#endif
-
-        // Calculate out the Reference Cap information + Apply temperature Compensation
-        // To sort the collected value. 2 max & 2 min values are excluded.
+        // Check readback sensor raw data.
+        // 1. Check Offset value.(is equal values?)
+        // 2. Check Useful value.(is over min/max gap? is over init range?)
         for (i = 0; i < COLLECT_NUM; i++) {
-            capRef[i] = calculate_CSx_rawdata(this, refSensor);
-            dev_dbg(this->pdev, "capRef[%d] = %d\n", i, capRef[i]);
-            msleep(30);
-        }        
+            if (capMain_cal_data[i].Offset_CSx != capMain_cal_data[COLLECT_NUM/2].Offset_CSx) {
+                is_different_offset = true;
+                dev_info(this->pdev, "Calibration Fail! different(offset)! [%d] %d\n",
+                            i, capMain_cal_data[i].Offset_CSx);
+            }
+        }
 
-        sort(capRef, COLLECT_NUM, sizeof(s32), cmp_rawdata, NULL);
-        for (i = FILTER_NUM; i < COLLECT_NUM - FILTER_NUM; i++)
-            avg_capRef += capRef[i];
-        avg_capRef = avg_capRef / (COLLECT_NUM - (FILTER_NUM * 2));
+        if (is_different_offset == false) {
+            if ((capMain_cal_data[COLLECT_NUM-1].Useful_CSx - capMain_cal_data[0].Useful_CSx) > 2000) {
+                is_over_gap_useful = true;
+                dev_info(this->pdev, "Calibration Fail! over gap(useful)! [gap = %d(%d - %d)]\n", 
+                        ((capMain_cal_data[COLLECT_NUM-1].Useful_CSx) - (capMain_cal_data[0].Useful_CSx)),
+                        capMain_cal_data[COLLECT_NUM-1].Useful_CSx, capMain_cal_data[0].Useful_CSx);
+            }
 
-        avg_capRef = pDevice->ptouchCheckParameters->main_csx + 
-                        (pDevice->ptouchCheckParameters->ref_csx * avg_capRef);
+            for (i = 0; i < COLLECT_NUM; i++) {
+                if ((capMain_cal_data[i].Useful_CSx < -8000) || (capMain_cal_data[i].Useful_CSx > 8000)) {
+                    is_over_useful = true;
+                    dev_info(this->pdev, "Calibration Fail! over range(useful)! [%d] %d\n",
+                                i, capMain_cal_data[i].Useful_CSx);
+                }
+            }
+        }
 
-        min_threshold = pDevice->ptouchCheckParameters->minimum_threshold;
+        if (is_different_offset || is_over_gap_useful || is_over_useful) {
+            ret = write_calibration_data(this, 0, 0, 0, false);
+            //if (valid_multiple_input_pins(this))
+            //    ret = write_calibration_data(this, 0, 0, 0, true);
+            running_cal_or_reset = false;
 
+            return count;
+        }
+
+        // Calculate the average capacitance value about the Main/(Main2/)Ref Pins.
+        // 2 max & 2 min values are excluded.
+        for (i = FILTER_NUM; i < COLLECT_NUM - FILTER_NUM; i++) {
+            avg_Capacitance_Main += capMain_cal_data[i].Calculate_CSx;
+            avg_Useful_Main += capMain_cal_data[i].Useful_CSx;
+            avg_Offset_Main += capMain_cal_data[i].Offset_CSx;
+        }
+        avg_Capacitance_Main = avg_Capacitance_Main / (COLLECT_NUM - (FILTER_NUM * 2));
+        avg_Useful_Main = avg_Useful_Main / (COLLECT_NUM - (FILTER_NUM * 2));
+        avg_Offset_Main = avg_Offset_Main / (COLLECT_NUM - (FILTER_NUM * 2));
+        dev_info(this->pdev, 
+                    "avg_Capacitance_Main = %d, avg_Useful_Main = %d, avg_Offset_Main = %d\n", 
+                    avg_Capacitance_Main, avg_Useful_Main, avg_Offset_Main);
+
+        if (valid_multiple_input_pins(this)) {
+            for (i = FILTER_NUM; i < COLLECT_NUM - FILTER_NUM; i++) {
+                avg_Capacitance_Main2 += capMain2_cal_data[i].Calculate_CSx;
+                avg_Useful_Main2 += capMain2_cal_data[i].Useful_CSx;
+                avg_Offset_Main2 += capMain2_cal_data[i].Offset_CSx;
+            }
+            avg_Capacitance_Main2 = avg_Capacitance_Main2 / (COLLECT_NUM - (FILTER_NUM * 2));
+            avg_Useful_Main2 = avg_Useful_Main2 / (COLLECT_NUM - (FILTER_NUM * 2));
+            avg_Offset_Main2 = avg_Offset_Main2 / (COLLECT_NUM - (FILTER_NUM * 2));
+            dev_info(this->pdev,
+                    "avg_Capacitance_Main2 = %d, avg_Useful_Main2 = %d, avg_Offset_Main2 = %d\n",
+                    avg_Capacitance_Main2, avg_Useful_Main2, avg_Offset_Main2);
+        }
+
+        for (i = FILTER_NUM; i < COLLECT_NUM - FILTER_NUM; i++) {
+            avg_Capacitance_Ref += capRef_cal_data[i].Calculate_CSx;
+            avg_Useful_Ref += capRef_cal_data[i].Useful_CSx;
+            avg_Offset_Ref += capRef_cal_data[i].Offset_CSx;
+        }
+        avg_Capacitance_Ref = avg_Capacitance_Ref / (COLLECT_NUM - (FILTER_NUM * 2));
+        avg_Useful_Ref = avg_Useful_Ref / (COLLECT_NUM - (FILTER_NUM * 2));
+        avg_Offset_Ref = avg_Offset_Ref / (COLLECT_NUM - (FILTER_NUM * 2));
+        dev_info(this->pdev, 
+                    "avg_Capacitance_Ref = %d, avg_Useful_Ref = %d, avg_Offset_Ref = %d\n",
+                    avg_Capacitance_Ref, avg_Useful_Ref, avg_Offset_Ref);
+
+        // Calculate the dynamic thershold through the ref sensor.
+        avg_Capacitance_Ref_dynamicthreshold = pDevice->pStartupCheckParameters->dynamicthreshold_offset + 
+                ((pDevice->pStartupCheckParameters->dynamicthreshold_temp_slope * avg_Capacitance_Ref) / 10);
+
+        // Calculate capacitance margin value.
+        // And, Save margin & offset values.
+        nhysteresis = pDevice->pStartupCheckParameters->dynamicthreshold_hysteresis;
+        capMargin = avg_Capacitance_Main - avg_Capacitance_Ref_dynamicthreshold + nhysteresis;
+        ret = write_calibration_data(this,
+                                    capMargin,
+                                    capMain_cal_data[COLLECT_NUM/2].Offset_CSx,
+                                    avg_Capacitance_Main,
+                                    false);
+
+        if (valid_multiple_input_pins(this)) {
+            capMargin2 = avg_Capacitance_Main2 - avg_Capacitance_Ref_dynamicthreshold + nhysteresis;
+            ret = write_calibration_data(this,
+                                        capMargin2,
+                                        capMain2_cal_data[COLLECT_NUM/2].Offset_CSx,
+                                        avg_Capacitance_Main2,
+                                        true);
+        }
+
+        write_calibration_backup_data(this, 
+                            avg_Capacitance_Main, (s16) avg_Useful_Main, (u16) avg_Offset_Main);
+        if (valid_multiple_input_pins(this)) {
+            write_calibration_backup_data(this, 
+                            avg_Capacitance_Main2, (s16)avg_Useful_Main2, (u16) avg_Offset_Main2);
+        }
+        write_calibration_backup_data(this,
+                            avg_Capacitance_Ref, (s16) avg_Useful_Ref, (u16) avg_Offset_Ref);
+
+        // Restore RegIrqMask & RegProxCtrl0(scanperiod) value.
         write_register(this, SX9500_IRQ_ENABLE_REG, old_RegIrqMsk_val);
         write_register(this, SX9500_CPS_CTRL0_REG, old_RegCtrl0_val);
 
         // Must be sure to set the Main CS pin.
         write_register(this, SX9500_SENSORSEL_REG, mainSensor);
-
-        capMargin = avg_capMain - avg_capRef + min_threshold;
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-        capMargin2 = avg_capMain2 - avg_capRef + min_threshold;
-#endif
-        ret = write_calibration_data(this, capMargin, capMain_Offset_msByte, capMain_Offset_lsByte);
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-        ret = write_calibration2_data(this, capMargin2, capMain2_Offset_msByte, capMain2_Offset_lsByte);
-#endif
 
         dev_info(this->pdev, "calibration end!!!\n");
 
@@ -870,7 +935,7 @@ static ssize_t sx9500_store_checkallnear(struct device *dev,
     if (strict_strtoul(buf, 0, &val))
         return -EINVAL;
 
-    dev_dbg(this->pdev,"checkallnear set val = %d\n", (int) val);
+    dev_info(this->pdev,"checkallnear set val = %d\n", (int) val);
     if (val == 0)
         check_allnear = false;
     else if (val == 1)
@@ -889,38 +954,10 @@ static ssize_t sx9500_show_count_inputpins(struct device *dev,
     struct sx9500_platform_data *pdata = NULL;
 
     if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw)) {
-        int i = 0;
-
-        unsigned char val_regproxctrl0;
-        unsigned char refSensor;
-        unsigned char conv_refSensor;
-
-        unsigned char val_mainpins;
-
-        unsigned char mask_sensoren;
-
-        while (i < pdata->i2c_reg_num) {
-            if (pdata->pi2c_reg[i].reg == SX9500_CPS_CTRL0_REG) {
-                val_regproxctrl0 = pdata->pi2c_reg[i].val;
-                break;
-            }
-            i++;
-        }
-
-        if (val_regproxctrl0) {      
-            refSensor = (unsigned char)pDevice->ptouchCheckParameters->defaultStartupRefSensor;
-            conv_refSensor = conv_sensorsel_to_sensoren(refSensor);
-
-            val_mainpins = val_regproxctrl0 - conv_refSensor;
-            if (val_mainpins > 0) {
-                for (i=0; i < 4; i++) {
-                    mask_sensoren = (SENSOREN_CS0 << i);
-                    if ((val_mainpins & mask_sensoren) == mask_sensoren) {
-                        count_inputpins++;
-                    }
-                }
-            }
-
+        count_inputpins = pdata->input_pins_num;
+        if (count_inputpins > 1) {
+            if (valid_multiple_input_pins(this) == false)
+                count_inputpins = 1;
         }
     }
 
@@ -932,41 +969,37 @@ static ssize_t sx9500_show_count_inputpins(struct device *dev,
 static ssize_t sx9500_show_proxstatus(struct device *dev,
                      struct device_attribute *attr, char *buf)
 {
-    int prox_status = -1;
-
     struct sx9500 *pDevice = NULL;
     struct sx86XX *this = dev_get_drvdata(dev);
+    struct _buttoninfo *buttons = NULL;
+    u8 mainSensor, main2Sensor;
 
-    struct _buttonInfo *buttons = NULL;
-#if !defined(CONFIG_MACH_MSM8926_E8LTE)
-    struct _buttonInfo *pCurrentButton  = NULL;
-#endif
+    int prox_status = -1;
 
     if (this && (pDevice = this->pDevice)) {
-        buttons = pDevice->pbuttonInformation->buttons;
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-        if (check_allnear) {
-            if(buttons[0].state == IDLE || buttons[2].state == IDLE) {
-               prox_status = 1;
-            }
+        buttons = pDevice->pButtonInformation->buttons;
+        mainSensor = pDevice->hw->input_mainsensor;
 
-            if(buttons[0].state == ACTIVE && buttons[2].state == ACTIVE) {
-                prox_status = 0;
+        if (valid_multiple_input_pins(this)) {
+            main2Sensor = pDevice->hw->input_main2sensor;
+            if (check_allnear) {
+                if ((buttons[mainSensor].state == IDLE) || (buttons[main2Sensor].state == IDLE))
+                   prox_status = IDLE;
+
+                if ((buttons[mainSensor].state == ACTIVE) && (buttons[main2Sensor].state == ACTIVE))
+                    prox_status = ACTIVE;
+            }
+            else {
+                if ((buttons[mainSensor].state == IDLE) && (buttons[main2Sensor].state == IDLE))
+                    prox_status = IDLE;
+
+                if ((buttons[mainSensor].state == ACTIVE) || (buttons[main2Sensor].state == ACTIVE))
+                    prox_status = ACTIVE;
             }
         }
         else {
-            if(buttons[0].state == IDLE && buttons[2].state == IDLE) {
-                prox_status = 1;
-            }
-
-            if(buttons[0].state == ACTIVE || buttons[2].state == ACTIVE) {
-                prox_status = 0;
-            }
+            prox_status = buttons[mainSensor].state;
         }
-#else
-        pCurrentButton = &buttons[2]; // only CS2
-        prox_status = pCurrentButton->state;
-#endif
     }
 
     return sprintf(buf, "%d\n", prox_status);
@@ -975,44 +1008,50 @@ static ssize_t sx9500_show_proxstatus(struct device *dev,
 static ssize_t sx9500_show_regproxdata(struct device *dev,
                      struct device_attribute *attr, char *buf)
 {
-    s16 Useful_CSx = 0, Avg_CSx = 0, Diff_CSx = 0;
-    s16 ref_Useful_CSx = 0, ref_Avg_CSx = 0, ref_Diff_CSx = 0;
-    u16 Offset_CSx = 0, ref_Offset_CSx = 0;
+    s16 main_Useful  = 0, main_Avg  = 0, main_Diff  = 0; u16 main_Offset  = 0;
+    s16 main2_Useful = 0, main2_Avg = 0, main2_Diff = 0; u16 main2_Offset = 0;
+    s16 ref_Useful   = 0, ref_Avg   = 0, ref_Diff   = 0; u16 ref_Offset   = 0;
 
-    unsigned char mainSensor;
-    unsigned char refSensor;
-
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-    s16 Useful_CSx2 = 0, Avg_CSx2 = 0, Diff_CSx2 = 0;
-    u16 Offset_CSx2 = 0;
-    unsigned char mainSensor2;
-#endif
+    u8 mainSensor, main2Sensor, refSensor;
 
     int current_xo_therm = 0;
 
+    char buf_bstate_main[5] = "";
+    char buf_bstate_main2[5] = "";
+    char buf_line[64] = "";
+    char buf_regproxdata[256] = "";
+    int nlength = 0;
     struct sx9500 *pDevice = NULL;
     struct sx86XX *this = dev_get_drvdata(dev);
+    struct _buttoninfo *buttons = NULL;
 
+    memset(buf_bstate_main, 0, sizeof(buf_bstate_main));
+    memset(buf_bstate_main2, 0, sizeof(buf_bstate_main2));
+    memset(buf_line, 0, sizeof(buf_line));
+    memset(buf_regproxdata, 0, sizeof(buf_regproxdata));
     if (this && (pDevice = this->pDevice) && !running_cal_or_reset) {
-        mainSensor = (unsigned char)pDevice->ptouchCheckParameters->defaultStartupMainSensor;
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-        mainSensor2 = (unsigned char)pDevice->ptouchCheckParameters->defaultSecondStartupMainSensor;
-#endif
-        refSensor = (unsigned char)pDevice->ptouchCheckParameters->defaultStartupRefSensor;
+        buttons = pDevice->pButtonInformation->buttons;
 
         // Select Main Sensor, Readback Reg Sensor Data
-        read_sensor_regdata(this, mainSensor, &Useful_CSx, &Avg_CSx, &Diff_CSx, &Offset_CSx);
-        dev_info(this->pdev,"capMain = %6d %6d %6d %6d\n", Useful_CSx, Avg_CSx, Diff_CSx, Offset_CSx);
+        mainSensor = pDevice->hw->input_mainsensor;
+        read_sensor_regdata(this, mainSensor, &main_Useful, &main_Avg, &main_Diff, &main_Offset);
+        (buttons[mainSensor].state) ? strcpy(buf_bstate_main, "F"):strcpy(buf_bstate_main, "N");
+        dev_info(this->pdev,"capMain = %6d %6d %6d %6d %s\n",
+                            main_Useful, main_Avg, main_Diff, main_Offset, buf_bstate_main);
 
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
         // Select Main2 Sensor, Readback Reg Sensor Data
-        read_sensor_regdata(this, mainSensor2, &Useful_CSx2, &Avg_CSx2, &Diff_CSx2, &Offset_CSx2);
-        dev_info(this->pdev,"capMain2 = %6d %6d %6d %6d\n", Useful_CSx2, Avg_CSx2, Diff_CSx2, Offset_CSx2);
-#endif
+        if (valid_multiple_input_pins(this)) {
+            main2Sensor = pDevice->hw->input_main2sensor;
+            read_sensor_regdata(this, main2Sensor, &main2_Useful, &main2_Avg, &main2_Diff, &main2_Offset);
+            (buttons[main2Sensor].state) ? strcpy(buf_bstate_main2, "F"):strcpy(buf_bstate_main2, "N");
+            dev_info(this->pdev,"capMain2 = %6d %6d %6d %6d %s\n",
+                            main2_Useful, main2_Avg, main2_Diff, main2_Offset, buf_bstate_main2);
+        }
 
         // Select Reference Sensor, Readback Reg Sensor Data
-        read_sensor_regdata(this, refSensor, &ref_Useful_CSx, &ref_Avg_CSx, &ref_Diff_CSx, &ref_Offset_CSx);
-        dev_info(this->pdev,"capRef = %6d %6d %6d %6d\n", ref_Useful_CSx, ref_Avg_CSx, ref_Diff_CSx, ref_Offset_CSx);
+        refSensor = pDevice->hw->input_refsensor;
+        read_sensor_regdata(this, refSensor, &ref_Useful, &ref_Avg, &ref_Diff, &ref_Offset);
+        dev_info(this->pdev,"capRef = %6d %6d %6d %6d\n", ref_Useful, ref_Avg, ref_Diff, ref_Offset);
 
         // Please Select Main Sensor again.
         write_register(this, SX9500_SENSORSEL_REG, mainSensor);
@@ -1020,17 +1059,22 @@ static ssize_t sx9500_show_regproxdata(struct device *dev,
         read_xo_therm_data(this, &current_xo_therm);
     }
 
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-    return sprintf(buf, "%6d %6d %6d %6d %3d\n%6d %6d %6d %6d\n%6d %6d %6d %6d\n",
-                        Useful_CSx, Avg_CSx, Diff_CSx, Offset_CSx, current_xo_therm,
-                        Useful_CSx2, Avg_CSx2, Diff_CSx2, Offset_CSx2,
-                        ref_Useful_CSx, ref_Avg_CSx, ref_Diff_CSx, ref_Offset_CSx);
-#else
-    return sprintf(buf, "%6d %6d %6d %6d %3d\n%6d %6d %6d %6d\n",
-                        Useful_CSx, Avg_CSx, Diff_CSx, Offset_CSx, current_xo_therm,
-                        ref_Useful_CSx, ref_Avg_CSx, ref_Diff_CSx, ref_Offset_CSx);
-#endif
+    sprintf(buf_line, "[M]%6d %6d %6d %6d %s %3d\n", 
+                main_Useful, main_Avg, main_Diff, main_Offset, buf_bstate_main, current_xo_therm);
+    strcpy(buf_regproxdata, buf_line);
 
+    if (this && valid_multiple_input_pins(this)) {
+        sprintf(buf_line, "[S]%6d %6d %6d %6d %s\n",
+                            main2_Useful, main2_Avg, main2_Diff, main2_Offset, buf_bstate_main2);
+        nlength = strlen(buf_regproxdata);
+        strcpy(&buf_regproxdata[nlength], buf_line);
+    }
+
+    sprintf(buf_line, "[R]%6d %6d %6d %6d\n", ref_Useful, ref_Avg, ref_Diff, ref_Offset);
+    nlength = strlen(buf_regproxdata);
+    strcpy(&buf_regproxdata[nlength], buf_line);
+
+    return sprintf(buf, "%s", buf_regproxdata);
 }
 
 static ssize_t sx9500_show_regproxctrl0(struct device *dev,
@@ -1051,9 +1095,6 @@ static ssize_t sx9500_store_regproxctrl0(struct device *dev,
     struct sx9500 *pDevice = NULL;
     struct sx86XX *this = dev_get_drvdata(dev);
 
-    //struct _buttonInfo *buttons = NULL;
-    //struct _buttonInfo *pCurrentButton  = NULL;
-
     struct input_dev *input = NULL;
 
     unsigned long val;
@@ -1071,11 +1112,11 @@ static ssize_t sx9500_store_regproxctrl0(struct device *dev,
         if (val_check == SENSOREN_DISABLE_ALL) {
             /* Initialize prox status : default FAR */
             if (this && (pDevice = this->pDevice)) {
-                for (i = 0; i < pDevice->pbuttonInformation->buttonSize; i++) {
-                    pDevice->pbuttonInformation->buttons[i].state = IDLE;
+                for (i = 0; i < pDevice->pButtonInformation->buttonSize; i++) {
+                    pDevice->pButtonInformation->buttons[i].state = IDLE;
                 }
 
-                input = pDevice->pbuttonInformation->input;
+                input = pDevice->pButtonInformation->input;
                 input_report_abs(input, ABS_DISTANCE, PROX_STATUS_FAR);
                 input_sync(input);
             }
@@ -1334,18 +1375,15 @@ static ssize_t sx9500_store_regreset(struct device *dev,
         return -EINVAL;
 
     if (this && (pDevice = this->pDevice) && !running_cal_or_reset) {
-
         running_cal_or_reset = true;
 
         if (val == SX9500_SOFTRESET) {
-
             dev_info(this->pdev, "reset start!!!\n");
-
-            for (i = 0; i < pDevice->pbuttonInformation->buttonSize; i++) {
-                pDevice->pbuttonInformation->buttons[i].state = IDLE;
+            for (i = 0; i < pDevice->pButtonInformation->buttonSize; i++) {
+                pDevice->pButtonInformation->buttons[i].state = IDLE;
             }
 
-            input = pDevice->pbuttonInformation->input;
+            input = pDevice->pButtonInformation->input;
             input_report_abs(input, ABS_DISTANCE, PROX_STATUS_FAR);
             input_sync(input);
 
@@ -1366,11 +1404,9 @@ static ssize_t sx9500_store_regreset(struct device *dev,
             //enable_irq(this->irq);
 
             dev_info(this->pdev, "reset end!!!\n");
-
         }
 
         running_cal_or_reset = false;
-
     }
 
     return count;
@@ -1385,7 +1421,7 @@ static ssize_t sx9500_store_regoffset(struct device *dev,
     unsigned int msb_val;
     unsigned int lsb_val;
 
-    if(sscanf(buf, "%02x,%02x", &msb_val, &lsb_val) != 2)
+    if (sscanf(buf, "%02x,%02x", &msb_val, &lsb_val) != 2)
         return -EINVAL;
 
     dev_dbg(this->pdev, "regoffset = %02x, %02x\n", msb_val, lsb_val);
@@ -1473,24 +1509,25 @@ static int read_regIrqStat(struct sx86XX *this)
  */
 static void hw_init(struct sx86XX *this)
 {
-    struct sx9500 *pDevice = 0;
-    struct sx9500_platform_data *pdata = 0;
+    struct sx9500 *pDevice = NULL;
+    struct sx9500_platform_data *pdata = NULL;
     int i = 0;
 
     /* configure device */
-    dev_dbg(this->pdev, "Going to Setup I2C Registers\n");
-    if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw))
-    {
+    dev_dbg(this->pdev, "Setup I2C Registers\n");
+    if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw)) {
         while ( i < pdata->i2c_reg_num) {
             /* Write all registers/values contained in i2c_reg */
-            dev_dbg(this->pdev, "Going to Write Reg: 0x%02x Value: 0x%02x\n", pdata->pi2c_reg[i].reg,pdata->pi2c_reg[i].val);
+            dev_dbg(this->pdev,
+                    "Write Reg: 0x%02x, Value: 0x%02x\n",
+                    pdata->pi2c_reg[i].reg,pdata->pi2c_reg[i].val);
             //msleep(3);        
             write_register(this, pdata->pi2c_reg[i].reg,pdata->pi2c_reg[i].val);
             i++;
         }
     }
     else {
-        dev_err(this->pdev, "ERROR! platform data 0x%p\n",pDevice->hw);
+        dev_err(this->pdev, "ERROR! platform data 0x%p\n", pDevice->hw);
     }
 }
 /*********************************************************************/
@@ -1505,17 +1542,18 @@ static void hw_init(struct sx86XX *this)
  */
 static int initialize_device(struct sx86XX *this)
 {
-    s16 Useful_CSx = 0, Avg_CSx = 0, Diff_CSx = 0;
-    u16 Offset_CSx = 0;
-    int i = 0;
+    s16 Useful_CSx = 0, Avg_CSx = 0, Diff_CSx = 0; u16 Offset_CSx = 0;
 
-    unsigned char mainSensor, refSensor;
+    unsigned char mainSensor = 0x00, main2Sensor = 0x00, refSensor = 0x00;
+
 #if defined(CONFIG_MACH_MSM8926_E8LTE)
-    unsigned char mainSensor2;
+	int cnt= 0;
 #endif
     struct sx9500 *pDevice = NULL;
 
     if (this) {
+        int i = 0;
+
         /* Make sure we initialize that we are not in startup detection */
         this->inStartupTouch = false;
         /* prepare reset by disabling any irq handling */
@@ -1524,54 +1562,68 @@ static int initialize_device(struct sx86XX *this)
         /* perform a reset */
         write_register(this, SX9500_SOFTRESET_REG, SX9500_SOFTRESET);
         /* wait until the reset has finished by monitoring NIRQ */
-        dev_info(this->pdev, "Sent Software Reset. Waiting until device is back from reset to continue.\n");
+        dev_info(this->pdev,
+                "Sent Software Reset. Waiting until device is back from reset to continue.\n");
 
         /* just sleep for awhile instead of using a loop with reading irq status */
+    #if defined(CONFIG_MACH_MSM8926_E8LTE)
+        do {
+            msleep(100);
+            read_regIrqStat(this);
+			
+            if (++cnt >= 3) break;
+        } while(this->get_nirq_low && this->get_nirq_low());
+    #else	
         msleep(300);
+    #endif
 
-        /*while(this->get_nirq_low && this->get_nirq_low()) {
-              read_regIrqStat(this);
-        }*/
         dev_info(this->pdev, "Device is back from the reset, continuing. NIRQ = %d\n", this->get_nirq_low());
 
         hw_init(this);
 
-        msleep(100); /* make sure everything is running */
+        /* make sure everything is running */
+        msleep(100);
 
         manual_offset_calibration(this);
 
         // This should cover most of the scan periods, if extremely large may
-        // want to set this to 500 
-    #if defined(CONFIG_MACH_MSM8926_E8LTE)
-        msleep(1000); /* make sure manual offset has been fully done */
-    #else
-        msleep(500); /* make sure manual offset has been fully done */
-    #endif
+        // want to set this to 500ms. Make sure manual offset has been fully done
+        msleep(500); 
 
         if (likely((pDevice = this->pDevice) != NULL)) {
-            mainSensor = (unsigned char) pDevice->ptouchCheckParameters->defaultStartupMainSensor;
-            refSensor = (unsigned char) pDevice->ptouchCheckParameters->defaultStartupRefSensor;
-        #if defined(CONFIG_MACH_MSM8926_E8LTE)
-            mainSensor2 = (unsigned char) pDevice->ptouchCheckParameters->defaultSecondStartupMainSensor; 
-        #endif
+            mainSensor = (unsigned char) pDevice->hw->input_mainsensor;
+            refSensor = (unsigned char) pDevice->hw->input_refsensor;
+            if (valid_multiple_input_pins(this))
+                main2Sensor = (unsigned char) pDevice->hw->input_main2sensor; 
 
             for (i = 0; i < 5 ; i++) {
                 read_sensor_regdata(this, mainSensor, &Useful_CSx, &Avg_CSx, &Diff_CSx, &Offset_CSx);
-                dev_info(this->pdev,"[startup] capMain[%d] = %6d %6d %6d %6d\n", 
-                                                    i, Useful_CSx, Avg_CSx, Diff_CSx, Offset_CSx);
+                dev_info(this->pdev,
+                            "[startup] capMain[%d] = %6d %6d %6d %6d\n",
+                            i, Useful_CSx, Avg_CSx, Diff_CSx, Offset_CSx);
             }
 
-            touchCheckWithReferenceSensor(this, mainSensor, refSensor);
-        #if defined(CONFIG_MACH_MSM8926_E8LTE)
-            //touchCheckWithReferenceSensor(this, mainSensor2, refSensor);
-        #endif
+            if (valid_multiple_input_pins(this)) {
+                Useful_CSx = 0, Avg_CSx = 0, Diff_CSx = 0; Offset_CSx = 0;
+                for (i = 0; i < 5 ; i++) {
+                    read_sensor_regdata(this, main2Sensor, &Useful_CSx, &Avg_CSx, &Diff_CSx, &Offset_CSx);
+                    dev_info(this->pdev,
+                                "[startup] capMain2[%d] = %6d %6d %6d %6d\n",
+                                i, Useful_CSx, Avg_CSx, Diff_CSx, Offset_CSx);
+                }
+            }
+
+            StartupTouchCheckWithReferenceSensor(this, mainSensor, refSensor);
+            /* Howevet use multiple inputs, the startup is only one input is used.
+               (Temporary Exception Handling) */
+            //if (valid_multiple_input_pins(this))
+            //    StartupTouchCheckWithReferenceSensor(this, main2Sensor, refSensor);
         }
         else {
-            dev_err(this->pdev, "Couldn't open platform data containing main and ref sensors, using fallback\n");
-            touchCheckWithReferenceSensor(this,(unsigned char)0x02, (unsigned char)0x03);
-        #if defined(CONFIG_MACH_MSM8926_E8LTE)
-            touchCheckWithReferenceSensor(this,(unsigned char)0x00, (unsigned char)0x03);
-        #endif
+            dev_err(this->pdev,
+                "Couldn't open platform data containing main and ref sensors, using fallback\n");
+
+            return -ENOMEM;
         }
 
         /* re-enable interrupt handling */
@@ -1599,14 +1651,13 @@ static int initialize_device(struct sx86XX *this)
  * \param   refSensor A known sensor that will never have a touch
  * \return  Whether a touch was detected
  */
-void touchCheckWithReferenceSensor(struct sx86XX *this,
-                                          unsigned char mainSensor,
-                                          unsigned char refSensor) 
+void StartupTouchCheckWithReferenceSensor(struct sx86XX *this,
+                                        unsigned char mainSensor,
+                                        unsigned char refSensor) 
 {
-    s32 cal_Margin = -1;
-    u8 cal_Offset_msByte = 0;
-    u8 cal_Offset_lsByte = 0;
+    s32 cal_Margin = -65535;
     u16 cal_Offset = 0; /* fullbyte */
+    s32 cal_TotalCap = 0;
 
     s32 capMain = 0;
     s32 capRef = 0;
@@ -1616,83 +1667,50 @@ void touchCheckWithReferenceSensor(struct sx86XX *this,
     u8 CompareButtonMask = 0;
     int numberOfButtons = 0;
     struct sx9500 *pDevice = NULL;
-    struct _buttonInfo *buttons = NULL;
+    struct _buttoninfo *buttons = NULL;
     struct input_dev *input = NULL;
 
-    struct _buttonInfo *pCurrentButton  = NULL;
+    struct _buttoninfo *pCurrentButton  = NULL;
 
     u8 ucTouchAvgThresh = 0;
     u8 ucReleaseAvgThresh = 0;
 
-#if 0
-    int current_xo_therm;
-    int compensate_offset = 0;
-#endif
-
     if (unlikely((this==NULL) || ((pDevice = this->pDevice)==NULL)))
         return; // ERROR!!
 
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-    if((u8)mainSensor == 0)
-    {
-        write_register(this, SX9500_SENSORSEL_REG, (u8)mainSensor);
-        read_calibration_data(this, &cal_Margin, &cal_Offset_msByte, &cal_Offset_lsByte);
-        dev_info(this->pdev, "(u8)mainSensor == 0\n");
-    }
+    if (mainSensor == (pDevice->hw->input_mainsensor))
+        read_calibration_data(this, &cal_Margin, &cal_Offset, &cal_TotalCap, false);
+    else if (mainSensor == (pDevice->hw->input_main2sensor))
+        read_calibration_data(this, &cal_Margin, &cal_Offset, &cal_TotalCap, true);
 
-
-    if((u8)mainSensor == 2)
-    {
-        write_register(this, SX9500_SENSORSEL_REG, (u8)mainSensor);
-        read_calibration2_data(this, &cal_Margin, &cal_Offset_msByte, &cal_Offset_lsByte);
-        dev_info(this->pdev, "(u8)mainSensor == 2\n");
-    }
-#else
-    read_calibration_data(this, &cal_Margin, &cal_Offset_msByte, &cal_Offset_lsByte);
-#endif
-
-    cal_Offset = (u16)((cal_Offset_msByte << 8) | cal_Offset_lsByte);
-    dev_info(this->pdev, "read_calibration_data : %d, %02x, %02x\n", cal_Margin, cal_Offset_msByte, cal_Offset_lsByte);
+    dev_info(this->pdev,
+                "read_calibration_data : %d, %d, %d\n",
+                cal_Margin, cal_Offset, cal_TotalCap);
 
     if (skip_startup == true)
         return;
 
-    if(cal_Margin == -1 || cal_Offset < 500 || cal_Offset > 4000) {
-        dev_err(this->pdev, "Fail!!! Check Calibratoin Data!!!\n");
+    if (cal_Margin == -65535/* || cal_Offset < 500 || cal_Offset > 4000*/) {
+        dev_err(this->pdev, "Fail!!! Check Calibration Data!!!\n");
         return;
     }
-#if 0
-    //---------------------- temp----------------------
-    else {
-        read_xo_therm_data(this, &current_xo_therm);
-        dev_info(this->pdev, "read_xo_therm_data = %d\n", current_xo_therm);
-        compensate_offset = compensate_offset_by_temperature(this, current_xo_therm);
-        cal_Offset_lsByte += compensate_offset;
-        dev_info(this->pdev, "compensation offset = %02x\n", compensate_offset);
 
-        write_register(this, SX9500_OFFSETMSB_REG, cal_Offset_msByte);
-        write_register(this, SX9500_OFFSETLSB_REG, cal_Offset_lsByte);
-        //msleep(100);
-        return;
-    }
-    //---------------------- temp----------------------
-#endif
-
-    pDevice->ptouchCheckParameters->calibratoin_margin = cal_Margin;
+    pDevice->pStartupCheckParameters->calibration_margin = cal_Margin;
 
     // Calculate out the Main Cap information //
-    capMain = calculate_CSx_rawdata(this, mainSensor);
+    calculate_CSx_rawdata(this, mainSensor, NULL, NULL, &capMain);
 
     // Calculate out the Reference Cap information //
-    capRef = calculate_CSx_rawdata(this, refSensor);
+    calculate_CSx_rawdata(this, refSensor, NULL, NULL, &capRef);
 
     // Calculate Dynamic Threshold value.
-    capStartup = pDevice->ptouchCheckParameters->main_csx + 
-                   (pDevice->ptouchCheckParameters->ref_csx * capRef) +
-                       pDevice->ptouchCheckParameters->calibratoin_margin;
+    capStartup = pDevice->pStartupCheckParameters->dynamicthreshold_offset + 
+                ((pDevice->pStartupCheckParameters->dynamicthreshold_temp_slope * capRef) / 10) +
+                       pDevice->pStartupCheckParameters->calibration_margin;
 
-    dev_info(this->pdev, "Main[%ld] - Startup[%ld] = %ld", 
-                    (long int) capMain, (long int) capStartup, (long int) (capMain - capStartup));
+    dev_info(this->pdev,
+                "Main[%ld] - Startup[%ld] = %ld",
+                (long int) capMain, (long int) capStartup, (long int) (capMain - capStartup));
 
     // Must be sure to set the Main CS pin.
     write_register(this, SX9500_SENSORSEL_REG, mainSensor);
@@ -1703,17 +1721,17 @@ void touchCheckWithReferenceSensor(struct sx86XX *this,
     //  TODO: Change this to use a define index
     CompareButtonMask = 1 << (mainSensor + 4); 
 
-    buttons = pDevice->pbuttonInformation->buttons;
-    input = pDevice->pbuttonInformation->input;
-    numberOfButtons = pDevice->pbuttonInformation->buttonSize;
+    buttons = pDevice->pButtonInformation->buttons;
+    input = pDevice->pButtonInformation->input;
+    numberOfButtons = pDevice->pButtonInformation->buttonSize;
 
     if (unlikely( (buttons==NULL) || (input==NULL) )) {
         dev_err(this->pdev, "ERROR!! buttons or input NULL!!!\n");
         return;
     }
 
-    ucTouchAvgThresh = pDevice->ptouchCheckParameters->duringTouch_AvgThresh;
-    ucReleaseAvgThresh = pDevice->ptouchCheckParameters->duringRelease_AvgThresh;
+    ucTouchAvgThresh = pDevice->pStartupCheckParameters->startup_touch_regavgthresh;
+    ucReleaseAvgThresh = pDevice->pStartupCheckParameters->startup_release_regavgthresh;
 
     // If the buttons are added to the array from 0 to max sensor,
     // then we could just skip the for and change this to have..
@@ -1726,7 +1744,7 @@ void touchCheckWithReferenceSensor(struct sx86XX *this,
             return; // ERRORR!!!!
         }
 
-        if ( (CompareButtonMask & pCurrentButton->mask) != pCurrentButton->mask) {
+        if ((CompareButtonMask & pCurrentButton->mask) != pCurrentButton->mask) {
             dev_dbg(this->pdev, "Mask: 0x%02x Looking For: 0x%02x Counter: %d\n",
                                        pCurrentButton->mask, CompareButtonMask, counter);
             continue; // Not the correct one so continue to next
@@ -1745,14 +1763,6 @@ void touchCheckWithReferenceSensor(struct sx86XX *this,
                     /* Set the flag since touch is detected during startup */
                     this->inStartupTouch = true;
                     write_register(this, SX9500_CPS_CTRL4_REG, ucTouchAvgThresh);
-
-                #if 0
-                    //---------------------- temp----------------------
-                    write_register(this, SX9500_OFFSETMSB_REG, cal_Offset_msByte);
-                    write_register(this, SX9500_OFFSETLSB_REG, cal_Offset_lsByte);
-                    msleep(100);
-                    //---------------------- temp----------------------
-                #endif
                 }
                 else {
                     /* Clear the flag since no touch is detected during startup */
@@ -1805,26 +1815,31 @@ static void Irq_Process_Close_Far(struct sx86XX *this)
     u8 regstat = 0;
     int numberOfButtons = 0;
     struct sx9500 *pDevice = NULL;
-    struct _buttonInfo *buttons = NULL;
+    struct _buttoninfo *buttons = NULL;
     struct input_dev *input = NULL;
 
-    struct _buttonInfo *pCurrentButton  = NULL;
+    struct _buttoninfo *pCurrentButton  = NULL;
 
-    if (this && (pDevice = this->pDevice))
-    {
+    u8 mainSensor = 0, main2Sensor = 0;
+
+    if (this && (pDevice = this->pDevice)) {
         dev_dbg(this->pdev, "Inside Irq_Process_Close_Far()\n");
 
         read_register(this, SX9500_TCHCMPSTAT_REG, &regstat);
         dev_info(this->pdev, "SX9500_TCHCMPSTAT_REG[0x01] = 0x%02x\n", regstat);
 
-        buttons = pDevice->pbuttonInformation->buttons;
-        input = pDevice->pbuttonInformation->input;
-        numberOfButtons = pDevice->pbuttonInformation->buttonSize;
+        buttons = pDevice->pButtonInformation->buttons;
+        input = pDevice->pButtonInformation->input;
+        numberOfButtons = pDevice->pButtonInformation->buttonSize;
 
-        if (unlikely( (buttons==NULL) || (input==NULL) )) {
+        if (unlikely((buttons == NULL) || (input == NULL))) {
             dev_err(this->pdev, "ERROR!! buttons or input NULL!!!\n");
             return;
         }
+
+        mainSensor = pDevice->hw->input_mainsensor;
+        if (valid_multiple_input_pins(this))
+            main2Sensor = pDevice->hw->input_main2sensor;
 
         for (counter = 0; counter < numberOfButtons; counter++) {
             pCurrentButton = &buttons[counter];
@@ -1839,52 +1854,55 @@ static void Irq_Process_Close_Far(struct sx86XX *this)
                         /* User pressed button */
                         dev_info(this->pdev, "cap button %d touched\n", counter);
                         /*input_report_key(input, pCurrentButton->keycode, 1);*/
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-                        if(buttons[0].state == ACTIVE || buttons[2].state == ACTIVE)
-                        {
-                           pCurrentButton->state = ACTIVE;
-                           dev_info(this->pdev, "active set only\n");
+                        if (valid_multiple_input_pins(this)) {
+                            if ((buttons[mainSensor].state == ACTIVE) || 
+                                    (buttons[main2Sensor].state == ACTIVE)) {
+                                pCurrentButton->state = ACTIVE;
+                                dev_info(this->pdev, "active set only\n");
+                            }
+                            else {
+                                pCurrentButton->state = ACTIVE;
+                                input_report_abs(input, ABS_DISTANCE, PROX_STATUS_NEAR);
+                                input_sync(input);
+                                dev_info(this->pdev, "active set and PROX_STATUS_NEAR\n");
+                            }
                         }
-                        else
-                        {
-                           pCurrentButton->state = ACTIVE;
-                           input_report_abs(input, ABS_DISTANCE, PROX_STATUS_NEAR);
-                           input_sync(input);
-                           dev_info(this->pdev, "active set and PROX_STATUS_NEAR\n");
+                        else {
+                            input_report_abs(input, ABS_DISTANCE, PROX_STATUS_NEAR);
+                            input_sync(input);
+                            pCurrentButton->state = ACTIVE;
                         }
-#else
-                        input_report_abs(input, ABS_DISTANCE, PROX_STATUS_NEAR);
-                        input_sync(input);
-                        pCurrentButton->state = ACTIVE;
-#endif
                     }
                     else {
                         dev_info(this->pdev, "Button %d already released.\n",counter);
                     }
                     break;
+
                 case ACTIVE: /* Button is being touched! */ 
                     if (((regstat & pCurrentButton->mask) != pCurrentButton->mask)) {
                         /* User released button */
                         dev_info(this->pdev, "cap button %d released\n",counter);
                         /*input_report_key(input, pCurrentButton->keycode, 0);*/
-#if defined(CONFIG_MACH_MSM8926_E8LTE)
-                        pCurrentButton->state = IDLE;
-                        if(buttons[0].state == IDLE && buttons[2].state == IDLE)
-                        {
+                        if (valid_multiple_input_pins(this)) {
+                            pCurrentButton->state = IDLE;
+                            if ((buttons[mainSensor].state == IDLE) && 
+                                    (buttons[main2Sensor].state == IDLE)) {
+                                input_report_abs(input, ABS_DISTANCE, PROX_STATUS_FAR);
+                                input_sync(input);
+                                dev_info(this->pdev, "idle set and PROX_STATUS_FAR\n");
+                            }
+                        }
+                        else {
                             input_report_abs(input, ABS_DISTANCE, PROX_STATUS_FAR);
                             input_sync(input);
-                            dev_info(this->pdev, "idle set and PROX_STATUS_FAR\n");
+                            pCurrentButton->state = IDLE;
                         }
-#else
-                        input_report_abs(input, ABS_DISTANCE, PROX_STATUS_FAR);
-                        input_sync(input);
-                        pCurrentButton->state = IDLE;
-#endif
                     }
                     else {
                         dev_info(this->pdev, "Button %d still touched.\n",counter);
                     }
                     break;
+
                 default: /* Shouldn't be here, device only allowed ACTIVE or IDLE */
                     break;
             };
@@ -1895,72 +1913,263 @@ static void Irq_Process_Close_Far(struct sx86XX *this)
 }
 
 #ifdef CONFIG_OF
-static int sensor_parse_dt(struct device *dev, struct sx9500_platform_data *pdata)
+static int sx9500_regulator_configure(struct sx86XX *this, bool bonoff)
 {
-    struct device_node *np = dev->of_node;
+    struct sx9500 *pDevice = NULL;
+    struct sx9500_platform_data *pdata = NULL;
 
-    int ret, err =0;    
-    struct sensor_dt_to_pdata_map *itr;
-    struct sensor_dt_to_pdata_map map[] = {
-        {"Semtech,i2c-pull-up",           &pdata->i2c_pull_up,          DT_REQUIRED,    DT_BOOL,    0},
-        {"Semtech,dig-reg-support",       &pdata->digital_pwr_regulator,DT_REQUIRED,    DT_BOOL,    0},
-        {"Semtech,irq-gpio",              &pdata->irq_gpio,             DT_REQUIRED,    DT_GPIO,    0},
-        {"Semtech,vdd_ana_supply_min",    &pdata->vdd_ana_supply_min,   DT_SUGGESTED,   DT_U32,     0},
-        {"Semtech,vdd_ana_supply_max",    &pdata->vdd_ana_supply_max,   DT_SUGGESTED,   DT_U32,     0},
-        {"Semtech,vdd_ana_load_ua",       &pdata->vdd_ana_load_ua,      DT_SUGGESTED,   DT_U32,     0},
-        {"Semtech,vddio_dig_supply_min",  &pdata->vddio_dig_supply_min, DT_SUGGESTED,   DT_U32,     0},
-        {"Semtech,vddio_dig_supply_max",  &pdata->vddio_dig_supply_max, DT_SUGGESTED,   DT_U32,     0},
-        {"Semtech,vddio_dig_load_ua",     &pdata->vddio_dig_load_ua,    DT_SUGGESTED,   DT_U32,     0},
-        {"Semtech,vddio_i2c_supply_min",  &pdata->vddio_i2c_supply_min, DT_SUGGESTED,   DT_U32,     0},
-        {"Semtech,vddio_i2c_supply_max",  &pdata->vddio_i2c_supply_max, DT_SUGGESTED,   DT_U32,     0},
-        {"Semtech,vddio_i2c_load_ua",     &pdata->vddio_i2c_load_ua,    DT_SUGGESTED,   DT_U32,     0},
-        {NULL,                            NULL,                         0,              0,          0},
-    };
+    int rc = 0;
 
-    for (itr = map; itr->dt_name ; ++itr) {
-        switch (itr->type) {
-            case DT_GPIO:
-                ret = of_get_named_gpio(np, itr->dt_name, 0);
-                if (ret >= 0) {
-                    *((int *) itr->ptr_data) = ret;
-                    ret = 0;
+    if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw)) {
+        if (bonoff == true) {
+            pdata->vdd_regulator = regulator_get(this->pdev, "Semtech,vdd");
+            if (IS_ERR(pdata->vdd_regulator)) {
+                rc = PTR_ERR(pdata->vdd_regulator);
+                dev_err(this->pdev,
+                        "Lookup and obtain a reference to a vdd_regulator. Fail![%d]\n", rc);
+                return rc;
+            }
+
+            if (regulator_count_voltages(pdata->vdd_regulator) > 0) {
+                rc = regulator_set_voltage(pdata->vdd_regulator, 
+                                            pdata->vdd_supply_min, pdata->vdd_supply_max);
+                if (rc < 0) {
+                    dev_err(this->pdev,
+                            "Set vdd_regulator output voltage. Fail![%d]\n", rc);
+                    regulator_put(pdata->vdd_regulator);
+                    return rc;
                 }
-                break;
-            case DT_U32:
-                ret = of_property_read_u32(np, itr->dt_name, (u32 *) itr->ptr_data);
-                break;
-            case DT_BOOL:
-                *((bool *) itr->ptr_data) =    of_property_read_bool(np, itr->dt_name);
-                ret = 0;
-                break;
-            default:
-                printk(KERN_INFO "[%s] %d is an unknown DT entry type\n",__func__, itr->type);
-                ret = -EBADE;
-                break;
+
+                rc = regulator_set_optimum_mode(pdata->vdd_regulator, pdata->vdd_load_ua);
+                if (rc < 0) {
+                    dev_err(this->pdev,
+                            "Set vdd_regulator optimum operating mode. Fail![%d]\n", rc);
+                    regulator_put(pdata->vdd_regulator);
+                    return rc;
+                }
+
+                rc = regulator_enable(pdata->vdd_regulator);
+                if (rc) {
+                    dev_err(this->pdev,
+                            "Enable vdd_regulator output. Fail![%d]\n", rc);
+                    regulator_set_optimum_mode(pdata->vdd_regulator, 0);
+                    regulator_put(pdata->vdd_regulator);
+                    return rc;
+                }
+            }
+
+            pdata->svdd_regulator = regulator_get(this->pdev, "Semtech,svdd");
+            if (IS_ERR(pdata->svdd_regulator)) {
+                rc = PTR_ERR(pdata->svdd_regulator);
+                dev_err(this->pdev,
+                        "Lookup and obtain a reference to a svdd regulator, Fail![%d]\n", rc);
+                return rc;
+            }
+
+            if (regulator_count_voltages(pdata->svdd_regulator) > 0) {
+                rc = regulator_set_voltage(pdata->svdd_regulator,
+                                            pdata->svdd_supply_min, pdata->svdd_supply_max);
+                if (rc < 0) {
+                    dev_err(this->pdev, "Set svdd regulator output voltage, Fail![%d]\n", rc);
+                    regulator_put(pdata->svdd_regulator);
+                    return rc;
+                }
+
+                rc = regulator_set_optimum_mode(pdata->svdd_regulator, pdata->vdd_load_ua);
+                if (rc < 0) {
+                    dev_err(this->pdev,
+                            "Set svdd_regulator optimum operating mode. Fail![%d]\n", rc);
+                    regulator_put(pdata->svdd_regulator);
+                    return rc;
+                }
+
+                rc = regulator_enable(pdata->svdd_regulator);
+                if (rc) {
+                    dev_err(this->pdev, "Enable svdd_regulator output. Fail![%d]\n", rc);
+                    regulator_set_optimum_mode(pdata->svdd_regulator, 0);
+                    regulator_put(pdata->svdd_regulator);
+                    return rc;
+                }
+            }
         }
+        else {
+            if (regulator_is_enabled(pdata->vdd_regulator) > 0) {
+                regulator_set_voltage(pdata->vdd_regulator, 0, pdata->vdd_supply_max);
+                regulator_set_optimum_mode(pdata->vdd_regulator, 0);
+                regulator_put(pdata->vdd_regulator);
+                regulator_disable(pdata->vdd_regulator);
+            }
 
-        printk(KERN_INFO "[%s] DT entry ret:%d name:%s val:%d\n",__func__, ret, itr->dt_name, *((int *)itr->ptr_data));
-
-        if (ret) {
-            *((int *)itr->ptr_data) = itr->default_val;
-
-            if (itr->status < DT_OPTIONAL) {
-                printk(KERN_INFO "[%s] Missing '%s' DT entry\n",__func__, itr->dt_name);
-
-                /* cont on err to dump all missing entries */
-                if (itr->status == DT_REQUIRED && !err)
-                    err = ret;
+            if (regulator_is_enabled(pdata->svdd_regulator) > 0) {
+                regulator_set_voltage(pdata->svdd_regulator, 0, pdata->svdd_supply_max);
+                regulator_set_optimum_mode(pdata->svdd_regulator, 0);
+                regulator_put(pdata->svdd_regulator);
+                regulator_disable(pdata->svdd_regulator);
             }
         }
     }
 
-//    /* set functions of platform data */
-//    pdata->init = sensor_platform_hw_init;
-//    pdata->exit = sensor_platform_hw_exit;
-//    pdata->power_on = sensor_platform_hw_power_on;
+    return rc;
+}
 
-    return err;
+static int sx9500_init_platform_hw(struct i2c_client *client)
+{
+    struct sx86XX *this = i2c_get_clientdata(client);
+    struct sx9500 *pDevice = NULL;
+    struct sx9500_platform_data *pdata = NULL;
 
+    int rc;
+
+    if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw)) {
+        sx9500_regulator_configure(this, true);
+        if (gpio_is_valid(pdata->irq_gpio)) {
+            rc = gpio_request(pdata->irq_gpio, "sx9500_irq_gpio");
+            if (rc) {
+                dev_err(this->pdev, "Request gpio. Fail![%d]\n", rc);
+                return rc;
+            }
+
+            rc = gpio_direction_input(pdata->irq_gpio);
+            if (rc) {
+                dev_err(this->pdev, "Set gpio direction. Fail![%d]\n", rc);
+                return rc;
+            }
+
+            this->irq = client->irq = gpio_to_irq(pdata->irq_gpio);
+        }
+        else {
+            dev_err(this->pdev, "Invalid irq gpio num.(init)\n");
+        }
+    }
+
+    return rc;
+}
+
+static void sx9500_exit_platform_hw(struct i2c_client *client)
+{
+    struct sx86XX *this = i2c_get_clientdata(client);
+    struct sx9500 *pDevice = NULL;
+    struct sx9500_platform_data *pdata = NULL;
+
+    if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw)) {
+        sx9500_regulator_configure(this, false);          
+        if (gpio_is_valid(pdata->irq_gpio)) {
+            gpio_free(pdata->irq_gpio);
+        }
+        else {
+            dev_err(this->pdev, "Invalid irq gpio num.(exit)\n");
+        }
+    }
+
+    return;
+}
+
+static int parse_devicetree(struct device *dev, struct sx9500_platform_data *pdata)
+{
+    struct device_node *np = dev->of_node;
+
+    int ret = 0;
+
+    int i = 0;
+    u32 temp_u32;
+    u32 temp_array_u32[2];
+    struct sensor_dt_to_platformdata *pdtentry = NULL;
+    struct sensor_dt_to_platformdata ar_dt_entry_data[] = {
+      {"Semtech,irq-gpio",         &pdata->irq_gpio,          DT_GPIO},
+      {"Semtech,vdd_supply_min",   &pdata->vdd_supply_min,    DT_U32},
+      {"Semtech,vdd_supply_max",   &pdata->vdd_supply_max,    DT_U32},
+      {"Semtech,vdd_load_ua",      &pdata->vdd_load_ua,       DT_U32},
+      {"Semtech,svdd_supply_min",  &pdata->svdd_supply_min,   DT_U32},
+      {"Semtech,svdd_supply_max",  &pdata->svdd_supply_max,   DT_U32},
+      {"Semtech,svdd_load_ua",     &pdata->svdd_load_ua,      DT_U32},
+      {"Semtech,RegIrqMask",       &temp_array_u32,           DT_U8_ARRAY},
+      {"Semtech,RegProxCtrl0",     &temp_array_u32,           DT_U8_ARRAY},
+      {"Semtech,RegProxCtrl1",     &temp_array_u32,           DT_U8_ARRAY},
+      {"Semtech,RegProxCtrl2",     &temp_array_u32,           DT_U8_ARRAY},
+      {"Semtech,RegProxCtrl3",     &temp_array_u32,           DT_U8_ARRAY},
+      {"Semtech,RegProxCtrl4",     &temp_array_u32,           DT_U8_ARRAY},
+      {"Semtech,RegProxCtrl5",     &temp_array_u32,           DT_U8_ARRAY},
+      {"Semtech,RegProxCtrl6",     &temp_array_u32,           DT_U8_ARRAY},
+      {"Semtech,RegProxCtrl7",     &temp_array_u32,           DT_U8_ARRAY},
+      {"Semtech,RegProxCtrl8",     &temp_array_u32,           DT_U8_ARRAY},
+      {"Semtech,RegSensorSel",     &temp_array_u32,           DT_U8_ARRAY},
+      {"Semtech,InputPinsNum",     &pdata->input_pins_num,    DT_U32},
+      {"Semtech,InputMainSensor",  &pdata->input_mainsensor,  DT_U8},
+      {"Semtech,InputMainSensor2", &pdata->input_main2sensor, DT_U8},
+      {"Semtech,InputRefSensor",   &pdata->input_refsensor,   DT_U8},
+      {"Semtech,DynamicThres_Offset",
+                            &pdata->pStartupCheckParameters->dynamicthreshold_offset,     DT_U32},
+      {"Semtech,DynamicThres_Temp_Slope",
+                            &pdata->pStartupCheckParameters->dynamicthreshold_temp_slope, DT_U32},
+      {"Semtech,DynamicThres_Hysteresis",
+                            &pdata->pStartupCheckParameters->dynamicthreshold_hysteresis, DT_U32},
+      {"Semtech,Calibration_Margin",
+                            &pdata->pStartupCheckParameters->calibration_margin,          DT_U32},
+      {"Semtech,Startup_Touch_RegAvgThres",
+                            &pdata->pStartupCheckParameters->startup_touch_regavgthresh,   DT_U8},
+      {"Semtech,Startup_Release_RegAvgThres",
+                            &pdata->pStartupCheckParameters->startup_release_regavgthresh, DT_U8},
+      {NULL,                       NULL,                      0},
+    };
+
+    for (pdtentry = ar_dt_entry_data; pdtentry->dt_name ; ++pdtentry) {
+        switch (pdtentry->type) {
+            case DT_GPIO:
+                ret = of_get_named_gpio(np, pdtentry->dt_name, 0);
+                if (ret >= 0) {
+                    *((int *) pdtentry->ptr_data) = ret;
+                    ret = 0;
+                    dev_dbg(dev, "[%s] is [%d]. ret=%d\n",
+                            pdtentry->dt_name, *((int *)pdtentry->ptr_data), ret);
+                }
+                break;
+
+            case DT_U32:
+                ret = of_property_read_u32(np, pdtentry->dt_name, (u32 *) pdtentry->ptr_data);
+                if (ret == 0) {
+                    dev_dbg(dev, "[%s] is [%d]. ret=%d\n",
+                            pdtentry->dt_name, *((int *)pdtentry->ptr_data), ret);
+                }
+                break;
+
+            case DT_U8_ARRAY:
+                temp_array_u32[0] = 0; temp_array_u32[1] = 0;
+                ret = of_property_read_u32_array(np,
+                                                pdtentry->dt_name,
+                                                (u32 *) pdtentry->ptr_data, 2);
+                if (ret == 0) {
+                    pdata->pi2c_reg[i].reg = (unsigned char) temp_array_u32[0];
+                    pdata->pi2c_reg[i].val = (unsigned char) temp_array_u32[1];
+                    pdata->i2c_reg_num = i;
+                    dev_dbg(dev, "[%s] are [0x%02x], [0x%02x]. ret=%d\n", 
+                            pdtentry->dt_name, pdata->pi2c_reg[i].reg, pdata->pi2c_reg[i].val, ret);
+                    i++;
+                }
+                break;
+
+            case DT_U8:
+                temp_u32 = 0;
+                ret = of_property_read_u32(np, pdtentry->dt_name, (u32 *) &temp_u32);
+                if (ret == 0) {
+                    *((u8 *) pdtentry->ptr_data) = (u8) temp_u32;
+                    dev_dbg(dev, "[%s] is [0x%02x]. ret=%d\n",
+                            pdtentry->dt_name, *((u8 *)pdtentry->ptr_data), ret);
+                }
+                break;
+
+            default:
+                dev_err(dev, "%d is an unknown DT entry type. Fail!\n", pdtentry->type);
+                ret = -EBADE;
+                break;
+        }
+
+        if (ret) {
+            dev_err(dev, "Check '%s' DT entry. Fail!\n", pdtentry->dt_name);
+            return ret;
+        }
+    }
+
+    return 0;
 }
 #endif
 
@@ -1986,33 +2195,21 @@ static int sx9500_probe(struct i2c_client *client, const struct i2c_device_id *i
     struct sx86XX *this = NULL;
     struct sx9500 *pDevice = NULL;
     struct sx9500_platform_data *pplatData = NULL;
-    struct _totalButtonInformation *pButtonInformationData = NULL;
-    /*struct _buttonInfo *pbuttonsData;*/
-    struct _touchCheckParameters *pNearCheckParameters = NULL;
+    struct _totalbuttoninformation *pButtonInformationData = NULL;
+    struct _startupcheckparameters *pStartupCheckParameters = NULL;
 
     struct input_dev *input = NULL;
 
-    static struct regulator *vdd_l15;
-    static struct regulator *vdd_l23;
-
-    int error, rc;
-
     dev_info(&client->dev, "sx9500_probe()\n");
 
-    if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_WORD_DATA)){
+    if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_WORD_DATA)) {
         dev_err(&client->dev, "Check i2c functionality.Fail!\n");
         err = -EIO;
         goto exit;
     }
 
-    /*pbuttonsData = devm_kzalloc(&client->dev, sizeof(struct _buttonInfo), GFP_KERNEL);
-    if (!pbuttonsData) {
-        dev_err(&client->dev, "Failed to allocate memory(_buttonInfo)\n");
-        err = -ENOMEM;
-        goto exit;
-    }*/
-
-    pButtonInformationData = devm_kzalloc(&client->dev, sizeof(struct _totalButtonInformation), GFP_KERNEL);
+    pButtonInformationData = devm_kzalloc(&client->dev,
+                                            sizeof(struct _totalbuttoninformation), GFP_KERNEL);
     if (!pButtonInformationData) {
         dev_err(&client->dev, "Failed to allocate memory(_totalButtonInformation)\n");
         err = -ENOMEM;
@@ -2022,12 +2219,15 @@ static int sx9500_probe(struct i2c_client *client, const struct i2c_device_id *i
     pButtonInformationData->buttons = psmtcButtons;
     pButtonInformationData->buttonSize = ARRAY_SIZE(psmtcButtons),
 
-    pNearCheckParameters = devm_kzalloc(&client->dev, sizeof(struct _touchCheckParameters), GFP_KERNEL);
-    if (!pNearCheckParameters) {
-        dev_err(&client->dev, "Failed to allocate memory(_touchCheckParameters)\n");
+    pStartupCheckParameters = devm_kzalloc(&client->dev,
+                                            sizeof(struct _startupcheckparameters), GFP_KERNEL);
+    if (!pStartupCheckParameters) {
+        dev_err(&client->dev, "Failed to allocate memory(_startupCheckParameters)\n");
         err = -ENOMEM;
         goto exit;
     }
+
+    //pStartupCheckParameters = &smtcTouchCheckParameters;
 
     pplatData = devm_kzalloc(&client->dev, sizeof(struct sx9500_platform_data), GFP_KERNEL);
     if (!pplatData) {
@@ -2036,99 +2236,50 @@ static int sx9500_probe(struct i2c_client *client, const struct i2c_device_id *i
         goto exit;
     }
 
-    pNearCheckParameters = &smtcTouchCheckParameters;
-
-    pplatData->pi2c_reg = sx9500_i2c_reg_setup;
-    pplatData->i2c_reg_num = ARRAY_SIZE(sx9500_i2c_reg_setup);
-    pplatData->pbuttonInformation = pButtonInformationData;
-    pplatData->ptouchCheckParameters = pNearCheckParameters;
+    pplatData->pButtonInformation = pButtonInformationData;
+    pplatData->pStartupCheckParameters = pStartupCheckParameters;
     pplatData->get_is_nirq_low = sx9500_get_nirq_state;
     pplatData->init_platform_hw = NULL; 
     pplatData->exit_platform_hw = NULL;
 
-    /*pDevice = devm_kzalloc(&client->dev, sizeof(struct sx9500), GFP_KERNEL);
-    if (!pDevice) {
-        dev_err(&client->dev, "Failed to allocate memory(sx9500)\n");
-        err = -ENOMEM;
-        goto exit;
-    }
-
-    pDevice->hw = pplatData;*/
     client->dev.platform_data = pplatData;
 
-    /*pplatData = client->dev.platform_data;
-    if (!pplatData) {
-        dev_err(&client->dev, "platform data is required!\n");
-        return -EINVAL;
-    }
-
-    if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_WORD_DATA))
-        return -EIO;*/
-
 #ifdef CONFIG_OF
-    err = sensor_parse_dt(&client->dev, pplatData);
-    if(err){
-        dev_err(&client->dev, "Failed to parse device tree\n");
-        goto exit;
+    if (client->dev.of_node) {
+        unsigned char val_regproxctrl1 = 0;
+        unsigned char val_regproxctrl2 = 0;
+
+        err = parse_devicetree(&client->dev, pplatData);
+        if (err) {
+            dev_err(&client->dev, "Failed to parse device tree.[%d]\n", err);
+            goto exit;
+        }
+
+        while (i < pplatData->i2c_reg_num) {
+            if (pplatData->pi2c_reg[i].reg == SX9500_CPS_CTRL1_REG)
+                val_regproxctrl1 = pplatData->pi2c_reg[i].val;
+            else if (pplatData->pi2c_reg[i].reg == SX9500_CPS_CTRL2_REG)
+                val_regproxctrl2 = pplatData->pi2c_reg[i].val;
+            i++;
+        }
+        pplatData->capacitance_range = conv_regval_to_range(val_regproxctrl1);
+        pplatData->gain_factor = conv_regval_to_gain(val_regproxctrl2);
+
+        /* set functions of platform data */
+        pplatData->init_platform_hw = sx9500_init_platform_hw;
+        pplatData->exit_platform_hw = sx9500_exit_platform_hw;
     }
 #endif
 
-    this = devm_kzalloc(&client->dev, sizeof(struct sx86XX), GFP_KERNEL); /* create memory for main struct */
+    /* create memory for main struct */
+    this = devm_kzalloc(&client->dev, sizeof(struct sx86XX), GFP_KERNEL); 
     if (!this) {
         dev_err(&client->dev, "Failed to allocate memory(sx86XX)\n");
         err = -ENOMEM;
         goto exit;
     }
 
-    vdd_l15 = regulator_get(&client->dev, "Semtech,vdd_ana");
-    if (IS_ERR(vdd_l15)){
-        rc = PTR_ERR(vdd_l15);
-        printk(KERN_INFO "Regulator get failed vcc_ana rc=%d\n", rc);
-    }
-
-    rc = regulator_set_voltage(vdd_l15, 2800000, 2800000);
-    if (rc < 0)
-        printk(KERN_INFO "regulator set_vtg failed rc=%d\n", rc);
-
-    vdd_l23 = regulator_get(&client->dev, "Semtech,vddio_i2c");
-    if (IS_ERR(vdd_l23)){
-        rc = PTR_ERR(vdd_l23);
-        printk(KERN_INFO "Regulator get failed vcc_ana rc=%d\n", rc);
-    }
-
-    rc = regulator_set_voltage(vdd_l23, 1800000, 1800000);
-    if (rc < 0)
-        printk(KERN_INFO "regulator set_vtg failed rc=%d\n", rc);
-
-    dev_dbg(&client->dev, "ready gpio_is_valid \n");
-    if (gpio_is_valid(54)) {
-        /* configure touchscreen irq gpio */
-        dev_dbg(&client->dev, "gpio_is_valid(54) \n");
-        error = gpio_request(54, "sx9500_irq_gpio");
-        if (error)
-            dev_err(&client->dev, "unable to request gpio 54\n");
-
-        error = gpio_direction_input(54);
-        if (error)
-            dev_err(&client->dev, "unable to set direction for gpio 54\n");
-
-        client->irq = gpio_to_irq(54);
-        dev_dbg(&client->dev, "gpio_to_irq(54) = %d\n", gpio_to_irq(54));
-    }
-    else {
-        dev_err(&client->dev, "irq gpio not provided\n");
-    }
-
-    rc = regulator_enable(vdd_l15);
-    if (rc)
-        printk(KERN_INFO "Regulator vcc_ana enable failed rc=%d\n", rc);
-
-    rc = regulator_enable(vdd_l23);
-    if (rc)
-        printk(KERN_INFO "Regulator vcc_ana enable failed rc=%d\n", rc);
-
-    if (this)
-    {
+    if (this) {
         /* In case we need to reinitialize data 
         * (e.q. if suspend reset device) */
         this->init = initialize_device;
@@ -2143,8 +2294,7 @@ static int sx9500_probe(struct i2c_client *client, const struct i2c_device_id *i
         this->useIrqTimer = 0;
 
         /* Setup function to call on corresponding reg irq source bit */
-        if (MAX_NUM_STATUS_BITS >= 8)
-        {
+        if (MAX_NUM_STATUS_BITS >= 8) {
             this->statusFunc[0] = 0; /* TXEN_STAT */
             this->statusFunc[1] = 0; /* UNUSED */
             this->statusFunc[2] = 0; /* UNUSED */
@@ -2172,25 +2322,19 @@ static int sx9500_probe(struct i2c_client *client, const struct i2c_device_id *i
 
         this->pDevice = pDevice;
 
-        if (pDevice)
-        {
-            /* for accessing items in user data (e.g. calibrate) */
-            err = sysfs_create_group(&client->dev.kobj, &sx9500_attr_group);
-            if (err)
-                printk(KERN_INFO"sysfs create fail!");
-
-            /* Check if we hava a platform initialization function to call*/
-            if (pplatData->init_platform_hw)
-                pplatData->init_platform_hw();
-
+        if (pDevice) {
             /* Add Pointer to main platform data struct */
             pDevice->hw = pplatData;
       
             /* Initialize the button information initialized with keycodes */
-            pDevice->pbuttonInformation = pplatData->pbuttonInformation;
+            pDevice->pButtonInformation = pplatData->pButtonInformation;
 
             /* Initialize the startup parameters */
-            pDevice->ptouchCheckParameters = pplatData->ptouchCheckParameters;
+            pDevice->pStartupCheckParameters = pplatData->pStartupCheckParameters;
+
+            /* Check if we hava a platform initialization function to call*/
+            if (pplatData->init_platform_hw)
+                pplatData->init_platform_hw(client);
 
             /* Create the input device */
             input = input_allocate_device();
@@ -2202,19 +2346,24 @@ static int sx9500_probe(struct i2c_client *client, const struct i2c_device_id *i
             /*__set_bit(EV_KEY, input->evbit);*/
             __set_bit(EV_ABS, input->evbit);
             input_set_abs_params(input, ABS_DISTANCE, 0, 1, 0, 0);
-            for (i = 0; i < pDevice->pbuttonInformation->buttonSize; i++) {
-                /*__set_bit(pDevice->pbuttonInformation->buttons[i].keycode, input->keybit);*/
-                pDevice->pbuttonInformation->buttons[i].state = IDLE;
+            for (i = 0; i < pDevice->pButtonInformation->buttonSize; i++) {
+                /*__set_bit(pDevice->pButtonInformation->buttons[i].keycode, input->keybit);*/
+                pDevice->pButtonInformation->buttons[i].state = IDLE;
             }
 
             /* save the input pointer and finish initialization */
-            pDevice->pbuttonInformation->input = input;
+            pDevice->pButtonInformation->input = input;
             input->name = "SX9500 Cap Touch";
             input->id.bustype = BUS_I2C;
             //input->id.product = sx863x->product;
             //input->id.version = sx863x->version;
             if(input_register_device(input))
                 return -ENOMEM;
+
+            /* for accessing items in user data (e.g. calibrate) */
+            err = sysfs_create_group(&client->dev.kobj, &sx9500_attr_group);
+            if (err)
+                printk(KERN_INFO"sysfs create fail!");
 
             wake_lock_init(&this->capsensor_wake_lock, WAKE_LOCK_SUSPEND, "capsensor_wakeup");
         }
@@ -2240,20 +2389,22 @@ exit:
  */
 static int sx9500_remove(struct i2c_client *client)
 {
-    struct sx9500_platform_data *pplatData =0;
-    struct sx9500 *pDevice = 0;
     struct sx86XX *this = i2c_get_clientdata(client);
+    struct sx9500 *pDevice = NULL;
+    struct sx9500_platform_data *pplatData = NULL;
 
     if (this && (pDevice = this->pDevice))
     {
         disable_irq_wake(this->irq);
 
-        input_unregister_device(pDevice->pbuttonInformation->input);
+        input_unregister_device(pDevice->pButtonInformation->input);
 
         sysfs_remove_group(&client->dev.kobj, &sx9500_attr_group);
+
         pplatData = client->dev.platform_data;
         if (pplatData && pplatData->exit_platform_hw)
-            pplatData->exit_platform_hw();
+            pplatData->exit_platform_hw(client);
+
         kfree(this->pDevice);
     }
 

@@ -1167,15 +1167,6 @@ config USB_G_LGE_ANDROID_CDROM_MAC_SUPPORT
 
 	default y
 
-config USB_G_LGE_EBDBATT_CABLE_RESET
-    boolean "LGE Embeded battery model factory cable reset"
-    help
-      embeded battery model need to reset to connected 56k factory cable
-
-      Say y if this must be needed.
-
-    default n
-
 #B2-BSP-USB@lge.com
 config USB_G_LGE_MULTIPLE_CONFIGURATION
 	boolean "LGE Multiple Configuration"
@@ -1205,6 +1196,15 @@ config USB_G_LGE_MULTIPLE_CONFIGURATION_VZW
 	help
 	  Support multiple mtp functions in multiple configuration.
 	  Add another descriptor for 2nd mtp function.
+
+	  Say y if this must be needed.
+
+	default n
+
+config LGE_DIAG_USB_ACCESS_LOCK
+	boolean "feature for usb diag access lock"
+	help
+	  this feature should be applied to meet usb diag lock requirement
 
 	  Say y if this must be needed.
 

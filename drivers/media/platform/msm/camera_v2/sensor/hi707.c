@@ -13,6 +13,7 @@
 #include "msm_sensor.h"
 #include "msm_cci.h"
 #include "msm_camera_io_util.h"
+#include <mach/board_lge.h>		//to use lge_get_board_revno()
 #define HI707_SENSOR_NAME "hi707"
 #define PLATFORM_DRIVER_NAME "msm_camera_hi707"
 
@@ -137,6 +138,62 @@ static struct msm_sensor_power_setting hi707_power_setting[] = {
 		.delay = 0,
 	},
 };
+
+#if defined(CONFIG_MACH_MSM8926_E2_SPR_US)
+static struct msm_sensor_power_setting hi707_power_setting_rev_b[] = {
+	{
+		.seq_type = SENSOR_GPIO,
+		.seq_val = SENSOR_GPIO_RESET,
+		.config_val = GPIO_OUT_LOW,
+		.delay = 0,
+	},
+
+	{
+		.seq_type = SENSOR_GPIO,
+		.seq_val = SENSOR_GPIO_VIO,
+		.config_val = GPIO_OUT_HIGH,
+		.delay = 1,
+	},
+	{
+		.seq_type = SENSOR_GPIO,
+		.seq_val = SENSOR_GPIO_VANA,
+		.config_val = GPIO_OUT_HIGH,
+		.delay = 1,
+	},
+#if 0
+	{
+		.seq_type = SENSOR_GPIO,
+		.seq_val = SENSOR_GPIO_VDIG,
+		.config_val = GPIO_OUT_HIGH,
+		.delay = 1,
+	},
+#endif
+	{
+		.seq_type = SENSOR_CLK,
+		.seq_val = SENSOR_CAM_MCLK,
+		.config_val = 0,
+		.delay = 1,
+	},
+	{
+		.seq_type = SENSOR_GPIO,
+		.seq_val = SENSOR_GPIO_STANDBY,
+		.config_val = GPIO_OUT_HIGH,
+		.delay = 31,
+	},
+	{
+		.seq_type = SENSOR_GPIO,
+		.seq_val = SENSOR_GPIO_RESET,
+		.config_val = GPIO_OUT_HIGH,
+		.delay = 31,
+	},
+	{
+		.seq_type = SENSOR_I2C_MUX,
+		.seq_val = 0,
+		.config_val = 0,
+		.delay = 0,
+	},
+};
+#endif
 
 /*                                                                       */
 static struct msm_camera_i2c_reg_conf hi707_entrance_start_settings[] = {
@@ -421,13 +478,13 @@ static struct msm_camera_i2c_reg_conf hi707_lgit_recommend_settings[] = {
 		{0x95, 0x10},	//Test Setting
 
 		///////////////////////////// Page 14
-		{0x03, 0x14}, //Page 14 - Lens Shading Correction
+		{0x03, 0x14}, //                                                                
 		{0x10, 0x01},
 		{0x20, 0x80}, //60},   //XCEN LHC
 		{0x21, 0x80}, //YCEN
-		{0x22, 0x7d}, //_20131209 //88}, //7b}, //6a}, //50},
-		{0x23, 0x5d}, //_20131209 //5c}, //50}, //44}, //40},
-		{0x24, 0x48}, //_20131209 //49}, //44}, //32}, //3d},
+		{0x22, 0x56}, //7d}, //_20131209 //88}, //7b}, //6a}, //50},
+		{0x23, 0x40}, //5d}, //_20131209 //5c}, //50}, //44}, //40},
+		{0x24, 0x38}, //48}, //_20131209 //49}, //44}, //32}, //3d},
 
 		//////////////////////////// 15page
 		{0x03, 0x15},
@@ -456,22 +513,23 @@ static struct msm_camera_i2c_reg_conf hi707_lgit_recommend_settings[] = {
 		{0x47, 0x02},
 		{0x48, 0x02},
 		//////////////////////////// 16page
-		{0x03, 0x16}, //gamma
+		{0x03, 0x16}, //                                      
+		{0x10, 0x01},
 		{0x30, 0x00},
-		{0x31, 0x08},
-		{0x32, 0x1c},
-		{0x33, 0x2f},
-		{0x34, 0x53},
-		{0x35, 0x76},
-		{0x36, 0x93},
-		{0x37, 0xac},
-		{0x38, 0xc0},
-		{0x39, 0xd0},
-		{0x3a, 0xdc},
-		{0x3b, 0xed},
-		{0x3c, 0xf4}, //f7
-		{0x3d, 0xf6}, //fc
-		{0x3e, 0xfa}, //ff
+		{0x31, 0x0f},
+		{0x32, 0x20},
+		{0x33, 0x35},
+		{0x34, 0x58},
+		{0x35, 0x75},
+		{0x36, 0x8e},
+		{0x37, 0xa3},
+		{0x38, 0xb4},
+		{0x39, 0xc3},
+		{0x3a, 0xcf},
+		{0x3b, 0xe2},
+		{0x3c, 0xf0},
+		{0x3d, 0xf9},
+		{0x3e, 0xff},
 		//////////////////////////// 17page
 		{0x03, 0x17},
 		{0xc0, 0x01},
@@ -494,15 +552,19 @@ static struct msm_camera_i2c_reg_conf hi707_lgit_recommend_settings[] = {
 		{0x3c, 0xde},
 
 					 // 130521, Flicker Test
-		{0x60, 0x71}, //70}, //0x71}, //AE weight
-		{0x61, 0x00}, //0x11},
+		{0x60, 0x71}, //                                                        
+		{0x61, 0x11}, //0x11},
 		{0x62, 0x71}, //70}, //0x71},
 		{0x63, 0x11}, //00}, //0x11},
 		{0x68, 0x32}, //3c}, //30}, //AE_CEN
 		{0x69, 0x6e}, //64}, //6a},
 		{0x6A, 0x50}, //27}, //27},
 		{0x6B, 0xa0}, //bb}, //bb},
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
 		{0x70, 0x38}, //36 //34, //lgit 20140328  //Y Targe 32
+#else
+		{0x70, 0x3a}, //                                                                          
+#endif
 		{0x76, 0x88}, //22}, // Unlock bnd1
 		{0x77, 0xfe}, //02}, // Unlock bnd2
 		{0x78, 0x22}, //23 //22}, 20130524  //12}, // Yth 1
@@ -1130,12 +1192,21 @@ static struct msm_camera_i2c_reg_conf hi707_lgit_recommend_vt_settings[] = {
 {0x01, 0x71},
 {0x03, 0x20},
 {0x10, 0x1c},
+
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+{0x18, 0x38},
+#endif
 {0x03, 0x22},
 {0x10, 0x7b},
 {0x03, 0x00},
 {0x08, 0x0f},
 {0x10, 0x00},
+
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+{0x11, 0x94},
+#else
 {0x11, 0x90},
+#endif
 {0x12, 0x00},
 {0x14, 0x88},
 {0x0b, 0xaa},
@@ -1154,8 +1225,13 @@ static struct msm_camera_i2c_reg_conf hi707_lgit_recommend_vt_settings[] = {
 {0x23, 0x04},
 {0x40, 0x00},
 {0x41, 0x90},
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+{0x42, 0x05},
+{0x43, 0x46},
+#else
 {0x42, 0x00},
 {0x43, 0x14},
+#endif
              //BLC
 {0x80, 0x2e},
 {0x81, 0x7e},
@@ -1166,8 +1242,13 @@ static struct msm_camera_i2c_reg_conf hi707_lgit_recommend_vt_settings[] = {
 {0x86, 0x01},
 {0x88, 0x47},
 {0x89, 0x48}, 
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+{0x90, 0x0e},
+{0x91, 0x0e},
+#else
 {0x90, 0x11},
 {0x91, 0x11},
+#endif
 {0x92, 0xf0},
 {0x93, 0xe8},
 {0x98, 0x38},
@@ -1453,6 +1534,26 @@ static struct msm_camera_i2c_reg_conf hi707_lgit_recommend_vt_settings[] = {
 {0x85, 0xf8},
 {0x86, 0x00},
 {0x87, 0xc8},
+
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+{0x88, 0x02}, //EXP Max(120Hz) 7.06 fps
+{0x89, 0xab},
+{0x8a, 0x98},
+{0xa0, 0x02}, //EXP Max(100Hz) 7.14 fps
+{0xa1, 0xbf},
+{0xa2, 0x20},
+{0x8B, 0x3a},
+{0x8C, 0x98},
+{0x8D, 0x30},
+{0x8E, 0xd4},
+{0x91, 0x02}, //EXP Fix 7.00 fps
+{0x92, 0xdc},
+{0x93, 0x6c},
+{0x98, 0x8C},
+{0x99, 0x23},
+{0x9c, 0x04},
+{0x9d, 0xb0},
+#else
 {0x88, 0x03}, //EXP Max(120Hz) 7.06 fps 
 {0x89, 0x3e}, 
 {0x8a, 0x14}, 
@@ -1470,6 +1571,7 @@ static struct msm_camera_i2c_reg_conf hi707_lgit_recommend_vt_settings[] = {
 {0x99, 0x23},
 {0x9c, 0x05},
 {0x9d, 0x78},
+#endif
 {0x9e, 0x00},
 {0x9f, 0xc8},
 {0xb0, 0x1d},
@@ -1568,7 +1670,13 @@ static struct msm_camera_i2c_reg_conf hi707_lgit_recommend_vt_settings[] = {
 {0x03, 0x22},
 {0x10, 0xfb},
 {0x03, 0x20},
+
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+{0x10, 0xec},
+{0x18, 0x30},
+#else
 {0x10, 0x8c},
+#endif
 		
 		//{0x03, 0x00},
 		//{0x01, 0x70},
@@ -1581,12 +1689,21 @@ static struct msm_camera_i2c_reg_conf hi707_cowell_recommend_vt_settings[] = {
 {0x01, 0x71},
 {0x03, 0x20},
 {0x10, 0x1c},
+
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+{0x18, 0x38},
+#endif
+
 {0x03, 0x22},
 {0x10, 0x7b},
 {0x03, 0x00},
 {0x08, 0x0f},
 {0x10, 0x00},
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+{0x11, 0x94},
+#else
 {0x11, 0x90},
+#endif
 {0x12, 0x00},
 {0x14, 0x88},
 {0x0b, 0xaa},
@@ -1604,9 +1721,15 @@ static struct msm_camera_i2c_reg_conf hi707_cowell_recommend_vt_settings[] = {
 {0x22, 0x00},
 {0x23, 0x04},
 {0x40, 0x00},
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+{0x41, 0x90},
+{0x42, 0x05},
+{0x43, 0x46},
+#else
 {0x41, 0x90},
 {0x42, 0x00},
 {0x43, 0x14},
+#endif
              //BLC
 {0x80, 0x2e},
 {0x81, 0x7e},
@@ -1617,8 +1740,13 @@ static struct msm_camera_i2c_reg_conf hi707_cowell_recommend_vt_settings[] = {
 {0x86, 0x01},
 {0x88, 0x47},
 {0x89, 0x48}, 
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+{0x90, 0x0e},
+{0x91, 0x0e},
+#else
 {0x90, 0x11},
 {0x91, 0x11},
+#endif
 {0x92, 0xf0},
 {0x93, 0xe8},
 {0x98, 0x38},
@@ -1905,6 +2033,26 @@ static struct msm_camera_i2c_reg_conf hi707_cowell_recommend_vt_settings[] = {
 {0x85, 0xf8},
 {0x86, 0x00},
 {0x87, 0xc8},
+
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+{0x88, 0x02}, //EXP Max(120Hz) 7.06 fps
+{0x89, 0xab},
+{0x8a, 0x98},
+{0xa0, 0x02}, //EXP Max(100Hz) 7.14 fps
+{0xa1, 0xbf},
+{0xa2, 0x20},
+{0x8B, 0x3a},
+{0x8C, 0x98},
+{0x8D, 0x30},
+{0x8E, 0xd4},
+{0x91, 0x02}, //EXP Fix 7.00 fps
+{0x92, 0xdc},
+{0x93, 0x6c},
+{0x98, 0x8C},
+{0x99, 0x23},
+{0x9c, 0x04},
+{0x9d, 0xb0},
+#else
 {0x88, 0x03}, //EXP Max(120Hz) 7.06 fps 
 {0x89, 0x3e}, 
 {0x8a, 0x14}, 
@@ -1922,6 +2070,7 @@ static struct msm_camera_i2c_reg_conf hi707_cowell_recommend_vt_settings[] = {
 {0x99, 0x23},
 {0x9c, 0x05},
 {0x9d, 0x78},
+#endif
 {0x9e, 0x00},
 {0x9f, 0xc8},
 {0xb0, 0x1d},
@@ -2020,7 +2169,12 @@ static struct msm_camera_i2c_reg_conf hi707_cowell_recommend_vt_settings[] = {
 {0x03, 0x22},
 {0x10, 0xfb},
 {0x03, 0x20},
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+{0x10, 0xec},
+{0x18, 0x30},
+#else
 {0x10, 0x8c},
+#endif
 	
 	//{0x03, 0x00},
 	//{0x01, 0x70},
@@ -2432,6 +2586,9 @@ static const struct i2c_device_id hi707_i2c_id[] = {
 static struct msm_camera_i2c_reg_conf hi707_reg_7fps_fixed[] = {
 	//Fixed 7fps
 	
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+	//No need to set 7fps since vt-mode recommended setting is 7fps and only SKT model uses 7fps setting.
+#else
 {0x03, 0x00},
 {0x09, 0x01}, //SLEEP ON
 
@@ -2486,6 +2643,7 @@ static struct msm_camera_i2c_reg_conf hi707_reg_7fps_fixed[] = {
 
 {0x03, 0x00},
 {0x09, 0x00}, //SLEEP off
+#endif
 };
 
 static struct msm_camera_i2c_reg_conf hi707_reg_10fps_fixed[] = {
@@ -2508,6 +2666,17 @@ static struct msm_camera_i2c_reg_conf hi707_reg_10fps_fixed[] = {
 	{0x03, 0x20}, //Page 20
 	{0x2a, 0xf0}, 
 	{0x2b, 0x35}, 
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+	{0x83, 0x00}, //EXP Normal 30.00 fps
+	{0x84, 0xc3},
+	{0x85, 0x50},
+	{0x88, 0x02}, //EXP Max(120Hz) 10.91 fps
+	{0x89, 0x19},
+	{0x8a, 0x1c},
+	{0xa0, 0x02}, //EXP Max(100Hz) 11.11 fps
+	{0xa1, 0x0f},
+	{0xa2, 0x58},
+#else
 	{0x83, 0x01}, //EXP Normal 20.00 fps
 	{0x84, 0x24}, 
 	{0x85, 0xf8},	
@@ -2517,6 +2686,7 @@ static struct msm_camera_i2c_reg_conf hi707_reg_10fps_fixed[] = {
 	{0xa0, 0x02}, //EXP Max(100Hz) 10.00 fps 
 	{0xa1, 0x49}, 
 	{0xa2, 0xf0},  
+#endif
 	{0x91, 0x02}, //EXP Fix 10.00 fps
 	{0x92, 0x49}, 
 	{0x93, 0xf0}, 
@@ -2549,8 +2719,14 @@ static struct msm_camera_i2c_reg_conf hi707_reg_15fps_fixed[] = {
 	{0x11, 0x94}, // Fixed On
 	{0x40, 0x00}, //Hblank 144
 	{0x41, 0x90}, 
+
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+	{0x42, 0x01},
+	{0x43, 0xc2},
+#else
 	{0x42, 0x00}, 
 	{0x43, 0x04}, 
+#endif
 	
 	{0x03, 0x00}, //PAGE 0
 	{0x90, 0x07}, //BLC_TIME_TH_ON
@@ -2561,9 +2737,16 @@ static struct msm_camera_i2c_reg_conf hi707_reg_15fps_fixed[] = {
 	{0x03, 0x20}, //Page 20
 	{0x2a, 0xf0}, 
 	{0x2b, 0x35},
+
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+	{0x83, 0x00}, //EXP Normal 30.00 fps
+	{0x84, 0xc3},
+	{0x85, 0x50},
+#else
 	{0x83, 0x01}, //EXP Normal 20.00 fps 
 	{0x84, 0x24}, 
 	{0x85, 0xf8},	
+#endif
 	{0x88, 0x01}, //EXP Max(120Hz) 17.14 fps 
 	{0x89, 0x55}, 
 	{0x8a, 0xcc}, 
@@ -2597,7 +2780,12 @@ static struct msm_camera_i2c_reg_conf hi707_reg_20fps_fixed[] = {
 	{0x40, 0x00}, //Hblank 144
 	{0x41, 0x90}, 
 	{0x42, 0x00}, 
+
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+	{0x43, 0xc8},
+#else
 	{0x43, 0x04}, 
+#endif
 	
 	{0x03, 0x00}, //PAGE 0
 	{0x90, 0x05}, //BLC_TIME_TH_ON
@@ -2611,12 +2799,22 @@ static struct msm_camera_i2c_reg_conf hi707_reg_20fps_fixed[] = {
 	{0x83, 0x00}, //EXP Normal 30.00 fps 
 	{0x84, 0xc3}, 
 	{0x85, 0x50}, 
+
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+	{0x88, 0x00}, //EXP Max(120Hz) 24.00 fps
+	{0x89, 0xf4},
+	{0x8a, 0x24},
+	{0xa0, 0x00}, //EXP Max(100Hz) 25.00 fps
+	{0xa1, 0xea},
+	{0xa2, 0x60},
+#else
 	{0x88, 0x01}, //EXP Max(120Hz) 20.00 fps 
 	{0x89, 0x24}, 
 	{0x8a, 0xf8}, 
 	{0xa0, 0x01}, //EXP Max(100Hz) 20.00 fps 
 	{0xa1, 0x24}, 
 	{0xa2, 0xf8}, 
+#endif
 	{0x91, 0x01}, //EXP Fix 20.00 fps
 	{0x92, 0x24}, 
 	{0x93, 0xf8},    
@@ -2707,6 +2905,31 @@ static int __init hi707_init_module(void)
 {
 	int32_t rc;
 	pr_info("%s:%d\n", __func__, __LINE__);
+	//                                                                                               
+#if defined(CONFIG_MACH_MSM8926_E2_SPR_US)
+		switch(lge_get_board_revno()) {
+			case HW_REV_A:
+				printk("%s: Sensor power is set as Rev.A\n", __func__);
+				hi707_s_ctrl.power_setting_array.power_setting = hi707_power_setting;
+				hi707_s_ctrl.power_setting_array.size = ARRAY_SIZE(hi707_power_setting);
+				break;
+			case HW_REV_B:
+				printk("%s: Sensor power is set as Rev.B\n", __func__);
+				hi707_s_ctrl.power_setting_array.power_setting = hi707_power_setting_rev_b;
+				hi707_s_ctrl.power_setting_array.size = ARRAY_SIZE(hi707_power_setting_rev_b);
+				break;
+			default:
+				printk("%s: Sensor power is set as Rev.10\n", __func__);
+				hi707_s_ctrl.power_setting_array.power_setting = hi707_power_setting_rev_b;
+				hi707_s_ctrl.power_setting_array.size = ARRAY_SIZE(hi707_power_setting_rev_b);
+				break;
+		}
+#else
+		hi707_s_ctrl.power_setting_array.power_setting = hi707_power_setting;
+		hi707_s_ctrl.power_setting_array.size = ARRAY_SIZE(hi707_power_setting);
+#endif
+	//                                                                                               
+
 	rc = platform_driver_probe(&hi707_platform_driver,
 		hi707_platform_probe);
 	if (!rc)
@@ -2754,13 +2977,14 @@ int32_t hi707_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 		pr_err("msm_sensor_match_id chip id doesnot match\n");
 		return -ENODEV;
 	}
+/*                                                                              */
 /*                                                                                                                         */
-	product_kor = s_ctrl->sensordata->sensor_init_params->product_kor;
-	pr_err("%s: product_kor - %d", __func__, product_kor); 
+	product_kor = s_ctrl->sensordata->sensor_info->product_kor;
+	pr_err("%s: product_kor - %d", __func__, product_kor);
 /*                                                                                                                         */
 /*                                                                                   */
-	maker_gpio = s_ctrl->sensordata->sensor_init_params->maker_gpio;
-	pr_err("%s: maker gpio - %d", __func__, maker_gpio); 
+	maker_gpio = s_ctrl->sensordata->sensor_info->maker_gpio;
+	pr_err("%s: maker gpio - %d", __func__, maker_gpio);
 	if( maker_gpio >= 0 ){
 	 	if(gpio_is_valid(maker_gpio)){
 			 if(gpio_request(maker_gpio, "vt_cam_id") == 0){
@@ -2773,6 +2997,8 @@ int32_t hi707_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 			 }else pr_err("Invalid gpio %d\n", maker_gpio);
 			}
 /*                                                                                   */
+/*                                                                              */
+
 	return rc;
 
 }
@@ -3124,9 +3350,10 @@ static void hi707_set_framerate_for_soc(struct msm_sensor_ctrl_t *s_ctrl, struct
 		value = 3;
     else value = 4;
 	
-	pr_debug("%s %d\n", __func__, value);
+	pr_debug("%s value: %d\n", __func__, value);
 /*                                                                                        */
 	if(mCurrentFpsMode == value) {
+		pr_err("%s : no set fps since the same fps requested (mCurrentFpsMode: %d)\n", __func__, mCurrentFpsMode);
 		return;
 	} else {
 		mCurrentFpsMode = value;
@@ -3189,6 +3416,16 @@ int32_t hi707_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		for (i = 0; i < SUB_MODULE_MAX; i++)
 			cdata->cfg.sensor_info.subdev_id[i] =
 				s_ctrl->sensordata->sensor_info->subdev_id[i];
+/*                                                                         */
+		cdata->cfg.sensor_info.is_mount_angle_valid =
+			s_ctrl->sensordata->sensor_info->is_mount_angle_valid;
+		cdata->cfg.sensor_info.sensor_mount_angle =
+			s_ctrl->sensordata->sensor_info->sensor_mount_angle;
+		cdata->cfg.sensor_info.position =
+			s_ctrl->sensordata->sensor_info->position;
+		cdata->cfg.sensor_info.modes_supported =
+			s_ctrl->sensordata->sensor_info->modes_supported;
+/*                                                                         */
 		CDBG("%s:%d sensor name %s\n", __func__, __LINE__,
 			cdata->cfg.sensor_info.sensor_name);
 		CDBG("%s:%d session id %d\n", __func__, __LINE__,
@@ -3196,6 +3433,11 @@ int32_t hi707_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		for (i = 0; i < SUB_MODULE_MAX; i++)
 			CDBG("%s:%d subdev_id[%d] %d\n", __func__, __LINE__, i,
 				cdata->cfg.sensor_info.subdev_id[i]);
+/*                                                                         */
+		CDBG("%s:%d mount angle valid %d value %d\n", __func__,
+			__LINE__, cdata->cfg.sensor_info.is_mount_angle_valid,
+			cdata->cfg.sensor_info.sensor_mount_angle);
+/*                                                                         */
 
 		break;
 	case CFG_SET_INIT_SETTING:
@@ -3226,6 +3468,10 @@ int32_t hi707_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			&hi707_stop_settings[0],
 			ARRAY_SIZE(hi707_stop_settings));
 		CDBG("STOP_STREAM X\n");
+#if defined(CONFIG_MACH_MSM8926_VFP_KR)
+		//fix for not setting fps after stop preview
+		mCurrentFpsMode = 4;
+#endif
 		break;
 	case CFG_SET_START_STREAM:
 		pr_err("%s - start stream",__func__);
@@ -3244,8 +3490,20 @@ int32_t hi707_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		CDBG("START_STREAM X\n");
 		break;
 	case CFG_GET_SENSOR_INIT_PARAMS:
+/*                                                                         */
+#if 0
 		cdata->cfg.sensor_init_params =
 			*s_ctrl->sensordata->sensor_init_params;
+#else
+		cdata->cfg.sensor_init_params.modes_supported =
+			s_ctrl->sensordata->sensor_info->modes_supported;
+		cdata->cfg.sensor_init_params.position =
+			s_ctrl->sensordata->sensor_info->position;
+		cdata->cfg.sensor_init_params.sensor_mount_angle =
+			s_ctrl->sensordata->sensor_info->sensor_mount_angle;
+#endif
+/*                                                                         */
+
 		CDBG("%s:%d init params mode %d pos %d mount %d\n", __func__,
 			__LINE__,
 			cdata->cfg.sensor_init_params.modes_supported,
@@ -3411,7 +3669,7 @@ int32_t hi707_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		size = conf_array.size;		//size for write(page_mode) and read
 		read_data_size = size - 1;	//size for read
 
-		pr_err("[WX] %s: size : %d rsize : %d\n", __func__, size, read_data_size);
+		CDBG("[WX] %s: size : %d rsize : %d\n", __func__, size, read_data_size);
 
 		if (!size || !read_data_size) {
 			pr_err("%s:%d failed\n", __func__, __LINE__);
@@ -3459,7 +3717,7 @@ int32_t hi707_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			}
 			else{
 				rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(s_ctrl->sensor_i2c_client, conf_array.reg_setting->reg_addr, read_data, conf_array.data_type);
-				pr_err("[WX] %s read_data : %d\n", __func__, *read_data);
+				CDBG("[WX] %s read_data : %d\n", __func__, *read_data);
 				read_data++;
 			}
 			conf_array.reg_setting++;
@@ -3480,7 +3738,7 @@ int32_t hi707_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		read_data = NULL;
 		read_data_head = NULL;
 
-		pr_err("[WX] %s done\n", __func__);
+		CDBG("[WX] %s done\n", __func__);
 
 		break;
 	}
@@ -3724,8 +3982,10 @@ static struct msm_sensor_fn_t hi707_sensor_func_tbl = {
 
 static struct msm_sensor_ctrl_t hi707_s_ctrl = {
 	.sensor_i2c_client = &hi707_sensor_i2c_client,
-	.power_setting_array.power_setting = hi707_power_setting,
-	.power_setting_array.size = ARRAY_SIZE(hi707_power_setting),
+	//                                                                                              
+	//.power_setting_array.power_setting = hi707_power_setting,
+	//.power_setting_array.size = ARRAY_SIZE(hi707_power_setting),
+	//                                                                                              
 	.msm_sensor_mutex = &hi707_mut,
 	.sensor_v4l2_subdev_info = hi707_subdev_info,
 	.sensor_v4l2_subdev_info_size = ARRAY_SIZE(hi707_subdev_info),

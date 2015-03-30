@@ -444,11 +444,11 @@ static struct msm_gpiomux_config msm_synaptics_configs_rev_b[] __initdata = {
 };
 
 /* NFC Pin Setting */
-//+GPIO[010] COMMON_I2C_SDA
-//+GPIO[011] COMMON_I2C_SCL
-//Need to set GPIO[020] NFC_VEN
-//Need to set GPIO[021] NFC_IRQ
-//Need to set GPIO[022] NFC_MODE
+/* +GPIO[010] COMMON_I2C_SDA
+   +GPIO[011] COMMON_I2C_SCL
+   Need to set GPIO[020] NFC_VEN
+   Need to set GPIO[021] NFC_IRQ
+   Need to set GPIO[022] NFC_MODE */
 /*                                                      */
 #ifdef CONFIG_LGE_NFC_PN547_C2
 #if 0
@@ -504,7 +504,7 @@ static struct msm_gpiomux_config msm_nfc_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &nfc_pn547_scl_cfg,
 		},
 	},
-#endif							// This pin are set at msm_i2c_configs
+#endif							/* This pin are set at msm_i2c_configs */
 	{
 		/* VEN */
 		.gpio      = 20,
@@ -551,7 +551,6 @@ static struct gpiomux_setting lcd_rst_act_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_UP,
-	.dir = GPIOMUX_OUT_HIGH,
 };
 
 static struct gpiomux_setting lcd_rst_sus_cfg = {
@@ -639,17 +638,17 @@ static struct msm_gpiomux_config msm_lcd_configs_B[] __initdata = {
 };
 
 /* Camera Pin Setting */
-//Need to set GPIO[026] MAIN_CAM0_MCLK
-//Need to set GPIO[027] VT_CAM_MCLK
-//Need to set GPIO[029] CAM0_I2C_SDA
-//Need to set GPIO[030] CAM0_I2C_SCL
-//Need to set GPIO[114] MAIN_CAM0_RESET_N
-//Need to set GPIO[028] VT_CAM_RESET_N
-//Need to set GPIO[062] LDO1_EN
-//Need to set GPIO[113] LDO3_EN
-//Need to set GPIO[036] VCM_EN
-//Need to set GPIO[109] LDAF_EN
-//Need to set GPIO[107] LDAF_INT
+/* Need to set GPIO[026] MAIN_CAM0_MCLK
+   Need to set GPIO[027] VT_CAM_MCLK
+   Need to set GPIO[029] CAM0_I2C_SDA
+   Need to set GPIO[030] CAM0_I2C_SCL
+   Need to set GPIO[114] MAIN_CAM0_RESET_N
+   Need to set GPIO[028] VT_CAM_RESET_N
+   Need to set GPIO[062] LDO1_EN
+   Need to set GPIO[113] LDO3_EN
+   Need to set GPIO[036] VCM_EN
+   Need to set GPIO[109] LDAF_EN
+   Need to set GPIO[107] LDAF_INT */
 
 static struct gpiomux_setting gpio_suspend_config[] = {
 	{
@@ -811,18 +810,18 @@ static struct msm_gpiomux_config msm_sensor_configs[] __initdata = {
 };
 
 /* FLASH_LED Pin Setting */
-//Need to set GPIO[032] FLASH_STROBE_TRIG
+/* Need to set GPIO[032] FLASH_STROBE_TRIG */
 static struct msm_gpiomux_config gpio_func_flash_led_configs[] __initdata = {
 };
 
 /* IRRC Pin Setting */
 
 /* AUDIO Pin Setting */
-// GPIO related function <<10.AUDIO>>
-//Need to set GPIO[035] EAR_SENSE
-//Need to set GPIO[067] EAR_KEY
-//Need to set GPIO[068] CODEC_INT_N
-//Need to set GPIO[072] CODEC_RESET_N
+/* GPIO related function <<10.AUDIO>>
+   Need to set GPIO[035] EAR_SENSE
+   Need to set GPIO[067] EAR_KEY
+   Need to set GPIO[068] CODEC_INT_N
+   Need to set GPIO[072] CODEC_RESET_N */
 
 /* SD_CARD Pin Setting */
 static struct gpiomux_setting sd_card_det_active_config = {
@@ -839,14 +838,14 @@ static struct gpiomux_setting sd_card_det_sleep_config = {
 	.pull = GPIOMUX_PULL_NONE,
 	.dir = GPIOMUX_IN,
 };
-#else //                    
+#else /*                     */
 static struct gpiomux_setting sd_card_det_sleep_config = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
 	.pull = GPIOMUX_PULL_UP,
 	.dir = GPIOMUX_IN,
 };
-#endif //                
+#endif /*                 */
 
 static struct msm_gpiomux_config sd_card_det __initdata = {
 	.gpio = 37,
@@ -1321,7 +1320,7 @@ static struct msm_gpiomux_config wcnss_5wire_interface_A[] = {
 #endif
 
 /* FM Pin Setting */
-// GPIO related function <<15.FM>>
+/* GPIO related function <<15.FM>> */
 static struct gpiomux_setting auxpcm_act_cfg = {
 	.func = GPIOMUX_FUNC_1,
 	.drv = GPIOMUX_DRV_8MA,
@@ -1382,41 +1381,41 @@ static struct msm_gpiomux_config gpio_func_wlc_config __initdata = {
 };
 
 /* SIM Pin Setting */
-// GPIO related function <<17.SIM>>
-//Need to set GPIO[057] UIM1_DATA
-//Need to set GPIO[058] UIM1_CLK
-//Need to set GPIO[059] UIM1_RESET_N
-//Need to set GPIO[061] BATT_UIM_ALARM
+/* GPIO related function <<17.SIM>>
+   Need to set GPIO[057] UIM1_DATA
+   Need to set GPIO[058] UIM1_CLK
+   Need to set GPIO[059] UIM1_RESET_N
+   Need to set GPIO[061] BATT_UIM_ALARM */
 static struct msm_gpiomux_config gpio_func_sim_configs[] __initdata = {
 };
 
 /* SLIMBUS Pin Setting */
-// GPIO related function <<18.SLIMBUS>>
-//Need to set GPIO[070] SLIMBUS_CLK
-//Need to set GPIO[071] SLIMBUS_DATA
+/* GPIO related function <<18.SLIMBUS>>
+   Need to set GPIO[070] SLIMBUS_CLK
+   Need to set GPIO[071] SLIMBUS_DATA */
 static struct msm_gpiomux_config gpio_func_slimbus_configs[] __initdata = {
 };
 
 /* RF Pin Setting */
-//Need to set GPIO[073] RFFE2_CLK
-//Need to set GPIO[074] RFFE2_DATA
-//Need to set GPIO[077] PA0_ON_2
-//Need to set GPIO[078] PA0_ON_3
-//Need to set GPIO[079] MOBILE_SW_DET_0
-//Need to set GPIO[080] MOBILE_SW_DET_1
-//Need to set GPIO[081] PA0_R_0
-//Need to set GPIO[082] PA0_R_1
-//Need to set GPIO[087] TX_GTR_THRESH
-//Need to set GPIO[091] PA1_ON_0
-//Need to set GPIO[092] PA1_ON_1
-//Need to set GPIO[093] PA1_R_0
-//Need to set GPIO[099] RFFE1_CLK
-//Need to set GPIO[100] RFFE1_DATA
-//Need to set GPIO[101] WTR0_SSBI_PRX_DRX
-//Need to set GPIO[102] WTR0_SSBI_TX_GNNS
-//Need to set GPIO[103] WTR1_SSBI_PRX_DRX
-//Need to set GPIO[104] WTR0_SSBI_TX_GNNS
-//Need to set GPIO[105] GNSS_ELNA_EN
+/* Need to set GPIO[073] RFFE2_CLK
+   Need to set GPIO[074] RFFE2_DATA
+   Need to set GPIO[077] PA0_ON_2
+   Need to set GPIO[078] PA0_ON_3
+   Need to set GPIO[079] MOBILE_SW_DET_0
+   Need to set GPIO[080] MOBILE_SW_DET_1
+   Need to set GPIO[081] PA0_R_0
+   Need to set GPIO[082] PA0_R_1
+   Need to set GPIO[087] TX_GTR_THRESH
+   Need to set GPIO[091] PA1_ON_0
+   Need to set GPIO[092] PA1_ON_1
+   Need to set GPIO[093] PA1_R_0
+   Need to set GPIO[099] RFFE1_CLK
+   Need to set GPIO[100] RFFE1_DATA
+   Need to set GPIO[101] WTR0_SSBI_PRX_DRX\
+   Need to set GPIO[102] WTR0_SSBI_TX_GNNS
+   Need to set GPIO[103] WTR1_SSBI_PRX_DRX
+   Need to set GPIO[104] WTR0_SSBI_TX_GNNS
+   Need to set GPIO[105] GNSS_ELNA_EN */
 static struct msm_gpiomux_config gpio_func_rf_configs[] __initdata = {
 };
 
@@ -1441,7 +1440,7 @@ static struct msm_gpiomux_config msm_keypad_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gpio_keys_suspend,
 		},
 	},
-#if 0 // GPIO 107 is used for LDAF_INT
+#if 0 /* GPIO 107 is used for LDAF_INT */
 	{
 		.gpio = 107,
 		.settings = {
@@ -1457,7 +1456,7 @@ static struct msm_gpiomux_config msm_keypad_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gpio_keys_suspend,
 		},
 	},
-#if 0 // GPIO 109 is used for LDAF_EN
+#if 0 /* GPIO 109 is used for LDAF_EN */
 	{
 		.gpio = 109,
 		.settings = {
@@ -1500,7 +1499,7 @@ static struct msm_gpiomux_config ext_ldo_en_configs[] __initdata = {
 };
 
 static struct gpiomux_setting vibrator_active_cfg_gpio_pwm = {
-       .func = GPIOMUX_FUNC_3, //                                                                                          
+       .func = GPIOMUX_FUNC_3, /*                                                                                            */
        .drv = GPIOMUX_DRV_8MA,
        .pull = GPIOMUX_PULL_NONE,
 };
@@ -1556,82 +1555,82 @@ void __init msm8226_init_gpiomux(void)
 	hw_rev_type hw_rev;
 	hw_rev = lge_get_board_revno();
 
-	// Device Tree Initailize
+	/*  Device Tree Initailize */
 	rc = msm_gpiomux_init_dt();
 	if (rc) {
 		pr_err("%s failed %d\n", __func__, rc);
 		return;
 	}
 
-	//--------------------------------------------
-	// MSM8X26 GPIO Confiuration via JAGUAR
-	//--------------------------------------------
-	// GPIO related function <<0.Resreved Pin>>
-	// GPIO related function <<1.SENSOR>>
-	// GPIO related function <<2.I2C>>
-	// GPIO related function <<3.UART>>
-	// GPIO related function <<4.TOUCH>>
-	// GPIO related function <<5.NFC>>
-	// GPIO related function <<6.LCD>>
-	// GPIO related function <<7.CAMERA>>
-	// GPIO related function <<8.FLASH LED>>
-	// GPIO related function <<9.IRRC>>
-	// GPIO related function <<10.AUDIO>>
-	// GPIO related function <<11.SD CARD>>
-	// GPIO related function <<12.BATTERY>>
-	// GPIO related function <<13.BT>>
-	// GPIO related function <<14.WIFI>>
-	// GPIO related function <<15.FM>>
-	// GPIO related function <<16.WLC>>
-	// GPIO related function <<17.SIM>>
-	// GPIO related function <<18.SLIMBUS>>
-	// GPIO related function <<19.RF>>
-	// GPIO related function <<20.KEY PAD>>
-	// GPIO related function <<21.LOGIC>>
+	/*--------------------------------------------
+	   MSM8X26 GPIO Confiuration via JAGUAR
+	  --------------------------------------------
+	   GPIO related function <<0.Resreved Pin>>
+	   GPIO related function <<1.SENSOR>>
+	   GPIO related function <<2.I2C>>
+	   GPIO related function <<3.UART>>
+	   GPIO related function <<4.TOUCH>>
+	   GPIO related function <<5.NFC>>
+	   GPIO related function <<6.LCD>>
+	   GPIO related function <<7.CAMERA>>
+	   GPIO related function <<8.FLASH LED>>
+	   GPIO related function <<9.IRRC>>
+	   GPIO related function <<10.AUDIO>>
+	   GPIO related function <<11.SD CARD>>
+	   GPIO related function <<12.BATTERY>>
+	   GPIO related function <<13.BT>>
+	   GPIO related function <<14.WIFI>>
+	   GPIO related function <<15.FM>>
+	   GPIO related function <<16.WLC>>
+	   GPIO related function <<17.SIM>>
+	   GPIO related function <<18.SLIMBUS>>
+	   GPIO related function <<19.RF>>
+	   GPIO related function <<20.KEY PAD>>
+	   GPIO related function <<21.LOGIC>>
 
-	// GPIO related function <<0.Resreved Pin>>
-	switch ( hw_rev ){
-		case HW_REV_0 :
-            for ( gpio_index = 0 ; gpio_reserved_pin_rev_zero[gpio_index] < MSM8x26_GPIO_END ; gpio_index++ ){
-				gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_zero[gpio_index];
-				msm_gpiomux_install(&gpio_func_reserved_pin_config, 1);
-				}
-			break;
-		case HW_REV_A :
-            for ( gpio_index = 0 ; gpio_reserved_pin_rev_A[gpio_index] < MSM8x26_GPIO_END ; gpio_index++ ){
-				gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_A[gpio_index];
-				msm_gpiomux_install(&gpio_func_reserved_pin_config, 1);
-				}
-			break;
-		case HW_REV_B :
-				for ( gpio_index = 0 ; gpio_reserved_pin_rev_B[gpio_index] < MSM8x26_GPIO_END ; gpio_index++ ){
-					gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_B[gpio_index];
-					msm_gpiomux_install(&gpio_func_reserved_pin_config, 1);
-				}
-			break;
-		case HW_REV_C :
-		case HW_REV_D :
-		case HW_REV_E :
-		case HW_REV_1_0 :
-		case HW_REV_1_1 :
-		default :
-			for ( gpio_index = 0 ; gpio_reserved_pin_rev_B[gpio_index] < MSM8x26_GPIO_END ; gpio_index++ ){
-				gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_B[gpio_index];
-				msm_gpiomux_install(&gpio_func_reserved_pin_config, 1);
-				}
-			break;
+	   GPIO related function <<0.Resreved Pin>> */
+	switch (hw_rev) {
+	case HW_REV_0:
+        for (gpio_index = 0; gpio_reserved_pin_rev_zero[gpio_index] < MSM8x26_GPIO_END; gpio_index++){
+            gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_zero[gpio_index];
+            msm_gpiomux_install(&gpio_func_reserved_pin_config, 1);
+        }
+        break;
+	case HW_REV_A:
+        for (gpio_index = 0; gpio_reserved_pin_rev_A[gpio_index] < MSM8x26_GPIO_END; gpio_index++){
+            gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_A[gpio_index];
+            msm_gpiomux_install(&gpio_func_reserved_pin_config, 1);
+        }
+        break;
+	case HW_REV_B:
+        for (gpio_index = 0; gpio_reserved_pin_rev_B[gpio_index] < MSM8x26_GPIO_END; gpio_index++){
+            gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_B[gpio_index];
+            msm_gpiomux_install(&gpio_func_reserved_pin_config, 1);
+        }
+        break;
+	case HW_REV_C:
+	case HW_REV_D:
+	case HW_REV_E:
+	case HW_REV_1_0:
+	case HW_REV_1_1:
+	default:
+        for (gpio_index = 0; gpio_reserved_pin_rev_B[gpio_index] < MSM8x26_GPIO_END; gpio_index++){
+            gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_B[gpio_index];
+            msm_gpiomux_install(&gpio_func_reserved_pin_config, 1);
+        }
+        break;
 	}
 
-	// GPIO related function <<1.SENSOR>>
+	/* GPIO related function <<1.SENSOR>> */
 	msm_gpiomux_install(msm_sensor_ic_configs, ARRAY_SIZE(msm_sensor_ic_configs));
 
-	// GPIO related function <<2.I2C>>
+	/* GPIO related function <<2.I2C>> */
 	msm_gpiomux_install(msm_i2c_configs, ARRAY_SIZE(msm_i2c_configs));
 
-	// GPIO related function <<3.UART>>
+	/* GPIO related function <<3.UART>> */
 	msm_gpiomux_install(gpio_func_uart_configs, ARRAY_SIZE(gpio_func_uart_configs));
 
-	// GPIO related function <<4.TOUCH>>
+	/* GPIO related function <<4.TOUCH>> */
 	if (hw_rev <= HW_REV_A) {
 		msm_gpiomux_install(msm_atmel_configs, ARRAY_SIZE(msm_atmel_configs));
 		printk(KERN_ERR "[Touch] HW_REV_0, A configs \n");
@@ -1640,14 +1639,14 @@ void __init msm8226_init_gpiomux(void)
 		printk(KERN_ERR "[Touch] HW_REV_B, C, D, E configs \n");
 	}
 
-	// GPIO related function <<5.NFC>>
+	/* GPIO related function <<5.NFC>> */
 /*                                                       */
 #ifdef CONFIG_LGE_NFC_PN547_C2
 	msm_gpiomux_install(msm_nfc_configs, ARRAY_SIZE(msm_nfc_configs));
 #endif
 /*                                                       */
 
-	// GPIO related function <<6.LCD>>
+	/* GPIO related function <<6.LCD>> */
 	if (hw_rev <= HW_REV_A)
 		msm_gpiomux_install_nowrite(msm_lcd_configs_A,
 				ARRAY_SIZE(msm_lcd_configs_A));
@@ -1655,26 +1654,26 @@ void __init msm8226_init_gpiomux(void)
 		msm_gpiomux_install_nowrite(msm_lcd_configs_B,
 				ARRAY_SIZE(msm_lcd_configs_B));
 
-	// GPIO related function <<7.CAMERA>>
+	/* GPIO related function <<7.CAMERA>> */
 	msm_gpiomux_install(msm_sensor_configs, ARRAY_SIZE(msm_sensor_configs));
 
-	// GPIO related function <<8.FLASH LED>>
+	/* GPIO related function <<8.FLASH LED>> */
 	msm_gpiomux_install(gpio_func_flash_led_configs, ARRAY_SIZE(gpio_func_flash_led_configs));
 
-	// GPIO related function <<10.AUDIO>>
+	/* GPIO related function <<10.AUDIO>> */
 
-	// GPIO related function <<11.SD CARD>>
+	/* GPIO related function <<11.SD CARD>> */
 	msm_gpiomux_sdc3_install();
 
-	// GPIO related function <<12.BATTERY>>
+	/* GPIO related function <<12.BATTERY>> */
 	msm_gpiomux_install(power_configs, ARRAY_SIZE(power_configs));
 
-	// GPIO related function <<13.BT>>
+	/* GPIO related function <<13.BT>> */
 #ifdef CONFIG_LGE_BLUETOOTH
     bluetooth_msm_gpiomux_install();
 #endif /*                      */
 
-	// GPIO related function <<14.WIFI>>
+	/* GPIO related function <<14.WIFI>> */
 #if defined (CONFIG_BCMDHD) || defined (CONFIG_BCMDHD_MODULE)
 	if (hw_rev == HW_REV_0)
 		msm_gpiomux_install(wcnss_5wire_interface_zero,
@@ -1684,25 +1683,25 @@ void __init msm8226_init_gpiomux(void)
 					ARRAY_SIZE(wcnss_5wire_interface_A));
 #endif
 
-	// GPIO related function <<15.FM>>
+	/* GPIO related function <<15.FM>> */
 	msm_gpiomux_install(msm_auxpcm_configs,	ARRAY_SIZE(msm_auxpcm_configs));
 
-	// GPIO related function <<16.WLC>>
+	/* GPIO related function <<16.WLC>> */
 	msm_gpiomux_install(&gpio_func_wlc_config, 1);
 
-	// GPIO related function <<17.SIM>>
+	/* GPIO related function <<17.SIM>> */
 	msm_gpiomux_install(gpio_func_sim_configs, ARRAY_SIZE(gpio_func_sim_configs));
 
-	// GPIO related function <<18.SLIMBUS>>
+	/* GPIO related function <<18.SLIMBUS>> */
 	msm_gpiomux_install(gpio_func_slimbus_configs, ARRAY_SIZE(gpio_func_slimbus_configs));
 
-	// GPIO related function <<19.RF>>
+	/* GPIO related function <<19.RF>> */
 	msm_gpiomux_install(gpio_func_rf_configs, ARRAY_SIZE(gpio_func_rf_configs));
 
-	// GPIO related function <<20.KEY PAD>>
+	/* GPIO related function <<20.KEY PAD>> */
 	msm_gpiomux_install(msm_keypad_configs, ARRAY_SIZE(msm_keypad_configs));
 
-	// GPIO related function <<21.LOGIC>>
+	/* GPIO related function <<21.LOGIC>> */
 	logic_msm_gpiomux_install();
 
 #if defined(CONFIG_KS8851) || defined(CONFIG_KS8851_MODULE)

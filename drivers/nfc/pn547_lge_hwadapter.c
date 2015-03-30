@@ -63,3 +63,48 @@ void pn547_shutdown_cb(struct pn547_dev *pn547_dev)
 #endif
     return;
 }
+
+#ifdef CONFIG_LGE_NFC_USE_PMIC
+void pn547_get_clk_source(struct pn547_dev *pn547_dev)
+{
+#if 0 // RFU
+    pn547_dev->clk_cont = clk_get(&pn547_client->dev, "xo_cont");
+    if (pn547_dev->clk_cont == NULL) {
+        pr_err("%s: PN547 could not get cont. clock!\n", __func__);
+    }
+    pn547_dev->clk_pin = clk_get(&pn547_client->dev, "xo_pin");
+    if (pn547_dev->clk_pin == NULL) {
+        pr_err("%s: PN547 could not get pin clock!\n", __func__);
+    }
+    // pr_err("%s: xo_cont = %p, xo_pin = %p\n", __func__, pn547_dev->clk_cont, pn547_dev->clk_pin); // for debug
+#else
+    pn547_dev->clk_cont = &cxo_d1.c;
+    pn547_dev->clk_pin = &cxo_d1_pin.c;
+    // pr_err("%s: xo_cont = %p, xo_pin = %p\n", __func__, pn547_dev->clk_cont, pn547_dev->clk_pin); // for debug
+#endif
+}
+#endif
+
+void pn547_parse_dt(struct device *dev, struct pn547_dev *pn547_dev)
+{
+    struct device_node *np = dev->of_node;
+#if defined(CONFIG_LGE_NFC_HW_ODIN)
+    int val = 0;
+
+    if (!of_property_read_u32(np,"nxp,gpio_ven", &val))
+        pn547_dev->ven_gpio = val;
+    val = 0;
+
+    if (!of_property_read_u32(np,"nxp,gpio_mode", &val))
+        pn547_dev->firm_gpio = val;
+    val = 0;
+
+    if (!of_property_read_u32(np,"nxp,gpio_irq", &val))
+        pn547_dev->irq_gpio = val;
+#else
+    /* irq gpio info */
+    pn547_dev->ven_gpio = of_get_named_gpio_flags(np, "nxp,gpio_ven", 0, NULL);
+    pn547_dev->firm_gpio = of_get_named_gpio_flags(np, "nxp,gpio_mode", 0, NULL);
+    pn547_dev->irq_gpio = of_get_named_gpio_flags(np, "nxp,gpio_irq", 0, NULL);
+#endif
+}

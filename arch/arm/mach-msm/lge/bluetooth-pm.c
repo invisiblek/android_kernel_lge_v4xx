@@ -1080,7 +1080,8 @@ static void __exit bluetooth_pm_exit(void)
 	platform_driver_unregister(&bluetooth_pm_driver);
 }
 
-device_initcall(bluetooth_pm_init);
+//device_initcall(bluetooth_pm_init);
+late_initcall_sync(bluetooth_pm_init);
 module_exit(bluetooth_pm_exit);
 
 MODULE_DESCRIPTION("bluetooth PM");

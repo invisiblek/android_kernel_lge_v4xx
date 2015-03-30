@@ -62,6 +62,7 @@
 			atmel,extra_fw_name = "atmel/E4A47P1_2_04.fw";
 			atmel,ghost_detection_enable = <1>;
 			atmel,butt_check_enable = <1>;
+			atmel,panel_delta_value = <292 229 0>;
 		};
 
 		atmel_s336_rev_b@4a {
@@ -74,7 +75,7 @@
 
 			atmel,fw_name = "atmel/E4A47P2_2_07.fw";
 			atmel,fw2_name = "atmel/I4A47P2_2_07.fw";
-			atmel,panel_check = <1>;
+			atmel,panel_check = <0>;
 			atmel,maker_id = <1>;
 			atmel,maker_id_gpio = <116>;
 			atmel,maker_id2_gpio = <16>;

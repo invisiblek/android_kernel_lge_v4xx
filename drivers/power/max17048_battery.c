@@ -52,7 +52,7 @@
 #define MAX17048_CMD		0xFF
 #define MAX17048_UNLOCK_VALUE	0x4a57
 #define MAX17048_RESET_VALUE	0x5400
-#if !defined(CONFIG_MAX17048_SOC_ALERT)|| defined(CONFIG_MAX17048_POLLING)
+#if !defined(CONFIG_MAX17048_SOC_ALERT) || defined(CONFIG_MAX17048_POLLING)
 #define MAX17048_POLLING_PERIOD	60000
 #endif
 #ifdef CONFIG_MAX17048_POLLING
@@ -119,7 +119,7 @@ int lge_power_test_flag = 1;
 
 #if defined(CONFIG_MACH_MSM8974_G2_KR) || defined(CONFIG_MACH_MSM8974_VU3_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) \
 	|| defined (CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) \
-	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_BELL) || defined(CONFIG_MACH_MSM8926_JAGC_SPR)
 /* using to cal rcomp */
 int cell_info = 0;
 #endif
@@ -217,7 +217,7 @@ static int max17048_get_capacity_from_soc(void)
 	batt_soc = ((buf[0]*256)+buf[1])*19531;
 
 	pr_debug("[max17048]%s : MAXIM Raw Capacity : %d , *100 is %d \n"
-			, __func__,(int)(batt_soc/10000000),(int)(batt_soc/100000));
+			, __func__, (int)(batt_soc/10000000), (int)(batt_soc/100000));
 
 	/* SOC scaling for stable max SOC and changed Cut-off */
 	/*Adj SOC = (FG SOC-Emply)/(Full-Empty)*100*/
@@ -232,7 +232,7 @@ static int max17048_get_capacity_from_soc(void)
 #elif defined(CONFIG_MACH_MSM8974_B1_KR)
 	batt_soc = batt_soc/93*100;
 #elif defined(CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) \
-	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_BELL) || defined(CONFIG_MACH_MSM8926_JAGC_SPR)
 	batt_soc = (batt_soc-((ref->model_data->empty)*100000))
 						/(9400-(ref->model_data->empty))*10000;
 #else
@@ -247,13 +247,12 @@ static int max17048_get_capacity_from_soc(void)
 #if defined(CONFIG_MACH_MSM8974_G2_KR) || defined(CONFIG_MACH_MSM8974_VU3_KR)
 	/* Report 0.42%(0x300) ~ 1% to 1% */
 	/* If Full and Emplty is changed, need to modify the value, 3 */
-	else if(batt_soc == 0 && buf[0] >= 3){
-		if(cell_info == LGC_LLL && buf[0] >= 3){
+	else if (batt_soc == 0 && buf[0] >= 3) {
+		if (cell_info == LGC_LLL && buf[0] >= 3) {
 			printk(KERN_ERR "%s : buf[0] is %d, Do upscaling to 1%%\n"
 				, __func__, buf[0]);
 			batt_soc = 1;
-		}
-		else if(cell_info == TCD_AAC && buf[0] >= 6){
+		} else if (cell_info == TCD_AAC && buf[0] >= 6) {
 			printk(KERN_ERR "%s : buf[0] is %d, Do upscaling to 1%%\n"
 				, __func__, buf[0]);
 			batt_soc = 1;
@@ -310,7 +309,7 @@ static uint16_t max17048_get_version(struct i2c_client *client)
 
 #if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined (CONFIG_MACH_MSM8926_B2L_ATT) \
 	|| defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
-	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_BELL) || defined(CONFIG_MACH_MSM8926_JAGC_SPR)
 static void max17048_get_ocv(struct i2c_client *client)
 {
 	u8 values[2];
@@ -322,7 +321,7 @@ static void max17048_get_ocv(struct i2c_client *client)
 
 	/* Read OCV */
 	org_ocv = max17048_read_word(client, MAX17048_OCV);
-	if (org_ocv == 0xFFFF){
+	if (org_ocv == 0xFFFF) {
 		pr_err("%s: unlock fail %x\n",	__func__, org_ocv);
 	} else {
 		values[0] = (org_ocv & 0xff00)>>8;
@@ -350,7 +349,7 @@ static void max17048_low_polling_work(struct work_struct *work)
 	}
 #if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined (CONFIG_MACH_MSM8926_B2L_ATT) \
 	|| defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
-	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_BELL) || defined(CONFIG_MACH_MSM8926_JAGC_SPR)
 	max17048_get_ocv(chip->client);
 #endif
 	max17048_get_soc(chip->client);
@@ -384,7 +383,7 @@ psy_error:
 		round_jiffies_relative(msecs_to_jiffies(
 			MAX17048_LOW_POLLING_PERIOD)));
 }
-#endif //END OF max17048_polling_work
+#endif	/* END OF max17048_polling_work */
 
 
 #ifdef CONFIG_MAX17048_POLLING
@@ -395,7 +394,7 @@ psy_error:
 static void max17048_polling_work(struct work_struct *work)
 {
 	struct max17048_chip *chip;
-	int vcell =0, soc = 0, capacity = 0, voltage = 0;
+	int vcell = 0, soc = 0, capacity = 0, voltage = 0;
 	u8 buf[2];
 
 	chip = container_of(work, struct max17048_chip, polling_work.work);
@@ -405,24 +404,22 @@ static void max17048_polling_work(struct work_struct *work)
 		return;
 	}
 
-//Read VCELL
+/* Read VCELL */
 	vcell = max17048_read_word(chip->client, MAX17048_VCELL);
-	if (vcell < 0){
+	if (vcell < 0) {
 		printk(KERN_ERR "%s: error get vcell register %d\n",
 			__func__, vcell);
-	}
-	else{
+	} else {
 		vcell = vcell >> 4;
 		voltage  = (vcell * 5) >> 2;
 	}
 
-//Read SOC
+/* Read SOC */
 	soc = max17048_read_word(chip->client, MAX17048_SOC);
-	if (soc < 0){
+	if (soc < 0) {
 		printk(KERN_ERR "%s: error get soc register %d\n",
 			__func__, soc);
-	}
-	else{
+	} else {
 		buf[0] = (soc & 0x0000FF00) >> 8;
 		buf[1] = (soc & 0x000000FF);
 
@@ -430,7 +427,7 @@ static void max17048_polling_work(struct work_struct *work)
 		capacity = ((buf[0]*256)+buf[1])*19531;
 
 		pr_debug("[max17048]%s : MAXIM Raw Capacity : %d , *100 is %d \n"
-			, __func__,(int)(capacity/10000000),(int)(capacity/100000));
+			, __func__, (int)(capacity/10000000), (int)(capacity/100000));
 
 		/* SOC scaling for stable max SOC and changed Cut-off */
 		/*Adj SOC = (FG SOC-Emply)/(Full-Empty)*100*/
@@ -450,7 +447,7 @@ static void max17048_polling_work(struct work_struct *work)
 #ifdef CONFIG_MACH_MSM8974_G2_KR
 	/* Report 0.42%(0x300) ~ 1% to 1% */
 	/* If Full and Emplty is changed, need to modify the value, 3 */
-		if(capacity == 0 && buf[0] >= 3){
+		if (capacity == 0 && buf[0] >= 3) {
 			printk(KERN_ERR "%s : buf[0] is %d, Do upscaling to 1%%\n"
 				, __func__, buf[0]);
 			capacity = 1;
@@ -463,17 +460,16 @@ static void max17048_polling_work(struct work_struct *work)
 	printk(KERN_ERR "%s : capacity : %d  / voltage : %d \n",
 			__func__, capacity, voltage);
 
-	if (8 < capacity){
+	if (8 < capacity) {
 		schedule_delayed_work(&chip->polling_work,
 				round_jiffies_relative(msecs_to_jiffies(
 					MAX17048_POLLING_PERIOD)));
 	}
-	if(3 < capacity && capacity < 8 ){	/*4%~7% 10sec polling*/
+	if (3 < capacity && capacity < 8) {	/*4%~7% 10sec polling*/
 		schedule_delayed_work(&chip->polling_work,
 			round_jiffies_relative(msecs_to_jiffies(
 				MAX17048_POLLING_PERIOD_7)));
-	}
-	else {					/*0%~3% 5sec polling*/
+	} else {							/*0%~3% 5sec polling*/
 		schedule_delayed_work(&chip->polling_work,
 			round_jiffies_relative(msecs_to_jiffies(
 				MAX17048_POLLING_PERIOD_3)));
@@ -481,7 +477,7 @@ static void max17048_polling_work(struct work_struct *work)
 	chip->capacity_level;
 	return ;
 }
-#endif //END OF max17048_polling_work
+#endif	/* END OF max17048_polling_work */
 
 static void max17048_work(struct work_struct *work)
 {
@@ -515,7 +511,7 @@ static void max17048_work(struct work_struct *work)
 
 #if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined (CONFIG_MACH_MSM8926_B2L_ATT) \
 	|| defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
-	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_BELL) || defined(CONFIG_MACH_MSM8926_JAGC_SPR)
 	max17048_get_ocv(chip->client);
 #endif
 	/* Update recently VCELL, SOC and CAPACITY */
@@ -526,7 +522,7 @@ static void max17048_work(struct work_struct *work)
 		__func__, chip->soc, chip->vcell);
 
 #ifdef CONFIG_LGE_PM
-	if ( (abs(chip->voltage - chip->lasttime_voltage) >= 50) ||
+	if ((abs(chip->voltage - chip->lasttime_voltage) >= 50) ||
 		chip->capacity_level != chip->lasttime_capacity_level) {
 		chip->lasttime_voltage = chip->voltage;
 		chip->lasttime_soc = chip->soc;
@@ -556,7 +552,7 @@ static void max17048_work(struct work_struct *work)
 #endif
 
 #ifdef CONFIG_MAX17048_LOW_POLLING
-	if(chip->capacity_level < 3) {
+	if (chip->capacity_level < 3) {
 		schedule_delayed_work(&chip->low_polling_work,
 			round_jiffies_relative(msecs_to_jiffies(
 				MAX17048_LOW_POLLING_PERIOD)));
@@ -565,7 +561,7 @@ static void max17048_work(struct work_struct *work)
 	}
 #endif
 
-#if 0 //def CONFIG_VZW_LLK
+#if 0	/* def CONFIG_VZW_LLK */
 	if (external_smb349_is_charger_present()) {
 		if (chip->capacity_level == 35) {
 			vzw_llk_smb349_enable_charging(0);
@@ -706,11 +702,11 @@ static int max17048_set_alsc_alert(struct i2c_client *client,
 	return 0;
 }
 
-static int max17048_set_rcomp(struct i2c_client *client,int rcomp)
+static int max17048_set_rcomp(struct i2c_client *client, int rcomp)
 {
 
 	struct max17048_chip *chip = i2c_get_clientdata(client);
-	int ret =0;
+	int ret = 0;
 
 	if (chip == NULL)
 		return -ENODEV;
@@ -729,16 +725,16 @@ int max17048_set_rcomp_by_temperature(struct i2c_client *client)
 	int startingRcomp;
 	int tempCoHot;
 	int tempCoCold;
-	int PreviousRcomp = 0, newRcomp =0;
+	int PreviousRcomp = 0, newRcomp = 0;
 	int temp;
-#if 1 // temp defined(CONFIG_MACH_MSM8974_VU3_KR) || defined(CONFIG_MACH_MSM8974_G2_KDDI)
+#if 1	/* temp defined(CONFIG_MACH_MSM8974_VU3_KR) || defined(CONFIG_MACH_MSM8974_G2_KDDI) */
 	union power_supply_propval ret = {0,};
 #endif
 	int rc;
 
 	struct max17048_chip *chip = i2c_get_clientdata(client);
 
-	if (ref == NULL ||chip==NULL)	/* if fuel gauge is not initialized, */
+	if (ref == NULL || chip == NULL)	/* if fuel gauge is not initialized, */
 		return -1;
 
 	else {
@@ -747,7 +743,7 @@ int max17048_set_rcomp_by_temperature(struct i2c_client *client)
 		tempCoCold = ref->model_data->temp_co_cold;
 	}
 
-#if 1 // temp  defined(CONFIG_MACH_MSM8974_VU3_KR) || defined(CONFIG_MACH_MSM8974_G2_KDDI)
+#if 1	/* temp  defined(CONFIG_MACH_MSM8974_VU3_KR) || defined(CONFIG_MACH_MSM8974_G2_KDDI) */
 	if (!chip->batt_psy) {
 		chip->batt_psy = power_supply_get_by_name("battery");
 
@@ -760,14 +756,14 @@ int max17048_set_rcomp_by_temperature(struct i2c_client *client)
 	chip->batt_psy->get_property(chip->batt_psy,
 			  POWER_SUPPLY_PROP_TEMP, &ret);
 
-	temp= ret.intval;
+	temp = ret.intval;
 
 #endif
 	temp /= 10;
 
 	/* Read RCOMP applied*/
 	PreviousRcomp = max17048_read_word(client, MAX17048_CONFIG);
-	PreviousRcomp =(PreviousRcomp& 0xFF00) >> 8;
+	PreviousRcomp = (PreviousRcomp & 0xFF00) >> 8;
 
 	if (PreviousRcomp < 0)
 		return PreviousRcomp;
@@ -786,12 +782,11 @@ int max17048_set_rcomp_by_temperature(struct i2c_client *client)
 		newRcomp = 0;
 
 	printk(KERN_ERR "%s : temp =%d, PreviousRcomp =0x%02X -> newRcomp = 0x%02X\n"
-		, __func__,temp,PreviousRcomp,newRcomp);
+		, __func__, temp, PreviousRcomp, newRcomp);
 
 	/* Write RCOMP */
-	if (newRcomp != PreviousRcomp)
-	{
-		rc = max17048_set_rcomp(chip->client,newRcomp);
+	if (newRcomp != PreviousRcomp) {
+		rc = max17048_set_rcomp(chip->client, newRcomp);
 		if (rc < 0)
 			pr_info("failed to write RCOMP\n");
 	}
@@ -862,7 +857,7 @@ ssize_t max17048_show_voltage(struct device *dev,
 		external_qpnp_enable_charging(1);
 
 #ifdef CONFIG_MAX17048_SOC_ALERT
-		max17048_clear_interrupt(ref->client);  
+		max17048_clear_interrupt(ref->client);
 		enable_irq(gpio_to_irq(ref->model_data->alert_gpio));
 #else
 		schedule_delayed_work(&ref->work, HZ);
@@ -908,7 +903,7 @@ ssize_t max17048_show_capacity(struct device *dev,
 
 
 #ifdef CONFIG_MAX17048_SOC_ALERT
-		max17048_clear_interrupt(ref->client); 
+		max17048_clear_interrupt(ref->client);
 		enable_irq(gpio_to_irq(ref->model_data->alert_gpio));
 #else
 		schedule_delayed_work(&ref->work, HZ);
@@ -1033,34 +1028,30 @@ static int max17048_parse_dt(struct device *dev,
 			&mdata->full_design);
 
 #if defined(CONFIG_MACH_MSM8974_G2_KR) || defined(CONFIG_MACH_MSM8974_VU3_KR)
-	if(cell_info == LGC_LLL){
-		rc = of_property_read_u32(dev_node, "max17048,empty_lgc",&mdata->empty);
+	if (cell_info == LGC_LLL) {
+		rc = of_property_read_u32(dev_node, "max17048,empty_lgc", &mdata->empty);
 		mdata->rcomp = 96;
 		mdata->temp_co_hot = 25;
 		mdata->temp_co_cold = 7400;
-	}
-	else if(cell_info == TCD_AAC) {
-		rc = of_property_read_u32(dev_node, "max17048,empty_tocad",&mdata->empty);
+	} else if (cell_info == TCD_AAC) {
+		rc = of_property_read_u32(dev_node, "max17048,empty_tocad", &mdata->empty);
 		mdata->rcomp = 44;
 		mdata->temp_co_hot = -275;
 		mdata->temp_co_cold = 5275;
-
 	}
 #elif defined(CONFIG_MACH_MSM8974_B1_KR)
-	if(cell_info == LGC_LLL) {
+	if (cell_info == LGC_LLL) {
 		mdata->rcomp = 93;
 		mdata->temp_co_hot = 0;
 		mdata->temp_co_cold = 5275;
-	}
-	else if(cell_info == TCD_AAC) {
+	} else if (cell_info == TCD_AAC) {
 		mdata->rcomp = 43;
 		mdata->temp_co_hot = 325;
 		mdata->temp_co_cold = 4875;
-
 	}
 #elif defined (CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) \
-	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
-	if(cell_info == LGC_LLL) {
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_BELL) || defined(CONFIG_MACH_MSM8926_JAGC_SPR)
+	if (cell_info == LGC_LLL) {
 		rc = of_property_read_u32(dev_node, "max17048,rcomp_l",
 				&mdata->rcomp);
 		rc = of_property_read_u32(dev_node, "max17048,temp_co_hot_l",
@@ -1069,8 +1060,7 @@ static int max17048_parse_dt(struct device *dev,
 				&mdata->temp_co_cold);
 		rc = of_property_read_u32(dev_node, "max17048,empty_l",
 			&mdata->empty);
-	}
-	else if(cell_info == TCD_AAC) {
+	} else if (cell_info == TCD_AAC) {
 		rc = of_property_read_u32(dev_node, "max17048,rcomp_d",
 				&mdata->rcomp);
 		rc = of_property_read_u32(dev_node, "max17048,temp_co_hot_d",
@@ -1103,7 +1093,7 @@ static int max17048_parse_dt(struct device *dev,
 		mdata->full_design);
 #if defined(CONFIG_MACH_MSM8974_G2_KR) || defined(CONFIG_MACH_MSM8974_VU3_KR) || defined(CONFIG_MACH_MSM8926_B2L_ATT) \
 	|| defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_RGS) \
-	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_BELL) || defined(CONFIG_MACH_MSM8926_JAGC_SPR)
 	printk(KERN_INFO "[MAX17048] platform data : "\
 		"max17048,empty = %d\n",
 		mdata->empty);
@@ -1121,7 +1111,7 @@ static int __devinit max17048_probe(struct i2c_client *client,
 #ifdef CONFIG_LGE_PM
 	struct max17048_battery_model *mdata;
 	hw_rev_type rev;
-	int rc=0;
+	int rc = 0;
 #endif
 	int ret = 0;
 	uint16_t version;
@@ -1130,23 +1120,20 @@ static int __devinit max17048_probe(struct i2c_client *client,
 	unsigned int *batt_id = (unsigned int *)
 		(smem_get_entry(SMEM_BATT_INFO, &smem_size));
 
-	if (smem_size != 0 && batt_id){
-		if(*batt_id == BATT_NOT_PRESENT) {
+	if (smem_size != 0 && batt_id) {
+		if (*batt_id == BATT_NOT_PRESENT) {
 			printk(KERN_INFO "[MAX17048] probe : skip for no model data\n");
 			ref = NULL;
 			return 0;
 		}
-
 #if defined(CONFIG_MACH_MSM8974_G2_KR) || defined(CONFIG_MACH_MSM8974_VU3_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) \
 	|| defined (CONFIG_MACH_MSM8926_B2L_ATT) || defined (CONFIG_MACH_MSM8926_B2LN_KR) || defined (CONFIG_MACH_MSM8926_JAGNM_ATT) \
-	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
-		else if(*batt_id == BATT_DS2704_L || *batt_id == BATT_ISL6296_C){
+	|| defined(CONFIG_MACH_MSM8926_JAGNM_RGS) || defined(CONFIG_MACH_MSM8926_JAGNM_TLS) || defined(CONFIG_MACH_MSM8926_JAGNM_VTR) || defined(CONFIG_MACH_MSM8926_JAGNM_BELL) || defined(CONFIG_MACH_MSM8926_JAGC_SPR)
+		else if (*batt_id == BATT_DS2704_L || *batt_id == BATT_ISL6296_C) {
 			cell_info = LGC_LLL; /* LGC Battery */
-		}
-		else if(*batt_id == BATT_DS2704_C || *batt_id == BATT_ISL6296_L){
+		} else if (*batt_id == BATT_DS2704_C || *batt_id == BATT_ISL6296_L) {
 			cell_info = TCD_AAC; /*Sanyo Tocad Battery */
-		}
-		else{
+		} else {
 			printk(KERN_INFO "[MAX17048] probe : Unknown cell, Using LGC profile\n");
 			cell_info = LGC_LLL;
 		}
@@ -1342,7 +1329,7 @@ static int __devinit max17048_probe(struct i2c_client *client,
 	rc = power_supply_register(&chip->client->dev, &chip->battery);
 	if (rc < 0) {
 			pr_err("[2222]batt failed to register rc = %d\n", rc);
-	}	
+	}
 #endif
 	printk(KERN_ERR "[MAX17048] probe : DONE\n");
 	return 0;
@@ -1436,7 +1423,7 @@ static int max17048_resume(struct i2c_client *client)
 		return 0;
 
 #ifdef CONFIG_MAX17048_POLLING
-	schedule_delayed_work(&ref->polling_work,MAX17048_POLLING_PERIOD);
+	schedule_delayed_work(&ref->polling_work, MAX17048_POLLING_PERIOD);
 #endif
 
 #ifndef CONFIG_MAX17048_SOC_ALERT

@@ -89,7 +89,8 @@ static Device_drv device_fc8080 = {
 	&broadcast_fc8080_drv_if_get_msc,
 	&broadcast_fc8080_drv_if_reset_ch,
 	&broadcast_fc8080_drv_if_user_stop,
-	&broadcast_fc8080_drv_if_select_antenna
+	&broadcast_fc8080_drv_if_select_antenna,
+	&broadcast_fc8080_drv_if_is_on
 };
 
 #if 0
@@ -198,7 +199,8 @@ int tdmb_fc8080_tdmb_is_on(void)
 /* EXPORT_SYMBOL() : when we use external symbol
 which is not included in current module - over kernel 2.6 */
 //EXPORT_SYMBOL(tdmb_fc8080_tdmb_is_on);
-
+/*[BCAST002][S] 20140804 seongeun.jin - modify chip init check timing issue on BLT*/
+#ifdef FEATURE_POWER_ON_RETRY
 int tdmb_fc8080_power_on_retry(void)
 {
 	int res;
@@ -246,7 +248,8 @@ int tdmb_fc8080_power_on_retry(void)
 
 	return res;
 }
-
+#endif
+/*[BCAST002][E]*/
 int tdmb_fc8080_power_on(void)
 {
 	int rc = FALSE;
@@ -361,7 +364,7 @@ static struct of_device_id tdmb_spi_table[] = {
 
 static struct spi_driver broadcast_tdmb_driver = {
 	.probe = broadcast_tdmb_fc8080_probe,
-	.remove	= __devexit_p(broadcast_tdmb_fc8080_remove),
+	.remove	= __broadcast_dev_exit_p(broadcast_tdmb_fc8080_remove),
 	.suspend = broadcast_tdmb_fc8080_suspend,
 	.resume  = broadcast_tdmb_fc8080_resume,
 	.driver = {
@@ -410,7 +413,7 @@ int tdmb_fc8080_spi_write_read(uint8* tx_data, int tx_length, uint8 *rx_data, in
 
 	if (fc8080_ctrl_info.spi_ptr == NULL)
 	{
-		printk("tdmb_fc8080_spi_write_read error txdata=0x%x, length=%d\n", (unsigned int)tx_data, tx_length+rx_length);
+		printk("tdmb_fc8080_spi_write_read error txdata=0x%x, length=%d\n", (UDynamic_32_64)tx_data, tx_length+rx_length);
 		return FALSE;
 	}
 
@@ -682,7 +685,7 @@ static int broadcast_tdmb_fc8080_check_chip_id(void)
 	return rc;
 }
 #endif
-int __devinit broadcast_tdmb_fc8080_drv_init(void)
+int __broadcast_dev_init broadcast_tdmb_fc8080_drv_init(void)
 {
 	int rc;
 

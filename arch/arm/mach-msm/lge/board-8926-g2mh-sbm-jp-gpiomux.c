@@ -484,7 +484,7 @@ static struct msm_gpiomux_config gpio_func_reserved_pin_config __initdata = {
 //Need to set GPIO[021] NFC_IRQ
 //Need to set GPIO[022] NFC_MODE
 /*                                                        */
-#ifdef CONFIG_LGE_NFC_PN547_C2
+#ifdef CONFIG_LGE_NFC_PN547
 static struct gpiomux_setting nfc_pn547_sda_cfg = {
 	.func = GPIOMUX_FUNC_3,
 	.drv = GPIOMUX_DRV_8MA,
@@ -787,7 +787,7 @@ void __init msm8226_init_gpiomux(void)
 
 
 /*                                                       */
-#ifdef CONFIG_LGE_NFC_PN547_C2
+#ifdef CONFIG_LGE_NFC_PN547
 	msm_gpiomux_install(msm_nfc_configs, ARRAY_SIZE(msm_nfc_configs));
 #endif
 /*                                                       */

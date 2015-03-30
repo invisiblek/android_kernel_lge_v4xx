@@ -31,6 +31,8 @@
 #define T100_AREA_W_H_IN_2BYTES
 #endif
 
+#define MXT_FACTORY
+
 #define MXT_FW_MAGIC			0x4D3C2B1A
 
 #define REF_OFFSET_VALUE		16384
@@ -142,6 +144,13 @@
 #define MXT_POWER_CFG_RUN		0
 #define MXT_POWER_CFG_DEEPSLEEP		1
 
+/* MXT_GEN_COMMAND_T8 field */
+#define MXT_T8_TCHAUTOCAL		4
+#define MXT_T8_ATCHCALST		6
+#define MXT_T8_ATCHCALSTHR		7
+#define MXT_T8_ATCHFRCCALTHR	8
+#define MXT_T8_ATCHFRCCALRATIO	9
+
 /* MXT_TOUCH_MULTI_T9 field */
 #define MXT_T9_ORIENT		9
 #define MXT_T9_RANGE		18
@@ -180,6 +189,10 @@
 
 /* T47 Stylus */
 #define MXT_TOUCH_MAJOR_T47_STYLUS	1
+
+/* T72 NOISE SUPPRESSION */
+#define MXT_T72_VNOI	0x42	/* Very noisy state Touch & No Touch Byte: 66 ~ 75 */
+
 /* T100 Multiple Touch Touchscreen */
 #define MXT_T100_CTRL		0
 #define MXT_T100_CFG1		1
@@ -203,10 +216,13 @@
 #define MXT_T100_TYPE_GLOVE		0x50
 #define MXT_T100_TYPE_PALM		0x60
 #define MXT_T100_STATUS_MASK	0x0F
+#define MXT_T100_NOEVENT	0x00
 #define MXT_T100_PRESS		0x04
 #define MXT_T100_RELEASE	0x05
 #define MXT_T100_MOVE		0x01
-#define MXT_T100_SUPPRESSION		0x03
+#define MXT_T100_SUPPRESSION	0x03
+
+#define MXT_T100_JUMPLIMIT	0x2B
 
 #ifdef T100_AREA_W_H_IN_2BYTES
 #define MXT_T100_AREA_MASK			0x3F
@@ -272,6 +288,10 @@
 #define NOCHARGER_KNOCKON_WAKEUP	6
 
 #define PATCH_EVENT_PAIR_NUM 4
+
+#define PATCH_EVENT_AAT	11
+#define CHARGER_PLUGGED_AAT			12
+
 #else
 /* patch Event */
 #define CHARGER_PLUGGED             0
@@ -747,6 +767,9 @@ struct mxt_data {
 	u8 T100_reportid_min;
 	u8 T100_reportid_max;
 //641t porting E
+
+	u16 T80_address;
+	u8 T80_reportid;
 
 	struct mxt_channel_size channel_size;
 	struct mxt_ref_limit ref_limit;

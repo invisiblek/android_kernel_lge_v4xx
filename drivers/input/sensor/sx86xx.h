@@ -71,6 +71,10 @@ struct sx86XX
     bool inStartupTouch;
 
     struct wake_lock capsensor_wake_lock;
+
+#ifdef USE_COMMON_SYSFS
+	struct kobject	lge_cap_kobj;
+#endif
 };
 
 void sx86XX_process_interrupt(struct sx86XX *this,u8 nirqlow);

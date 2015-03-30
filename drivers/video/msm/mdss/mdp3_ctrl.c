@@ -53,7 +53,7 @@ static void mdp3_bufq_deinit(struct mdp3_buffer_queue *bufq)
 	if (!count)
 		return;
 
-	while (count--) {
+	while (count-- && (bufq->pop_idx >= 0)) {
 		struct mdp3_img_data *data = &bufq->img_data[bufq->pop_idx];
 		bufq->pop_idx = (bufq->pop_idx + 1) % MDP3_MAX_BUF_QUEUE;
 		mdp3_put_img(data, MDP3_CLIENT_DMA_P);
@@ -114,6 +114,7 @@ int mdp3_ctrl_notify(struct mdp3_session_data *ses, int event)
 static void mdp3_dispatch_dma_done(struct work_struct *work)
 {
 	struct mdp3_session_data *session;
+	int cnt = 0;
 
 	pr_debug("%s\n", __func__);
 	session = container_of(work, struct mdp3_session_data,
@@ -121,7 +122,13 @@ static void mdp3_dispatch_dma_done(struct work_struct *work)
 	if (!session)
 		return;
 
-	mdp3_ctrl_notify(session, MDP_NOTIFY_FRAME_DONE);
+	cnt = atomic_read(&session->dma_done_cnt);
+
+	while (cnt > 0) {
+		mdp3_ctrl_notify(session, MDP_NOTIFY_FRAME_DONE);
+		atomic_dec(&session->dma_done_cnt);
+		cnt--;
+	}
 }
 
 static void mdp3_dispatch_clk_off(struct work_struct *work)
@@ -157,7 +164,9 @@ void vsync_notify_handler(void *arg)
 void dma_done_notify_handler(void *arg)
 {
 	struct mdp3_session_data *session = (struct mdp3_session_data *)arg;
+	atomic_inc(&session->dma_done_cnt);
 	schedule_work(&session->dma_done_work);
+	complete(&session->dma_completion);
 }
 
 void vsync_count_down(void *arg)
@@ -297,7 +306,7 @@ static ssize_t mdp3_vsync_show_event(struct device *dev,
 	vsync_ticks = ktime_to_ns(mdp3_session->vsync_time);
 
 	pr_debug("fb%d vsync=%llu", mfd->index, vsync_ticks);
-	rc = scnprintf(buf, PAGE_SIZE, "VSYNC=%llu", vsync_ticks);
+	rc = scnprintf(buf, PAGE_SIZE, "VSYNC=%llu\n", vsync_ticks);
 	return rc;
 }
 
@@ -330,7 +339,7 @@ static int mdp3_ctrl_clk_enable(struct msm_fb_data_type *mfd, int enable)
 				(!enable && session->clk_on == 1)) {
 		rc = panel->event_handler(panel,
 			MDSS_EVENT_PANEL_CLK_CTRL, (void *)enable);
-		rc |= mdp3_clk_enable(enable, 1);
+		rc |= mdp3_res_update(enable, 1, MDP3_CLIENT_DMA_P);
 	} else {
 		pr_debug("enable = %d, clk_on=%d\n", enable, session->clk_on);
 	}
@@ -348,8 +357,8 @@ static int mdp3_ctrl_res_req_bus(struct msm_fb_data_type *mfd, int status)
 		int ib = 0x7FFFFFFF;
 #else
 		struct mdss_panel_info *panel_info = mfd->panel_info;
-		int ab = 0;
-		int ib = 0;
+		u64 ab = 0;
+		u64 ib = 0;
 		ab = panel_info->xres * panel_info->yres * 4;
 		ab *= panel_info->mipi.frame_rate;
 		ib = (ab * 5) / 2;
@@ -371,24 +380,15 @@ static int mdp3_ctrl_res_req_clk(struct msm_fb_data_type *mfd, int status)
 		mdp3_clk_set_rate(MDP3_CLK_VSYNC, MDP_VSYNC_CLK_RATE,
 				MDP3_CLIENT_DMA_P);
 
-		rc = mdp3_clk_prepare();
-		if (rc) {
-			pr_err("mdp3 clk prepare fail\n");
-			return rc;
-		}
-
-		rc = mdp3_clk_enable(1, 1);
+		rc = mdp3_res_update(1, 1, MDP3_CLIENT_DMA_P);
 		if (rc) {
 			pr_err("mdp3 clk enable fail\n");
-			mdp3_clk_unprepare();
 			return rc;
 		}
 	} else {
-		rc = mdp3_clk_enable(0, 1);
+		rc = mdp3_res_update(0, 1, MDP3_CLIENT_DMA_P);
 		if (rc)
 			pr_err("mdp3 clk disable fail\n");
-		else
-			mdp3_clk_unprepare();
 	}
 	return rc;
 }
@@ -432,10 +432,10 @@ static int mdp3_ctrl_get_source_format(u32 imgType)
 	return format;
 }
 
-static int mdp3_ctrl_get_pack_pattern(struct msm_fb_data_type *mfd)
+static int mdp3_ctrl_get_pack_pattern(u32 imgType)
 {
 	int packPattern = MDP3_DMA_OUTPUT_PACK_PATTERN_RGB;
-	if (mfd->fb_imgType == MDP_RGBA_8888)
+	if (imgType == MDP_RGBA_8888)
 		packPattern = MDP3_DMA_OUTPUT_PACK_PATTERN_BGR;
 	return packPattern;
 }
@@ -483,6 +483,7 @@ static int mdp3_ctrl_intf_init(struct msm_fb_data_type *mfd,
 		video->hsync_polarity = 1;
 		video->vsync_polarity = 1;
 		video->de_polarity = 1;
+		video->underflow_color = p->lcdc.underflow_clr;
 	} else if (cfg.type == MDP3_DMA_OUTPUT_SEL_DSI_CMD) {
 		cfg.dsi_cmd.primary_dsi_cmd_id = 0;
 		cfg.dsi_cmd.secondary_dsi_cmd_id = 1;
@@ -511,6 +512,7 @@ static int mdp3_ctrl_dma_init(struct msm_fb_data_type *mfd,
 	int vbp, vfp, vspw;
 	int vtotal, vporch;
 	struct mdp3_notification dma_done_callback;
+	struct mdp3_tear_check te;
 
 	vbp = panel_info->lcdc.v_back_porch;
 	vfp = panel_info->lcdc.v_front_porch;
@@ -536,11 +538,22 @@ static int mdp3_ctrl_dma_init(struct msm_fb_data_type *mfd,
 	outputConfig.out_sel = mdp3_ctrl_get_intf_type(mfd);
 	outputConfig.bit_mask_polarity = 0;
 	outputConfig.color_components_flip = 0;
-	outputConfig.pack_pattern = mdp3_ctrl_get_pack_pattern(mfd);
+	outputConfig.pack_pattern = mdp3_ctrl_get_pack_pattern(mfd->fb_imgType);
 	outputConfig.pack_align = MDP3_DMA_OUTPUT_PACK_ALIGN_LSB;
 	outputConfig.color_comp_out_bits = (MDP3_DMA_OUTPUT_COMP_BITS_8 << 4) |
 					(MDP3_DMA_OUTPUT_COMP_BITS_8 << 2)|
 					MDP3_DMA_OUTPUT_COMP_BITS_8;
+
+	te.frame_rate = panel_info->mipi.frame_rate;
+	te.hw_vsync_mode = panel_info->mipi.hw_vsync_mode;
+	te.tear_check_en = panel_info->te.tear_check_en;
+	te.sync_cfg_height = panel_info->te.sync_cfg_height;
+	te.vsync_init_val = panel_info->te.vsync_init_val;
+	te.sync_threshold_start = panel_info->te.sync_threshold_start;
+	te.sync_threshold_continue = panel_info->te.sync_threshold_continue;
+	te.start_pos = panel_info->te.start_pos;
+	te.rd_ptr_irq = panel_info->te.rd_ptr_irq;
+	te.refx100 = panel_info->te.refx100;
 
 	if (dma->dma_config)
 		rc = dma->dma_config(dma, &sourceConfig, &outputConfig);
@@ -548,6 +561,11 @@ static int mdp3_ctrl_dma_init(struct msm_fb_data_type *mfd,
 		rc = -EINVAL;
 
 	if (outputConfig.out_sel == MDP3_DMA_OUTPUT_SEL_DSI_CMD) {
+		if (dma->dma_sync_config)
+			rc = dma->dma_sync_config(dma,
+					&sourceConfig, &te);
+		else
+			rc = -EINVAL;
 		dma_done_callback.handler = dma_done_notify_handler;
 		dma_done_callback.arg = mfd->mdp.private1;
 		dma->dma_done_notifier(dma, &dma_done_callback);
@@ -580,15 +598,9 @@ static int mdp3_ctrl_on(struct msm_fb_data_type *mfd)
 		goto on_error;
 	}
 
-	mdp3_batfet_ctrl(true);
+	mdp3_enable_regulator(true);
 	mdp3_ctrl_notifier_register(mdp3_session,
 		&mdp3_session->mfd->mdp_sync_pt_data.notifier);
-
-	rc = mdp3_iommu_enable(MDP3_CLIENT_DMA_P);
-	if (rc) {
-		pr_err("fail to attach MDP DMA SMMU\n");
-		goto on_error;
-	}
 
 	/* request bus bandwidth before DSI DMA traffic */
 	rc = mdp3_ctrl_res_req_bus(mfd, 1);
@@ -612,8 +624,6 @@ static int mdp3_ctrl_on(struct msm_fb_data_type *mfd)
 		goto on_error;
 	}
 
-	mdp3_irq_register();
-
 	rc = mdp3_ctrl_dma_init(mfd, mdp3_session->dma);
 	if (rc) {
 		pr_err("dma init failed\n");
@@ -631,7 +641,6 @@ static int mdp3_ctrl_on(struct msm_fb_data_type *mfd)
 		pr_err("display interface init failed\n");
 		goto on_error;
 	}
-
 	mdp3_session->clk_on = 1;
 
 	mdp3_session->first_commit = true;
@@ -660,6 +669,9 @@ static int mdp3_ctrl_off(struct msm_fb_data_type *mfd)
 	panel = mdp3_session->panel;
 	mutex_lock(&mdp3_session->lock);
 
+	if (panel && panel->set_backlight)
+		panel->set_backlight(panel, 0);
+
 	if (!mdp3_session->status) {
 		pr_debug("fb%d is off already", mfd->index);
 		goto off_error;
@@ -676,10 +688,6 @@ static int mdp3_ctrl_off(struct msm_fb_data_type *mfd)
 
 	mdp3_histogram_stop(mdp3_session, MDP_BLOCK_DMA_P);
 
-	rc = mdp3_session->dma->stop(mdp3_session->dma, mdp3_session->intf);
-	if (rc)
-		pr_debug("fail to stop the MDP3 dma\n");
-
 #if !defined(CONFIG_MACH_MSM8X10_L70P)
 	if (panel->event_handler)
 		rc = panel->event_handler(panel, MDSS_EVENT_PANEL_OFF, NULL);
@@ -687,11 +695,16 @@ static int mdp3_ctrl_off(struct msm_fb_data_type *mfd)
 		pr_err("fail to turn off the panel\n");
 #endif
 
+	rc = mdp3_session->dma->stop(mdp3_session->dma, mdp3_session->intf);
+	if (rc)
+		pr_debug("fail to stop the MDP3 dma\n");
+	msleep(20);
+
 	mdp3_irq_deregister();
 
 	pr_debug("mdp3_ctrl_off stop clock\n");
 	if (mdp3_session->clk_on) {
-		rc = mdp3_clk_enable(0, 1);
+		rc = mdp3_res_update(0, 1, MDP3_CLIENT_DMA_P);
 		if (rc)
 			pr_err("mdp clock resource release failed\n");
 
@@ -702,29 +715,23 @@ static int mdp3_ctrl_off(struct msm_fb_data_type *mfd)
 		if (rc)
 			pr_err("fail to turn off the panel\n");
 	}
-	mdp3_clk_unprepare();
-
-	pr_debug("mdp3_ctrl_off release bus\n");
-	rc = mdp3_ctrl_res_req_bus(mfd, 0);
-	if (rc)
-		pr_err("mdp bus resource release failed\n");
-
-	rc = mdp3_iommu_disable(MDP3_CLIENT_DMA_P);
-	if (rc)
-		pr_err("fail to dettach MDP DMA SMMU\n");
 
 	mdp3_ctrl_notifier_unregister(mdp3_session,
 		&mdp3_session->mfd->mdp_sync_pt_data.notifier);
-	mdp3_batfet_ctrl(false);
+	mdp3_enable_regulator(false);
 	mdp3_session->vsync_enabled = 0;
 	atomic_set(&mdp3_session->vsync_countdown, 0);
+	atomic_set(&mdp3_session->dma_done_cnt, 0);
 	mdp3_session->clk_on = 0;
+	mdp3_session->in_splash_screen = 0;
 off_error:
 	mdp3_session->status = 0;
-	mdp3_bufq_deinit(&mdp3_session->bufq_out);
-	if (mdp3_session->overlay.id != MSMFB_NEW_REQUEST) {
-		mdp3_session->overlay.id = MSMFB_NEW_REQUEST;
-		mdp3_bufq_deinit(&mdp3_session->bufq_in);
+	if (!panel->panel_info.dynamic_switch_pending) {
+		mdp3_bufq_deinit(&mdp3_session->bufq_out);
+		if (mdp3_session->overlay.id != MSMFB_NEW_REQUEST) {
+			mdp3_session->overlay.id = MSMFB_NEW_REQUEST;
+			mdp3_bufq_deinit(&mdp3_session->bufq_in);
+		}
 	}
 	mutex_unlock(&mdp3_session->lock);
 	return 0;
@@ -771,6 +778,7 @@ static int mdp3_ctrl_reset_cmd(struct msm_fb_data_type *mfd)
 		mdp3_dma->vsync_enable(mdp3_dma, &vsync_client);
 
 	mdp3_session->first_commit = true;
+	mdp3_session->in_splash_screen = 0;
 
 reset_error:
 	mutex_unlock(&mdp3_session->lock);
@@ -806,15 +814,15 @@ static int mdp3_ctrl_reset(struct msm_fb_data_type *mfd)
 	if (panel && panel->set_backlight)
 		panel->set_backlight(panel, 0);
 
-	rc = mdp3_dma->stop(mdp3_dma, mdp3_session->intf);
-	if (rc) {
-		pr_err("fail to stop the MDP3 dma\n");
-		goto reset_error;
-	}
-
 	rc = panel->event_handler(panel, MDSS_EVENT_PANEL_OFF, NULL);
 	if (rc)
 		pr_err("fail to turn off panel\n");
+
+	rc = mdp3_dma->stop(mdp3_dma, mdp3_session->intf);
+	if (rc) {
+		pr_err("fail to stop the MDP3 dma %d\n", rc);
+		goto reset_error;
+	}
 
 	rc = mdp3_put_mdp_dsi_clk();
 	if (rc) {
@@ -859,15 +867,15 @@ static int mdp3_ctrl_reset(struct msm_fb_data_type *mfd)
 		mdp3_dma->vsync_enable(mdp3_dma, &vsync_client);
 
 #if defined(CONFIG_MACH_MSM8X10_L70P)
-	if(mfd->panel_power_on)
-	{
-		printk(KERN_INFO"[%s][%d][touch] mdp reset ======",__func__,__LINE__);
-		gpio_set_value(0,0);
+	if (mfd->panel_power_on) {
+		printk(KERN_INFO"[%s][%d][touch] mdp reset ======", __func__, __LINE__);
+		gpio_set_value(0, 0);
 		mdelay(200);
-		gpio_set_value(0,1);
+		gpio_set_value(0, 1);
 	}
 #endif
 	mdp3_session->first_commit = true;
+	mdp3_session->in_splash_screen = 0;
 
 reset_error:
 	mutex_unlock(&mdp3_session->lock);
@@ -896,7 +904,7 @@ static int mdp3_overlay_get(struct msm_fb_data_type *mfd,
 /* At booting up, Between LG Logo and Operation Animation showing, abnormal LG Logo is appearing one time.
 Because LG Logo image format is RGB888, Android side image format is RGBA8888, both Image formats are mismatched.
 So, We add the code to change MDP_RGBA_8888 to MDP_RGB_888 when is_done_drawing_logo is not "1".
-is_done_drawing_logo is set to 1 at mdss_dsi_panel_off. 
+is_done_drawing_logo is set to 1 at mdss_dsi_panel_off.
 */
 extern char is_done_drawing_logo;
 #endif
@@ -918,7 +926,7 @@ static int mdp3_overlay_set(struct msm_fb_data_type *mfd,
 /* At booting up, Between LG Logo and Operation Animation showing, abnormal LG Logo is appearing one time.
 Because LG Logo image format is RGB888, Android side image format is RGBA8888, both Image formats are mismatched.
 So, We add the code to change MDP_RGBA_8888 to MDP_RGB_888 when is_done_drawing_logo is not "1".
-is_done_drawing_logo is set to 1 at mdss_dsi_panel_off. 
+is_done_drawing_logo is set to 1 at mdss_dsi_panel_off.
 */
 	if (!is_done_drawing_logo) {
 		req->src.format = MDP_RGB_888;
@@ -936,16 +944,12 @@ is_done_drawing_logo is set to 1 at mdss_dsi_panel_off.
 	mdp3_session->overlay = *req;
 	if (req->id == MSMFB_NEW_REQUEST) {
 		if (dma->source_config.stride != stride ||
-				dma->source_config.width != req->src.width ||
-				dma->source_config.height != req->src.height ||
 				dma->source_config.format != format) {
-			dma->source_config.width = req->src.width;
-			dma->source_config.height = req->src.height,
 			dma->source_config.format = format;
 			dma->source_config.stride = stride;
-			mdp3_clk_enable(1, 0);
-			mdp3_session->dma->dma_config_source(dma);
-			mdp3_clk_enable(0, 0);
+			dma->output_config.pack_pattern =
+				mdp3_ctrl_get_pack_pattern(req->src.format);
+			dma->update_src_cfg = true;
 		}
 		mdp3_session->overlay.id = 1;
 		req->id = 1;
@@ -962,7 +966,6 @@ static int mdp3_overlay_unset(struct msm_fb_data_type *mfd, int ndx)
 	struct mdp3_session_data *mdp3_session = mfd->mdp.private1;
 	struct fb_info *fbi = mfd->fbi;
 	struct fb_fix_screeninfo *fix;
-	struct mdss_panel_info *panel_info = mfd->panel_info;
 	int format;
 
 	fix = &fbi->fix;
@@ -970,14 +973,6 @@ static int mdp3_overlay_unset(struct msm_fb_data_type *mfd, int ndx)
 	mutex_lock(&mdp3_session->lock);
 
 	if (mdp3_session->overlay.id == ndx && ndx == 1) {
-		struct mdp3_dma *dma = mdp3_session->dma;
-		dma->source_config.width = panel_info->xres,
-		dma->source_config.height = panel_info->yres,
-		dma->source_config.format = format;
-		dma->source_config.stride = fix->line_length;
-		mdp3_clk_enable(1, 0);
-		mdp3_session->dma->dma_config_source(dma);
-		mdp3_clk_enable(0, 0);
 		mdp3_session->overlay.id = MSMFB_NEW_REQUEST;
 		mdp3_bufq_deinit(&mdp3_session->bufq_in);
 	} else {
@@ -1038,7 +1033,7 @@ static int mdp3_ctrl_display_commit_kickoff(struct msm_fb_data_type *mfd,
 {
 	struct mdp3_session_data *mdp3_session;
 	struct mdp3_img_data *data;
-	struct mdss_panel_info *panel_info = mfd->panel_info;
+	struct mdss_panel_info *panel_info;
 	int rc = 0;
 	bool reset_done = false;
 	struct mdss_panel_data *panel;
@@ -1046,6 +1041,7 @@ static int mdp3_ctrl_display_commit_kickoff(struct msm_fb_data_type *mfd,
 	if (!mfd || !mfd->mdp.private1)
 		return -EINVAL;
 
+	panel_info = mfd->panel_info;
 	mdp3_session = mfd->mdp.private1;
 	if (!mdp3_session || !mdp3_session->dma)
 		return -EINVAL;
@@ -1056,9 +1052,13 @@ static int mdp3_ctrl_display_commit_kickoff(struct msm_fb_data_type *mfd,
 	}
 
 	panel = mdp3_session->panel;
-	if (!mdp3_iommu_is_attached(MDP3_CLIENT_DMA_P)) {
+	if (mdp3_session->in_splash_screen) {
 		pr_debug("continuous splash screen, IOMMU not attached\n");
-		mdp3_ctrl_reset(mfd);
+		rc = mdp3_ctrl_reset(mfd);
+		if (rc) {
+			pr_err("fail to reset display\n");
+			return -EINVAL;
+		}
 		reset_done = true;
 	}
 
@@ -1089,7 +1089,8 @@ static int mdp3_ctrl_display_commit_kickoff(struct msm_fb_data_type *mfd,
 					MDP_NOTIFY_FRAME_DONE);
 			}
 		}
-
+		mdp3_session->dma_active = 1;
+		init_completion(&mdp3_session->dma_completion);
 		mdp3_ctrl_notify(mdp3_session, MDP_NOTIFY_FRAME_FLUSHED);
 		mdp3_bufq_push(&mdp3_session->bufq_out, data);
 	}
@@ -1097,7 +1098,8 @@ static int mdp3_ctrl_display_commit_kickoff(struct msm_fb_data_type *mfd,
 	if (mdp3_bufq_count(&mdp3_session->bufq_out) > 1) {
 		mdp3_release_splash_memory(mfd);
 		data = mdp3_bufq_pop(&mdp3_session->bufq_out);
-		mdp3_put_img(data, MDP3_CLIENT_DMA_P);
+		if (data)
+			mdp3_put_img(data, MDP3_CLIENT_DMA_P);
 	}
 
 	if (mdp3_session->first_commit) {
@@ -1106,10 +1108,10 @@ static int mdp3_ctrl_display_commit_kickoff(struct msm_fb_data_type *mfd,
 		mdp3_session->first_commit = false;
 	}
 
-        mdp3_session->vsync_before_commit = 0;
-	if (reset_done && (panel && panel->set_backlight)){
+	mdp3_session->vsync_before_commit = 0;
+	if (reset_done && (panel && panel->set_backlight)) {
 #if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT) || defined(CONFIG_MACH_MSM8X10_L70P)
-        msleep(1);
+		msleep(1);
 #endif
 		panel->set_backlight(panel, panel->panel_info.bl_max);
 	}
@@ -1127,8 +1129,8 @@ static void mdp3_ctrl_pan_display(struct msm_fb_data_type *mfd)
 	struct mdp3_session_data *mdp3_session;
 	u32 offset;
 	int bpp;
-	struct mdss_panel_info *panel_info = mfd->panel_info;
-        int rc;
+	struct mdss_panel_info *panel_info;
+	int rc;
 
 #if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT) || defined(CONFIG_MACH_MSM8X10_W5) || defined(CONFIG_MACH_MSM8X10_W6) || defined(CONFIG_MACH_MSM8X10_L70P)
 	bool reset_done = false;
@@ -1139,6 +1141,7 @@ static void mdp3_ctrl_pan_display(struct msm_fb_data_type *mfd)
 	if (!mfd || !mfd->mdp.private1)
 		return;
 
+	panel_info = mfd->panel_info;
 	mdp3_session = (struct mdp3_session_data *)mfd->mdp.private1;
 	if (!mdp3_session || !mdp3_session->dma)
 		return;
@@ -1146,12 +1149,16 @@ static void mdp3_ctrl_pan_display(struct msm_fb_data_type *mfd)
 #if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT) || defined(CONFIG_MACH_MSM8X10_W5) || defined(CONFIG_MACH_MSM8X10_W6) || defined(CONFIG_MACH_MSM8X10_L70P)
 	panel = mdp3_session->panel;
 #endif
-	if (!mdp3_iommu_is_attached(MDP3_CLIENT_DMA_P)) {
+	if (mdp3_session->in_splash_screen) {
 		pr_debug("continuous splash screen, IOMMU not attached\n");
-		mdp3_ctrl_reset(mfd);
+		rc = mdp3_ctrl_reset(mfd);
+		if (rc) {
+			pr_err("fail to reset display\n");
+			return;
 #if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT) || defined(CONFIG_MACH_MSM8X10_W5) || defined(CONFIG_MACH_MSM8X10_W6) || defined(CONFIG_MACH_MSM8X10_L70P)
 		reset_done = true;
 #endif
+		}
 	}
 
 	mutex_lock(&mdp3_session->lock);
@@ -1191,6 +1198,8 @@ static void mdp3_ctrl_pan_display(struct msm_fb_data_type *mfd)
 					MDP_NOTIFY_FRAME_DONE);
 			}
 		}
+		mdp3_session->dma_active = 1;
+		init_completion(&mdp3_session->dma_completion);
 		mdp3_ctrl_notify(mdp3_session, MDP_NOTIFY_FRAME_FLUSHED);
 	} else {
 		pr_debug("mdp3_ctrl_pan_display no memory, stop interface");
@@ -1205,8 +1214,8 @@ static void mdp3_ctrl_pan_display(struct msm_fb_data_type *mfd)
 		mdp3_session->first_commit = false;
 	}
 
-	#if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT) || defined(CONFIG_MACH_MSM8X10_W5) || defined(CONFIG_MACH_MSM8X10_W6) || defined(CONFIG_MACH_MSM8X10_L70P)
-	if (reset_done && (panel && panel->set_backlight)){
+#if defined(CONFIG_FB_MSM_MIPI_TIANMA_CMD_HVGA_PT) || defined(CONFIG_MACH_MSM8X10_W5) || defined(CONFIG_MACH_MSM8X10_W6) || defined(CONFIG_MACH_MSM8X10_L70P)
+	if (reset_done && (panel && panel->set_backlight)) {
 		panel->set_backlight(panel, panel->panel_info.bl_max);
     }
 #endif
@@ -1343,7 +1352,7 @@ static int mdp3_histogram_start(struct mdp3_session_data *session,
 		return -EBUSY;
 	}
 
-	mdp3_clk_enable(1, 0);
+	mdp3_res_update(1, 0, MDP3_CLIENT_DMA_P);
 	ret = session->dma->histo_op(session->dma, MDP3_DMA_HISTO_OP_RESET);
 	if (ret) {
 		pr_err("mdp3_histogram_start reset error\n");
@@ -1369,7 +1378,7 @@ static int mdp3_histogram_start(struct mdp3_session_data *session,
 	session->histo_status = 1;
 
 histogram_start_err:
-	mdp3_clk_enable(0, 0);
+	mdp3_res_update(0, 0, MDP3_CLIENT_DMA_P);
 	mutex_unlock(&session->histo_lock);
 	return ret;
 }
@@ -1648,8 +1657,9 @@ static int mdp3_ctrl_lut_update(struct msm_fb_data_type *mfd,
 	lut_config.lut_sel = mdp3_session->lut_sel;
 	lut_config.lut_position = 0;
 	lut_config.lut_dirty = true;
-	lut.color0_lut = r;
-	lut.color1_lut = g;
+	/* In HW the order is color0 = g, color1 = r and color2 = b*/
+	lut.color0_lut = g;
+	lut.color1_lut = r;
 	lut.color2_lut = b;
 
 	mutex_lock(&mdp3_session->lock);
@@ -1670,6 +1680,47 @@ static int mdp3_ctrl_lut_update(struct msm_fb_data_type *mfd,
 	mdp3_session->lut_sel = (mdp3_session->lut_sel + 1) % 2;
 
 	mutex_unlock(&mdp3_session->lock);
+	return rc;
+}
+
+static int mdp3_overlay_prepare(struct msm_fb_data_type *mfd,
+		struct mdp_overlay_list __user *user_ovlist)
+{
+	struct mdp_overlay_list ovlist;
+	struct mdp3_session_data *mdp3_session = mfd->mdp.private1;
+	struct mdp_overlay *req_list;
+	struct mdp_overlay *req;
+	int rc;
+
+	if (!mdp3_session)
+		return -ENODEV;
+
+	req = &mdp3_session->req_overlay;
+
+	if (copy_from_user(&ovlist, user_ovlist, sizeof(ovlist)))
+		return -EFAULT;
+
+	if (ovlist.num_overlays != 1) {
+		pr_err("OV_PREPARE failed: only 1 overlay allowed\n");
+		return -EINVAL;
+	}
+
+	if (copy_from_user(&req_list, ovlist.overlay_list, sizeof(struct mdp_overlay*)))
+		return -EFAULT;
+
+	if (copy_from_user(req, req_list, sizeof(*req)))
+		return -EFAULT;
+
+	rc = mdp3_overlay_set(mfd, req);
+	if (!IS_ERR_VALUE(rc)) {
+		if (copy_to_user(req_list, req, sizeof(*req)))
+			return -EFAULT;
+	}
+
+	if (put_user(IS_ERR_VALUE(rc) ? 0 : 1,
+			&user_ovlist->processed_overlays))
+		return -EFAULT;
+
 	return rc;
 }
 
@@ -1772,10 +1823,72 @@ static int mdp3_ctrl_ioctl_handler(struct msm_fb_data_type *mfd,
 		if (rc)
 			pr_err("OVERLAY_PLAY failed (%d)\n", rc);
 		break;
+	case MSMFB_OVERLAY_PREPARE:
+		rc = mdp3_overlay_prepare(mfd, argp);
+		break;
 	default:
 		break;
 	}
 	return rc;
+}
+
+int mdp3_wait_for_dma_done(struct mdp3_session_data *session)
+{
+	int rc = 0;
+
+	if (session->dma_active) {
+		rc = wait_for_completion_timeout(&session->dma_completion,
+			KOFF_TIMEOUT);
+		if (rc > 0) {
+			session->dma_active = 0;
+			rc = 0;
+		} else if (rc == 0) {
+			rc = -ETIME;
+		}
+	}
+	return rc;
+}
+
+static int mdp3_update_panel_info(struct msm_fb_data_type *mfd, int mode)
+{
+	int ret = 0;
+	struct mdp3_session_data *mdp3_session;
+	struct mdss_panel_data *panel;
+	u32 intf_type = 0;
+
+	if (!mfd || !mfd->mdp.private1)
+		return -EINVAL;
+
+	mdp3_session = mfd->mdp.private1;
+	panel = mdp3_session->panel;
+
+	if (!panel->event_handler)
+		return 0;
+	ret = panel->event_handler(panel, MDSS_EVENT_DSI_DYNAMIC_SWITCH,
+						(void *)(unsigned long)mode);
+	if (ret)
+		pr_err("Dynamic switch to %s mode failed!\n",
+					mode ? "command" : "video");
+	if (mode == 1)
+		mfd->panel.type = MIPI_CMD_PANEL;
+	else
+		mfd->panel.type = MIPI_VIDEO_PANEL;
+
+	if (mfd->panel.type != MIPI_VIDEO_PANEL)
+		mdp3_session->wait_for_dma_done = mdp3_wait_for_dma_done;
+
+	intf_type = mdp3_ctrl_get_intf_type(mfd);
+	mdp3_session->intf->cfg.type = intf_type;
+	mdp3_session->intf->available = 1;
+	mdp3_session->intf->in_use = 1;
+	mdp3_res->intf[intf_type].in_use = 1;
+
+	mdp3_intf_init(mdp3_session->intf);
+
+	mdp3_session->dma->output_config.out_sel = intf_type;
+	mdp3_session->status = mdp3_session->intf->active;
+
+	return 0;
 }
 
 int mdp3_ctrl_init(struct msm_fb_data_type *mfd)
@@ -1800,6 +1913,7 @@ int mdp3_ctrl_init(struct msm_fb_data_type *mfd)
 	mdp3_interface->ioctl_handler = mdp3_ctrl_ioctl_handler;
 	mdp3_interface->kickoff_fnc = mdp3_ctrl_display_commit_kickoff;
 	mdp3_interface->lut_update = mdp3_ctrl_lut_update;
+	mdp3_interface->configure_panel = mdp3_update_panel_info;
 
 	mdp3_session = kmalloc(sizeof(struct mdp3_session_data), GFP_KERNEL);
 	if (!mdp3_session) {
@@ -1852,6 +1966,9 @@ int mdp3_ctrl_init(struct msm_fb_data_type *mfd)
 	mdp3_session->vsync_timer.data = (u32)mdp3_session;
 	mdp3_session->vsync_period = 1000 / mfd->panel_info->mipi.frame_rate;
 	mfd->mdp.private1 = mdp3_session;
+	init_completion(&mdp3_session->dma_completion);
+	if (intf_type != MDP3_DMA_OUTPUT_SEL_DSI_VIDEO)
+		mdp3_session->wait_for_dma_done = mdp3_wait_for_dma_done;
 
 	rc = sysfs_create_group(&dev->kobj, &vsync_fs_attr_group);
 	if (rc) {
@@ -1876,6 +1993,7 @@ int mdp3_ctrl_init(struct msm_fb_data_type *mfd)
 
 	if (mdp3_get_cont_spash_en()) {
 		mdp3_session->clk_on = 1;
+		mdp3_session->in_splash_screen = 1;
 		mdp3_ctrl_notifier_register(mdp3_session,
 			&mdp3_session->mfd->mdp_sync_pt_data.notifier);
 	}

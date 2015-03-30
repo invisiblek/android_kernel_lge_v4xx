@@ -374,8 +374,11 @@ static __be16 rmnet_ip_type_trans(struct sk_buff *skb)
 		protocol = htons(ETH_P_IPV6);
 		break;
 	default:
-		pr_err("[%s] rmnet_recv() L3 protocol decode error: 0x%02x",
-		       dev->name, skb->data[0] & 0xf0);
+		/*
+		 * There is no good way to determine if a packet has
+		 * a MAP header. For now default to MAP protocol
+		 */
+		protocol = htons(ETH_P_MAP);
 	}
 
 	return protocol;
@@ -550,8 +553,7 @@ static int rmnet_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 
 	default:
-		dev_err(&unet->intf->dev, "[%s] error: "
-			"rmnet_ioct called for unsupported cmd[%d]",
+		dev_dbg(&unet->intf->dev, "[%s] error: rmnet_ioctl called for unsupported cmd[0x%x]\n",
 			dev->name, cmd);
 		return -EINVAL;
 	}

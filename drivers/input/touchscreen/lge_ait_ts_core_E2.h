@@ -21,16 +21,17 @@
 
 #include <linux/input.h>
 #include <linux/input/mt.h>
+#include <linux/wakelock.h>
+
+#define ISIS /* block the exposure of privacy information */
+
+#define TOUCH_USE_DSV
 
 #define POWER_FW_UP_LOCK	0x01
 #define POWER_SYSFS_LOCK	0x02
 
 #define MAX_FINGER		10
 #define MAX_BUTTON		4
-
-#ifndef LPWG_TEMP
-#define LPWG_TEMP
-#endif
 
 struct touch_device_caps
 {
@@ -54,7 +55,9 @@ struct touch_device_caps
 struct touch_limit_value {
 	u32	raw_data_max;
 	u32	raw_data_min;
-	u32	open_short_max;
+	u32	raw_data_margin;
+	u32	raw_data_otp_min;
+	u32	raw_data_otp_max;
 	u32	open_short_min;
 	u32	slope_max;
 	u32	slope_min;
@@ -90,16 +93,25 @@ struct touch_power_info {
 
 #define NAME_BUFFER_SIZE 	128
 
-#ifdef LPWG_TEMP
-#define LPWG_WAKEUP_KEY KEY_POWER
-#endif
 #define PRESS_KEY				1
 #define RELEASE_KEY				0
-#ifdef LPWG_TEMP
+
 enum {
-	LPWG_NONE	= 0,
-	LPWG_DOUBLE_TAP	= 0x01,
-	LPWG_MULTI_TAP	= 0x10,
+	LPWG_NONE         = 0,
+	LPWG_DOUBLE_TAP   = (1U << 0),  /* 1 */
+	LPWG_MULTI_TAP    = (1U << 1),  /* 2 */
+	LPWG_SIGNATURE    = (1U << 2),  /* 4 */
+};
+
+enum {
+	LCD_OFF =0,
+	LCD_ON,
+};
+
+enum {
+	DEV_SUSPEND = 0,
+	DEV_RESUME,
+	DEV_RESUME_ENABLE,
 };
 
 enum {
@@ -109,9 +121,10 @@ enum {
 	CMD_LPWG_TAP_COUNT = 4,
 	CMD_LPWG_LCD_RESUME_SUSPEND = 6,
 	CMD_LPWG_PROX = 7,
+	CMD_LPWG_DOUBLE_TAP_CHECK = 8,
 	CMD_LPWG_TOTAL_STATUS = 9,
 };
-#endif
+
 struct touch_platform_data
 {
 	int	int_pin;
@@ -121,6 +134,12 @@ struct touch_platform_data
 	int	id_pin;
 	int	id2_pin;
 	int	panel_id;
+#if defined(TOUCH_USE_DSV)
+	int	use_dsv;
+	int	sensor_value;
+	int	enable_sensor_interlock;
+#endif
+	volatile int curr_pwr_state;
 	char	panel_type[4];
 	char 	panel_on;
 	char	ic_type;
@@ -128,16 +147,20 @@ struct touch_platform_data
 	char	maker[30];
 	char	fw_product[9];
 	char	fw_image[NAME_BUFFER_SIZE];
+	char	p3_fw_product[9];
+	char	p3_fw_image[NAME_BUFFER_SIZE];
+
 	char	panel_spec[NAME_BUFFER_SIZE];
 	bool	selfdiagnostic_state[3];
 	struct touch_power_info		pwr[TOUCH_PWR_NUM];
 	struct touch_device_caps	*caps;
 	struct touch_operation_role	*role;
 	struct touch_limit_value	*limit;
-#ifdef LPWG_TEMP
+	struct touch_tci_info		*tci_info;
 	u8 lpwg_mode;
 	u8 send_lpwg;
-	u8 lpwg_test_count;
+	u8 lpwg_debug_enable;
+	u8 lpwg_fail_reason;
 
 	//add lpwg point
 	int lpwg_x[10];
@@ -146,8 +169,37 @@ struct touch_platform_data
 	int lpwg_size;
 	int lpwg_panel_on;
 	int lpwg_prox;
-#endif
-	atomic_t crack_test_state;
+	int active_area_x1;
+	int active_area_x2;
+	int active_area_y1;
+	int active_area_y2;
+	int active_area_gap;
+	int double_tap_check;
+	int check_openshort;
+
+};
+
+struct touch_tci_info {
+
+	int idle_report_rate;
+	int active_report_rate;
+	int sensitivity;
+
+	int touch_slope;
+	int min_distance;
+	int max_distance;
+	int min_intertap;
+	int max_intertap;
+	int tap_count;
+
+//only multi tap
+	int touch_slope_2;
+	int min_distance_2;
+	int max_distance_2;
+	int min_intertap_2;
+	int max_intertap_2;
+	int interrupt_delay_2;
+
 };
 
 struct t_data
@@ -242,8 +294,14 @@ struct touch_device_driver {
 	int 	(*fw_upgrade)	(struct i2c_client *client, struct touch_fw_info* info);
 	int (*sysfs) 	(struct i2c_client *client, char *buf1, const char *buf2, u32 code);
 	enum window_status (*inspection_crack)	(struct i2c_client *client);
+#if defined(TOUCH_USE_DSV)
+	void (*dsv_control)		(struct i2c_client *client);
+#endif
+	void (*battery_thermal)	(struct i2c_client *client, char caller);
 };
 
+
+extern struct wake_lock touch_wake_lock;
 
 enum {
 	POLLING_MODE = 0,
@@ -367,17 +425,7 @@ struct ic_ctrl_param {
 	u32 v3;
 	u32 v4;
 };
-#ifdef LPWG_TEMP
-#define MIT_LPWG_MODE				0x80
-#define MIT_LPWG_REPORTRATE		0x81
-#define MIT_LPWG_TOUCH_SLOP		0x82
-#define MIT_LPWG_TAP_DISTANCE		0x83
-#define MIT_LPWG_TAP_TIME_GAP		0x84
-#define MIT_LPWG_TOTAL_TAP_COUNT	0x86
-#define MIT_LPWG_ACTIVE_AREA		0x87
-#define MIT_LPWG_STORE_INFO		0x8F
-#define MIT_LPWG_START			0x90
-#endif
+
 enum {
 	IC_CTRL_CODE_NONE = 0,
 	IC_CTRL_BASELINE,
@@ -390,34 +438,29 @@ enum {
 	IC_CTRL_TESTMODE_VERSION_SHOW,
 	IC_CTRL_SAVE_IC_INFO,
 	IC_CTRL_LPWG,
+	IC_CTRL_ACTIVE_AREA,
 };
 
 enum {
-	SYSFS_IRQ_CONTROL_STORE=0,
 	SYSFS_REG_CONTROL_STORE,
-	SYSFS_FX_CONTROL_STORE,
-	SYSFS_SENSING_TEST_STORE,
+	SYSFS_LPWG_TCI_STORE,
 	SYSFS_CHSTATUS_SHOW,
+	SYSFS_CHSTATUS_STORE,
 	SYSFS_OPENSHORT_SHOW,
 	SYSFS_RAWDATA_SHOW,
 	SYSFS_RAWDATA_STORE,
-	SYSFS_JITTER_SHOW,
 	SYSFS_DELTA_SHOW,
 	SYSFS_SELF_DIAGNOSTIC_SHOW,
-	SYSFS_EDGE_EXPAND_SHOW,
-	SYSFS_EDGE_EXPAND_STORE,
 	SYSFS_VERSION_SHOW,
 	SYSFS_TESTMODE_VERSION_SHOW,
 	SYSFS_SENSING_ALL_BLOCK_CONTROL,
 	SYSFS_SENSING_BLOCK_CONTROL,
 	SYSFS_FW_DUMP,
-#ifdef LPWG_TEMP
 	SYSFS_LPWG_SHOW,
 	SYSFS_LPWG_STORE,
-	SYSFS_LPWG_WAKEUP_SHOW,
-	SYSFS_LPWG_TEST_STORE,
-#endif
 	SYSFS_KEYGUARD_STORE,
+	SYSFS_LPWG_DEBUG_STORE,
+	SYSFS_LPWG_REASON_STORE,
 };
 
 enum {
@@ -547,14 +590,8 @@ void touch_disable(unsigned int irq);
 void touch_enable_wake(unsigned int irq);
 void touch_disable_wake(unsigned int irq);
 
-#define MMS_100A	"MMS-100A"
-#define MMS_100S	"MMS-100S"
 
 #define EXTERNAL_FW_PATH	"/etc/firmware/"
 #define EXTERNAL_FW_NAME	"mit_ts.fw"
-#define CORE32_FW_NAME		"melfas/mms100s_core32_v01.mfsb"
-#define CORE54_FW_NAME		"melfas/mms100a_core54_v01.mfsb"
-
-#define SENSING_TEST
 
 #endif

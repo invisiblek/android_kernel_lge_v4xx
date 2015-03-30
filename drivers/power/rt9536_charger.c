@@ -481,7 +481,7 @@ static void rt9536_parse_dt(struct device *dev,
 	pdata->wlc_en_set_pin = of_get_named_gpio(np,"rt9536,chg_en_set",0);
 	printk("[RT9536] wlc_en_set_pin: %d\n", pdata->wlc_en_set_pin);
 #if !defined(CONFIG_MACH_MSM8926_JAGNM_ATT) && !defined(CONFIG_MACH_MSM8926_JAGNM_RGS) && !defined(CONFIG_MACH_MSM8926_JAGNM_TLS) \
-	&& !defined(CONFIG_MACH_MSM8926_JAGNM_VTR)
+	&& !defined(CONFIG_MACH_MSM8926_JAGNM_VTR) && !defined(CONFIG_MACH_MSM8926_JAGNM_BELL) && !defined(CONFIG_MACH_MSM8926_JAGC_SPR)
 	pdata->wlc_chg_full_pin = of_get_named_gpio(np,"rt9536,wlc_chg_full",0);
 	printk("[RT9536] wlc_chg_full_pin: %d\n", pdata->wlc_chg_full_pin);
 #endif

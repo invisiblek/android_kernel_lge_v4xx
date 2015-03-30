@@ -36,11 +36,8 @@
 #include <linux/file.h>
 #include <linux/syscalls.h>
 #include <linux/async.h>
-#include "lge_ait_ts_core_E2.h"
 
-#ifndef LPWG_TEMP
-#define LPWG_TEMP
-#endif
+#include "lge_ait_ts_core_E2.h"
 
 #ifndef LGE_TS_MELFAS_H
 #define LGE_TS_MELFAS_H
@@ -66,6 +63,12 @@ enum {
 };
 
 enum  {
+	OTP_NOT_SUPPORTED = 0,
+	OTP_NONE,
+	OTP_APPLIED,
+};
+
+enum  {
 	GPIOMODE_ISP_START = 0,
 	GPIOMODE_ISP_END,
 	GPIOMODE_FX_START,
@@ -78,15 +81,21 @@ enum {
 	GPIO_INT
 };
 
-#define GPIO_TOUCH_INT (info->pdata->int_pin)
-#define GPIO_TOUCH_SCL (info->pdata->scl_pin)
-#define GPIO_TOUCH_SDA (info->pdata->sda_pin)
+enum {
+	FAIL_MULTI_TOUCH = 1,
+	FAIL_TOUCH_SLOP,
+	FAIL_TAP_DISTANCE,
+	FAIL_TAP_TIME,
+	FAIL_TOTAL_COUNT,
+	FAIL_DELAY_TIME,
+	FAIL_PALM,
+	FAIL_ACTIVE_AREA,
+	FAIL_LOW_INTENSITY,
+};
 
 #define FINGER_EVENT_SZ		6
 #define MIT_FINGER_EVENT_SZ		8
-#ifdef LPWG_TEMP
 #define MIT_LPWG_EVENT_SZ		3
-#endif
 #define MAX_WIDTH		30
 #define MAX_PRESSURE		255
 #define MAX_LOG_LENGTH		128
@@ -97,8 +106,15 @@ enum {
 #define PAGE_CRC		2
 #define PACKET_SIZE		(PAGE_HEADER + PAGE_DATA + PAGE_CRC)
 
+#define KNOCKON_DELAY   700
+
 #define MAX_COL	15
 #define MAX_ROW	25
+#define MIT_ROW_NUM             0x0B
+#define MIT_COL_NUM             0x0C
+
+#define MIT_EVENT_PKT_SZ		0x0F
+#define MIT_INPUT_EVENT			0x10
 
 /* MIT 200 Registers */
 
@@ -116,59 +132,34 @@ enum {
 #define MIT_FW_VERSION				0xC2
 #define MIT_FW_PRODUCT		0xE0
 
-/*MMS Registers */
+/* MIT 200 LPWG Registers */
+#define MIT_LPWG_IDLE_REPORTRATE_REG     0x60
+#define MIT_LPWG_ACTIVE_REPORTRATE_REG   0x61
+#define MIT_LPWG_SENSITIVITY_REG         0x62
+#define MIT_LPWG_ACTIVE_AREA_REG         0x63
 
-#define MMS_MODE_CONTROL	0x01
-#define MMS_XY_RESOLUTION_HIGH	0x02
-#define MMS_TX_NUM		0x0B
-#define MMS_RX_NUM		0x0C
-#define MMS_KEY_NUM		0x0D
+#define MIT_LPWG_TCI_ENABLE_REG          0x70
+#define MIT_LPWG_TOUCH_SLOP_REG          0x71
+#define MIT_LPWG_TAP_MIN_DISTANCE_REG    0x72
+#define MIT_LPWG_TAP_MAX_DISTANCE_REG    0x73
+#define MIT_LPWG_MIN_INTERTAP_REG        0x74
+#define MIT_LPWG_MAX_INTERTAP_REG        0x76
+#define MIT_LPWG_TAP_COUNT_REG           0x78
+#define MIT_LPWG_INTERRUPT_DELAY_REG     0x79
 
-#define MMS_MAX_TX_NUM		26
-#define MMS_MAX_RX_NUM		18
-#define MMS_MAX_KEY_NUM	4
+#define MIT_LPWG_TCI_ENABLE_REG2         0x80
+#define MIT_LPWG_TOUCH_SLOP_REG2         0x81
+#define MIT_LPWG_TAP_MIN_DISTANCE_REG2   0x82
+#define MIT_LPWG_TAP_MAX_DISTANCE_REG2   0x83
+#define MIT_LPWG_MIN_INTERTAP_REG2       0x84
+#define MIT_LPWG_MAX_INTERTAP_REG2       0x86
+#define MIT_LPWG_TAP_COUNT_REG2          0x88
+#define MIT_LPWG_INTERRUPT_DELAY_REG2    0x89
 
-#define MMS_EVENT_PKT_SZ			0x0F
-#define MMS_INPUT_EVENT				0x10
-#define MMS_SET_EDGE_EXPAND		0x32
-
-#define MMS_UNIVCMD_GET_TOP_EDGE_EXPAND			0x25
-#define MMS_UNIVCMD_GET_BOTTOM_EDGE_EXPAND		0x26
-#define MMS_UNIVCMD_GET_LEFT_EDGE_EXPAND			0x27
-#define MMS_UNIVCMD_GET_RIGHT_EDGE_EXPAND		0x28
-
-#define MMS_UNIVERSAL_CMD			0xA0
-#define MMS_UNIVERSAL_RESULT_SIZE	0xAE
-#define MMS_UNIVERSAL_RESULT		0xAF
-
-#define MMS_ENTER_TEST_MODE			0x40
-#define MMS_TEST_CHSTATUS			0x41
-#define MMS_GET_PIXEL_CHSTATUS		0x42
-#define MMS_TEST_RAWDATA			0x43
-#define MMS_GET_PIXEL_RAWDATA		0x44
-#define MMS_TEST_JITTER				0x45
-#define MMS_GET_PIXEL_JITTER		0x46
-#define MMS_KEY_CHSTATUS			0x4A
-#define MMS_KEY_RAWDATA				0x4B
-#define MMS_KEY_JITTER				0x4C
-#define MMS_DELTA_SCREEN			0x70
-#define MMS_DELTA_KEY				0x71
-
-#define MMS_UNIVERSAL_CMD_EXIT		0x4F
-
-#define MMS_FW_VERSION		0xE1
-#define MMS_FW_PRODUCT		0xF6
-
-#define MMS_POWER_CONTROL	0xB0
-
-#define MMS_GET_CUSTOM_ADDRESS	0xE5
-#define MMS_ENTER_ISC		0x5F
-#define MMS_WRITE_CMD	   0xAE
-#define MMS_ENABLE_WRITE    0x55
-#define MMS_DATA_WRITE	   0xF1
-#define MMS_CONFIRM_STATUS  0xAF
-#define MMS_STATUS_ISC_READY    0x01
-#define MMS_STATUS_WRITING_DONE 0x03
+#define MIT_LPWG_STORE_INFO_REG          0x8F
+#define MIT_LPWG_START_REG               0x90
+#define MIT_LPWG_PANEL_DEBUG_REG         0x91
+#define MIT_LPWG_FAIL_REASON_REG         0x92
 
 /* Universal commands */
 #define MIT_UNIV_ENTER_TESTMODE			0x40
@@ -177,17 +168,20 @@ enum {
 #define MIT_UNIV_TESTB_START			0x48
 #define MIT_UNIV_GET_OPENSHORT_TEST		0x50
 #define MIT_UNIV_EXIT_TESTMODE			0x6F
+#define MIT_UNIV_GET_READ_OTP_STATUS	0x77
+#define MIT_UNIV_SEND_THERMAL_INFO		0x58
 
 #define MMS_CMD_SET_LOG_MODE	0x20
 
 /* Event types */
-#define MMS_LOG_EVENT		0xD
-#ifdef LPWG_TEMP
-#define MMS_LPWG_EVENT	0xE
-#endif
-#define MMS_ERROR_EVENT		0xF
-#define MMS_TOUCH_KEY_EVENT	0x40
-#define CRACK_SPEC	20
+#define MIT_LOG_EVENT		0xD
+#define MIT_LPWG_EVENT	0xE
+#define MIT_ERROR_EVENT		0xF
+#define MIT_TOUCH_KEY_EVENT	0x40
+#define MIT_REQUEST_THERMAL_INFO		0xB
+#define MIT_ERRORCODE_FAIL_REASON	0x14
+
+#define CRACK_SPEC	0
 
 enum {
 	LOG_TYPE_U08	= 2,
@@ -199,11 +193,18 @@ enum {
 };
 
 enum {
-	RAW_DATA_SHOW	=0,
+	RAW_DATA_SHOW	= 0,
 	RAW_DATA_STORE,
 	OPENSHORT,
+	OPENSHORT_STORE,
 	SLOPE,
 	CRACK_CHECK,
+};
+
+enum {
+	SD_RAWDATA = 0,
+	SD_OPENSHORT,
+	SD_SLOPE,
 };
 
 struct mms_dev {
@@ -229,10 +230,10 @@ struct mms_section {
 	u32 crc;
 };
 
-
 struct mms_module {
 	u8 product_code[16];
 	u8 version[2];
+	u8 otp;
 };
 
 struct mms_log {
@@ -272,7 +273,7 @@ struct mms_data {
 	struct i2c_client *client;
 	struct touch_platform_data *pdata;
 	struct regulator *vdd_regulator[TOUCH_PWR_NUM];
-
+	struct lpwg_tci_data *lpwg_data;
 	struct mms_dev dev;
 	bool need_update[SECTION_NUM];
 	struct mms_section ts_section[SECTION_NUM];
@@ -285,6 +286,13 @@ struct mms_data {
 	s16 *intensity_data[MAX_ROW];
 	u8 test_mode;
 	int count_short;
+	int thermal_info_send_block;
+	int r_max;
+	int r_min;
+	int o_max;
+	int o_min;
+	int s_max;
+	int s_min;
 };
 
 struct mms_log_pkt {
@@ -296,6 +304,10 @@ struct mms_log_pkt {
 } __attribute__ ((packed));
 
 #define mms_i2c_write_block(client, buf, len) i2c_master_send(client, buf, len)
+extern atomic_t dev_state;
+#if defined(TOUCH_USE_DSV)
+extern void mdss_dsv_ctl(int mdss_dsv_en);
+#endif
 
 int mms_i2c_read(struct i2c_client *client, u8 reg, char *buf, int len);
 int mit_isc_fwupdate(struct mms_data *ts, struct touch_fw_info *info);

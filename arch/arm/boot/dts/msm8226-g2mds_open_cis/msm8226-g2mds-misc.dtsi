@@ -18,9 +18,7 @@
     hall-s5717 {
         status = "ok";
     };    
-	lge_sw_irrc {
-		vreg2_irrc-supply = <&pm8226_lvs1>;
-	};
+
 	syncoam_sm100 {
 		status = "ok";
 	};

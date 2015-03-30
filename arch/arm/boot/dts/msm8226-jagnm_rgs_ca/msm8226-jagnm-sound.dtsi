@@ -29,4 +29,18 @@
 		qcom,cdc-mclk-gpios = <&pm8226_gpios 1 0>;
 		qcom,cdc-boost-spkr-gpios = <&pm8226_gpios 2 0>;
 	};
+
+	/* LGE_CHANGE_S, 2014-02-26, cheolyong.yu@lge.com, IrRC Bring up */
+	lge_sw_irrc {
+		compatible = "lge,sw_irrc";
+		vreg_irrc-supply = <&pm8226_l19>;
+		vreg2_irrc-supply = <&pm8226_lvs1>;
+		lge,gp-cmd-rcgr = <0xFD8C3420>;
+		lge,pwm-gpio = <&msmgpio 33 0x00>;
+		lge,pwm-gpio-func = <3>;
+		lge,clk-name = "cam_gp0_clk";
+		lge,clk-rate = <96000>; //This must match with clk_freq_tbl.
+		status = "ok";
+	};
+	/* LGE_CHANGE_E, 2014-02-26, cheolyong.yu@lge.com, IrRC Bring up */
 };

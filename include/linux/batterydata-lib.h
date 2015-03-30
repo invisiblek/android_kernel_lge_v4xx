@@ -21,7 +21,8 @@
 #if defined(CONFIG_MACH_MSM8226_E9WIFI) || defined(CONFIG_MACH_MSM8226_E9WIFIN) || \
     defined(CONFIG_MACH_MSM8226_E7WIFI) || defined(CONFIG_MACH_MSM8226_E8WIFI) || \
     defined(CONFIG_MACH_MSM8926_E8LTE) || defined(CONFIG_MACH_MSM8926_E7LTE_ATT_US) || \
-    defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
+    defined(CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US) || \
+    defined(CONFIG_MACH_MSM8926_T8LTE) || defined(CONFIG_MACH_MSM8926_E9LTE_VZW_US)
 #define PC_CC_ROWS             30
 #define PC_CC_COLS             13
 
@@ -38,6 +39,7 @@
 #define MAX_SINGLE_LUT_COLS	20
 
 #define MAX_BATT_ID_NUM		4
+#define DEGC_SCALE		10
 
 struct single_row_lut {
 	int x[MAX_SINGLE_LUT_COLS];

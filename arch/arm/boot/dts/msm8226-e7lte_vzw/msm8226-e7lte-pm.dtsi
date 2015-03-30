@@ -40,3 +40,6 @@
 		};
 	};
 };
+&pm8226_chg {
+	lge,ext_ovp_slow_chg_trim = <39>;
+};

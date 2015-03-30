@@ -25,7 +25,7 @@
 			compatible = "atmel,t641";						/*dtsi name*/
 			status = "ok";								/*OK-used*/
 			reg = <0x4a>;								/*touch ic I2C bus adddress 0x4a -> @4a*/
-			atmel,fw_name = "atmel/E7_0_53.fw";
+			atmel,fw_name = "atmel/E7_0_65.fw";
 		};
 
 	};

@@ -103,7 +103,8 @@ static int lge_ts_misc_parse_dt(struct device *dev, struct lge_ts_misc_info *inf
 
 		switch (itr->type) {
 		case DT_U32:
-			if ((ret = of_property_read_u32(np, itr->name, &val)) == 0) {
+			ret = of_property_read_u32(np, itr->name, &val);
+			if (ret == 0) {
 				*((u32 *) itr->data) = val;
 				TOUCH_INFO_MSG("DT : %s = %d \n", itr->name, val);
 			} else {
@@ -129,21 +130,21 @@ static int lge_ts_misc_power(struct lge_ts_misc_info *info, bool on)
 
 	TOUCH_INFO_MSG("Power on \n");
 
-	if(info->vio_lvs1) {
+	if (info->vio_lvs1) {
 		retval = regulator_enable(info->vio_lvs1);
 		if (retval < 0) {
 			TOUCH_INFO_MSG("regulator_enable(vio_l6) failed retval = %d\n", retval);
 		}
 	}
 
-	if(info->vio_l19) {
+	if (info->vio_l19) {
 		retval = regulator_enable(info->vio_l19);
 		if (retval < 0) {
 			TOUCH_INFO_MSG("regulator_enable(vio_l19) failed retval = %d\n", retval);
 		}
 	}
 
-	if(info->vdd) {
+	if (info->vdd) {
 		retval = regulator_enable(info->vdd);
 		if (retval < 0) {
 			TOUCH_INFO_MSG("regulator_enable(vdd) failed retval = %d\n", retval);
@@ -152,23 +153,23 @@ static int lge_ts_misc_power(struct lge_ts_misc_info *info, bool on)
 
 	goto exit;
 
-power_off :
+power_off:
 
 	TOUCH_INFO_MSG("Power off \n");
 
-	if(info->vdd) {
+	if (info->vdd) {
 		regulator_disable(info->vdd);
 	}
 
-	if(info->vio_l19) {
+	if (info->vio_l19) {
 		regulator_disable(info->vio_l19);
 	}
 
-	if(info->vio_lvs1) {
+	if (info->vio_lvs1) {
 		regulator_disable(info->vio_lvs1);
 	}
 
-exit :
+exit:
 	msleep(10);
 
 	return retval;
@@ -213,25 +214,25 @@ static int lge_ts_misc_regulator_configure(struct lge_ts_misc_info *info, bool o
 		}
 	}
 
-	if(info->vdd && info->vdd_voltage) {
+	if (info->vdd && info->vdd_voltage) {
 		retval = regulator_set_voltage(info->vdd, info->vdd_voltage, info->vdd_voltage);
 		if (retval)
 			TOUCH_INFO_MSG("regulator_set_voltage(vdd) failed retval=%d\n", retval);
 	}
 
-	if(info->vio_l19 && info->vio_l19_voltage) {
+	if (info->vio_l19 && info->vio_l19_voltage) {
 		retval = regulator_set_voltage(info->vio_l19, info->vio_l19_voltage, info->vio_l19_voltage);
 		if (retval)
 			TOUCH_INFO_MSG("regulator_set_voltage(vio_l19) failed retval=%d\n", retval);
 	}
 
-	if(info->vio_l6 && info->vio_l6_voltage) {
+	if (info->vio_l6 && info->vio_l6_voltage) {
 		retval = regulator_set_voltage(info->vio_l6, info->vio_l6_voltage, info->vio_l6_voltage);
 		if (retval)
 			TOUCH_INFO_MSG("regulator_set_voltage(vio_l6) failed retval=%d\n", retval);
 	}
 
-	if(info->vio_lvs1 && info->vio_lvs1_voltage) {
+	if (info->vio_lvs1 && info->vio_lvs1_voltage) {
 		retval = regulator_set_voltage(info->vio_lvs1, info->vio_lvs1_voltage, info->vio_lvs1_voltage);
 		if (retval)
 			TOUCH_INFO_MSG("regulator_set_voltage(vio_lvs1) failed retval=%d\n", retval);
@@ -239,16 +240,16 @@ static int lge_ts_misc_regulator_configure(struct lge_ts_misc_info *info, bool o
 
 	return 0;
 
-hw_shutdown :
-	if(info->vdd) {
+hw_shutdown:
+	if (info->vdd) {
 		regulator_put(info->vdd);
 	}
 
-	if(info->vio_l19) {
+	if (info->vio_l19) {
 		regulator_put(info->vio_l19);
 	}
 
-	if(info->vio_lvs1) {
+	if (info->vio_lvs1) {
 		regulator_put(info->vio_lvs1);
 	}
 
@@ -299,14 +300,14 @@ static int lge_ts_misc_fb_notifier_call(struct notifier_block *self, unsigned lo
 	if (evdata && evdata->data && event == FB_EVENT_BLANK && info && info->client) {
 		fb = evdata->data;
 		switch (*fb) {
-			case FB_BLANK_UNBLANK:
-				lge_ts_misc_resume(info);
-				break;
-			case FB_BLANK_POWERDOWN:
-				lge_ts_misc_suspend(info);
-				break;
-			default:
-				break;
+		case FB_BLANK_UNBLANK:
+			lge_ts_misc_resume(info);
+			break;
+		case FB_BLANK_POWERDOWN:
+			lge_ts_misc_suspend(info);
+			break;
+		default:
+			break;
 		}
 	}
 	return 0;
@@ -322,7 +323,7 @@ static irqreturn_t lge_ts_misc_irq(int irq, void *dev_id)
 	lge_ts_misc_enable(info, false);
 	input_report_key(info->input_dev, KEY_POWER, PRESS_KEY);
 	input_sync(info->input_dev);
-	//msleep(20);
+	/* msleep(20); */
 	input_report_key(info->input_dev, KEY_POWER, RELEASE_KEY);
 	input_sync(info->input_dev);
 

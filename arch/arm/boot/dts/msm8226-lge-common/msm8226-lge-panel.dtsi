@@ -201,7 +201,7 @@
 		qcom,mdss-pan-physical-height-dimension = < 103 >;
 		qcom,mdss-dsi-bpp = <24>;
 		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
-		qcom,mdss-dsi-underflow-color = <0xff>;
+		qcom,mdss-dsi-underflow-color = <0x0>;
 		qcom,mdss-dsi-border-color = <0>;
 		qcom,mdss-dsi-on-command = [39 01 00 00 00 00 04 /* set EXTC */
 		B9 FF 83 89
@@ -708,8 +708,8 @@
 		qcom,mdss-dsi-h-right-border = <0>;
 		qcom,mdss-dsi-v-top-border = <0>;
 		qcom,mdss-dsi-v-bottom-border = <0>;
-		qcom,mdss-pan-physical-width-dimension = < 58 >;
-		qcom,mdss-pan-physical-height-dimension = < 103 >;
+		qcom,mdss-pan-physical-width-dimension = < 59 >;
+		qcom,mdss-pan-physical-height-dimension = < 98 >;
 		qcom,mdss-dsi-bpp = <24>;
 		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
 		qcom,mdss-dsi-underflow-color = <0xff>;
@@ -728,9 +728,9 @@
 			55 00
 
 			39 01 00 00 00 00 0B
-			B5 03 A0 01 12 06 A0 A0 00 00 48
+			B5 43 A0 01 12 06 00 00 00 00 48
 			39 01 00 00 00 00 07
-			B4 00 0D 02 02 02 02
+			B4 01 0D 02 02 02 02
 
 			15 01 00 00 00 00 02
 			B2 00
@@ -739,7 +739,7 @@
 			39 01 00 00 00 00 04
 			B9 00 03 04
 			15 01 00 00 00 00 02
-			BB 25
+			BB 24
 
 			15 01 00 00 00 00 02
 			36 00
@@ -747,24 +747,24 @@
 			39 01 00 00 00 00 02
 			D9 A0
 			39 01 00 00 00 00 03
-			F8 00 05
+			F8 00 06
 			39 01 00 00 00 00 03
 			D7 00 B6
 			39 01 00 00 00 00 03
 			BD 00 23
 
 			39 01 00 00 00 00 0A
-			D0 02 37 74 14 00 00 31 03 03
+			D0 00 26 74 14 00 00 32 03 03
 			39 01 00 00 00 00 0A
-			D1 02 37 74 14 00 00 31 03 03
+			D1 00 26 74 14 00 00 32 03 03
 			39 01 00 00 00 00 0A
-			D2 02 37 74 14 00 00 31 03 03
+			D2 00 26 74 14 00 00 32 03 03
 			39 01 00 00 00 00 0A
-			D3 02 37 74 14 00 00 31 03 03
+			D3 00 26 74 14 00 00 32 03 03
 			39 01 00 00 00 00 0A
-			D4 02 37 74 14 00 00 31 03 03
+			D4 00 26 74 14 00 00 32 03 03
 			39 01 00 00 00 00 0A
-			D5 02 37 74 14 00 00 31 03 03
+			D5 00 26 74 14 00 00 32 03 03
 
 			/* Image Enhancer for Sharpen */
 			39 01 00 00 00 00 04
@@ -793,6 +793,8 @@
 			10 00
 			39 01 00 00 00 00 02
 			FE 05
+			39 01 00 00 00 00 03
+			D8 10 00
 		];
 		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
@@ -809,6 +811,143 @@
 		qcom,mdss-dsi-panel-timings = [C1 3D 34 00 58 4D 36 3F 53 03 04 00];
 		qcom,mdss-dsi-t-clk-post = <0x1E>;
 		qcom,mdss-dsi-t-clk-pre = <0x35>;
+		qcom,mdss-dsi-bl-min-level = <1>;
+		qcom,mdss-dsi-bl-max-level = <4095>;
+		qcom,mdss-dsi-dma-trigger = "trigger_sw";
+		qcom,mdss-dsi-mdp-trigger = "none";
+		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
+		qcom,mdss-dsi-reset-sequence = <1 20>, <0 20>, <1 20>;
+	};
+
+	dsi_lgd_incell_vid_dual: qcom,mdss_dsi_lgd_incell_video_dual{
+		lge,has-dsv;
+		compatible = "qcom,mdss-dsi-panel";
+		status = "disable";
+		qcom,cont-splash-enabled;
+		lge,dual-panel;
+		qcom,mdss-dsi-panel-name = "LGD WVGA video mode dsi panel dual";
+		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
+		qcom,mdss-dsi-panel-type = "dsi_video_mode";
+		qcom,mdss-dsi-panel-destination = "display_1";
+		qcom,mdss-dsi-panel-framerate = <60>;
+		qcom,mdss-dsi-virtual-channel-id = <0>;
+		qcom,mdss-dsi-stream = <0>;
+		qcom,mdss-dsi-panel-width = <480>;
+		qcom,mdss-dsi-panel-height = <800>;
+		qcom,mdss-dsi-h-front-porch = <24>;
+		qcom,mdss-dsi-h-back-porch = <88>;
+		qcom,mdss-dsi-h-pulse-width = <8>;
+		qcom,mdss-dsi-h-sync-skew = <0>;
+		qcom,mdss-dsi-v-back-porch = <12>;
+		qcom,mdss-dsi-v-front-porch = <1050>;
+		qcom,mdss-dsi-v-pulse-width = <4>;
+		qcom,mdss-dsi-h-left-border = <0>;
+		qcom,mdss-dsi-h-right-border = <0>;
+		qcom,mdss-dsi-v-top-border = <0>;
+		qcom,mdss-dsi-v-bottom-border = <0>;
+		qcom,mdss-pan-physical-width-dimension = < 59 >;
+		qcom,mdss-pan-physical-height-dimension = < 98 >;
+		qcom,mdss-dsi-bpp = <24>;
+		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
+		qcom,mdss-dsi-underflow-color = <0xff>;
+		qcom,mdss-dsi-border-color = <0>;
+		qcom,mdss-dsi-on-command = [
+			39 01 00 00 00 00 08
+			B7 00 1B 1B 1B 1B 1B 1B
+			39 01 00 00 00 00 07
+			B6 06 0A 34 23 41 0A
+			39 01 00 00 00 00 05
+			B8 00 42 12 F7
+
+			15 01 00 00 00 00 02
+			B0 00
+			15 01 00 00 00 00 02
+			55 00
+
+			39 01 00 00 00 00 0B
+			B5 43 A0 01 12 06 00 00 00 00 48
+			39 01 00 00 00 00 07
+			B4 01 0D 02 02 02 02
+
+			15 01 00 00 00 00 02
+			B2 00
+			39 01 00 00 00 00 05
+			B1 C6 1E 0F 00
+			39 01 00 00 00 00 04
+			B9 00 03 04
+			15 01 00 00 00 00 02
+			BB 24
+
+			15 01 00 00 00 00 02
+			36 00
+
+			39 01 00 00 00 00 02
+			D9 A0
+			39 01 00 00 00 00 03
+			F8 00 06
+			39 01 00 00 00 00 03
+			D7 00 B6
+			39 01 00 00 00 00 03
+			BD 00 23
+
+			39 01 00 00 00 00 0A
+			D0 00 26 74 14 00 00 32 03 03
+			39 01 00 00 00 00 0A
+			D1 00 26 74 14 00 00 32 03 03
+			39 01 00 00 00 00 0A
+			D2 00 26 74 14 00 00 32 03 03
+			39 01 00 00 00 00 0A
+			D3 00 26 74 14 00 00 32 03 03
+			39 01 00 00 00 00 0A
+			D4 00 26 74 14 00 00 32 03 03
+			39 01 00 00 00 00 0A
+			D5 00 26 74 14 00 00 32 03 03
+
+			/* Image Enhancer for Sharpen */
+			39 01 00 00 00 00 04
+			61 18 34 00
+			/* Image Enhancer for Contrast */
+			39 01 00 00 00 00 04
+			62 3F 30 FF
+			/* Prefer Color Compensation */
+			39 01 00 00 00 00 02
+			63 00
+			39 01 00 00 00 00 1D
+			64 81 7F 81 7F 7F 4D AD 85 6A
+			99 9B 8C 7D 41 97 5F 64 22 6E
+			19 44 69 B0 9C 7D 41 A5 5F
+		];
+		lge,display-on-cmds = [
+			39 01 00 00 00 00 02
+			FE 00
+			05 01 00 00 78 00 02
+			11 00
+			05 01 00 00 00 00 02
+			29 00
+		];
+		qcom,mdss-dsi-off-command = [
+			05 01 00 00 64 00 02
+			10 00
+			39 01 00 00 00 00 02
+			FE 05
+			39 01 00 00 00 00 03
+			D8 10 00
+		];
+		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
+		qcom,mdss-dsi-h-sync-pulse = <0>;
+		qcom,mdss-dsi-traffic-mode = "non_burst_sync_event";
+		qcom,mdss-dsi-lane-map = "lane_map_0123";
+		//qcom,mdss-dsi-hfp-power-mode;
+		//qcom,mdss-dsi-hbp-power-mode;
+		//qcom,mdss-dsi-hsa-power-mode;
+		qcom,mdss-dsi-bllp-eof-power-mode;
+		//qcom,mdss-dsi-bllp-power-mode;
+		qcom,mdss-dsi-lane-0-state;
+		qcom,mdss-dsi-lane-1-state;
+		qcom,mdss-dsi-panel-timings = [D5 32 22 00 60 64 26 36 29 03 04 00];
+		qcom,mdss-dsi-t-clk-post = <0x03>;
+		qcom,mdss-dsi-t-clk-pre = <0x28>;
 		qcom,mdss-dsi-bl-min-level = <1>;
 		qcom,mdss-dsi-bl-max-level = <4095>;
 		qcom,mdss-dsi-dma-trigger = "trigger_sw";
@@ -1780,7 +1919,7 @@
 		qcom,mdss-pan-physical-height-dimension = < 110 >;
 		qcom,mdss-dsi-bpp = <24>;
 		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
-		qcom,mdss-dsi-underflow-color = <0xff>;
+		qcom,mdss-dsi-underflow-color = <0x0>;
 		qcom,mdss-dsi-lp11-init =<1>;
 		qcom,mdss-dsi-border-color = <0>;
 
@@ -2119,7 +2258,7 @@ dsi_lh500wx9_vid_b: qcom,mdss_dsi_lh500wx9_720p_video_b {
 		qcom,mdss-pan-physical-height-dimension = < 110 >;
 		qcom,mdss-dsi-bpp = <24>;
 		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
-		qcom,mdss-dsi-underflow-color = <0xff>;
+		qcom,mdss-dsi-underflow-color = <0x0>;
 		qcom,mdss-dsi-lp11-init =<1>;
 		qcom,mdss-dsi-border-color = <0>;
 		qcom,mdss-dsi-on-command = [
@@ -2739,5 +2878,205 @@ dsi_lgd_lg4577_vid: qcom,mdss_dsi_lgd_lg4577_wvga_video {
 				  B7 08
 				];
 	};
+dsi_jdi_r69338_vid: qcom,mdss_dsi_r69338_720p_video {
+		lge,has-dsv;
+		qcom,mdss-dsi-panel-name = "JDI 720p with DSV video mode dsi panel";
+		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
+		qcom,mdss-dsi-panel-type = "dsi_video_mode";
+		qcom,mdss-dsi-panel-destination = "display_1";
+		qcom,mdss-dsi-panel-framerate = <60>;
+		qcom,mdss-dsi-virtual-channel-id = <0>;
+		qcom,mdss-dsi-stream = <0>;
+		qcom,mdss-dsi-panel-width = <720>;
+		qcom,mdss-dsi-panel-height = <1280>;
+		qcom,mdss-dsi-h-front-porch = <140>;
+		qcom,mdss-dsi-h-back-porch = <40>;
+		qcom,mdss-dsi-h-pulse-width = <8>;
+		qcom,mdss-dsi-h-sync-skew = <0>;
+		qcom,mdss-dsi-v-back-porch = <3>;
+		qcom,mdss-dsi-v-front-porch = <4>;
+		qcom,mdss-dsi-v-pulse-width = <1>;
+		qcom,mdss-dsi-h-left-border = <0>;
+		qcom,mdss-dsi-h-right-border = <0>;
+		qcom,mdss-dsi-v-top-border = <0>;
+		qcom,mdss-dsi-v-bottom-border = <0>;
+		qcom,mdss-pan-physical-width-dimension = < 63 >;
+		qcom,mdss-pan-physical-height-dimension = < 110 >;
+		qcom,mdss-dsi-bpp = <24>;
+		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
+		qcom,mdss-dsi-underflow-color = <0xff>;
+		qcom,mdss-dsi-lp11-init =<1>;
+		qcom,mdss-dsi-border-color = <0>;
+		qcom,mdss-dsi-on-command = [
+			39 01 00 00 00 00 02
+			51 FF
+			39 01 00 00 00 00 02
+			53 0C
+			39 01 00 00 00 00 02
+			55 00
+			29 01 00 00 00 00 02 //Test command
+			B0 04
+			29 01 00 00 00 00 08 //Test command1
+			b3 14 1A 00 00 00 00
+			00
+			29 01 00 00 00 00 02 //Test command2
+			b4 0c
+			29 01 00 00 00 00 03 //Test command3
+			b6 3a b3
+			29 01 00 00 00 00 2d //Test command4
+			c1 84 61 00 52 4A 59
+			94 20 03 1C D9 D8
+			82 CF B9 07 17 6B D1 80
+			41 82 94 52 4A 09 11 11 11 11
+			A0 40 42 20 12 10 22 00 15 00 01 00
+			00 00
+			29 01 00 00 00 00 0a //Test command5
+			c2 31 F5 00 00 04 00 08 00 00
+			29 01 00 00 00 00 10 //Test command6
+			c4 70 00 00 00 00 00 00 00
+			00 00 06 16 16 16 01
+			29 01 00 00 00 00 15 //Test command7
+			c6 54 10 10 04 49 01 01 01
+			01 01 01 45 0D 01 01 01
+			01 06 13 03
+			29 01 00 00 00 00 0d //Test command8
+			cb F0 F7 FF 3F 30 00
+			00 00 00 00 3c cf
+			29 01 00 00 00 00 02 //Test command9
+			cc 0d
+			29 01 00 00 00 00 06 //Test command10
+			d0 10 91 bb 12 8e
+			29 01 00 00 00 00 06 //Test command11
+			d1 25 00 19 61 06
+			29 01 00 00 00 00 1c //Test command12
+			d3 0B 37 9F BD B7 33
+			33 17 00 01 00 A0 D8
+			A0 0D 23 23 33 3B
+			F7 72 07 3D BF 99 21 FA
+			29 01 00 00 00 00 0c //Test command13
+			d5 06 00 00 01 28 01 28
+			00 00 00 00
+			29 01 00 00 00 00 0d //Test command14
+			d9 8A 23 AA AA 0A E4 00
+			06 07 00 00 00
+			29 01 00 00 00 00 31 //Test command15
+			ec 29 00 2C 2B 01 00
+			00 00 00 00 00 00
+			00 00 00 00 07 09
+			00 11 0F 00 00 00
+			00 50 06 00 00 00
+			00 05 FC 00 00 00
+			03 40 02 13 02 02
+			01 00 00 00 00 00
+			29 01 00 00 00 00 20 //Test command16
+			ed  3B 02 02 03 21
+			11 00 93 00 00 00 00
+			00 03 1E 21 00 DF 00
+			DD 06 F3 3F 00 00 15
+			00 00 00 00 00
+			29 01 00 00 00 00 20 //Test command17
+			ee 1D 02 02 03 00 10
+			00 02 00 00 00 00 00
+			03 00 00 01 C5 01 C4
+			0E 28 23 00 00 2A 00
+			00 00 00 00
+			29 01 00 00 00 00 3f //Test command18
+			ef 3B 02 02 03 21 11 00
+			93 00 00 00 00 00 03 1E
+			21 00 DF 00 DD 06 F3 3F
+			00 00 15 00 00 00 00 00
+			3B  02 02 03 21 11 00 93
+			00 F0 00 00 54  00  03 1E
+			21 00 DF 00 DD 06 F3 3F
+			00 15 00 00 00 00 00
+			29 01 00 00 00 00 1F //Gamma Setting_1
+			C7 00 0A 16 20 2C 39
+			43 52 36 3E 4B 58 5A
+			5F 67 00 0A 16 20 2C
+			39 43 52 36 3E 4B 58
+			5A 5F 67
+			29 01 00 00 00 00 14 //Gamma Setting_2
+			C8 00 00 00 00 00 FC
+			00 00 00 00 00 FC 00
+			00 00 00 00 FC 00
+			29 01 00 00 00 00 02 //Test command
+			D6 01
+			15 01 00 00 00 00 02 //set_address_mode
+			36 00
+			29 01 00 00 00 00 21 ca //Color setting
+			01 70 9a 95 a2
+			98 95 8f 3f 3f
+			80 80 08 80 08
+			3f 08 90 0c 0c
+			0a 06 04 04 00
+			c8 10 10 3f 3f
+			3f 3f
+			05 01 00 00 00 00 01
+			29
+			05 01 00 00 78 00 01
+			11
+		];
 
+		qcom,mdss-dsi-off-command = [
+			05 01 00 00 14 00 01
+			28
+			05 01 00 00 50 00 01
+			10
+		];
+		lge,touch-cmd1 = [
+			29 01 00 00 00 00 02
+			B0 04
+			29 01 00 00 00 00 02
+			EC 09
+
+		];
+
+
+		lge,touch-cmd2 = [
+			29 01 00 00 00 00 02
+			EC 29
+			29 01 00 00 00 00 02
+			B0 03
+		];
+
+		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
+		qcom,mdss-dsi-h-sync-pulse = <0>;
+		qcom,mdss-dsi-traffic-mode = "non_burst_sync_event";
+		qcom,mdss-dsi-lane-map = "lane_map_0123";
+		qcom,mdss-dsi-bllp-eof-power-mode;
+		qcom,mdss-dsi-bllp-power-mode;
+		qcom,mdss-dsi-lane-0-state;
+		qcom,mdss-dsi-lane-1-state;
+		qcom,mdss-dsi-lane-2-state;
+		qcom,mdss-dsi-lane-3-state;
+
+		qcom,mdss-dsi-panel-timings = [7B 1A 10 00 3E 42 16 1E 15 03 04 00];
+
+		qcom,mdss-dsi-t-clk-post = <0x04 /*0x20*/>;
+		qcom,mdss-dsi-t-clk-pre = <0x1A /*0x2B*/ /*0x2d*/>;
+		qcom,mdss-dsi-bl-min-level = <1>;
+		qcom,mdss-dsi-bl-max-level = <4095>;
+		qcom,mdss-dsi-dma-trigger = "trigger_sw";
+		qcom,mdss-dsi-mdp-trigger = "none";
+		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
+		qcom,mdss-dsi-reset-sequence = <1 10>;
+	};
+};
+
+&soc {
+	mdss_mdp: qcom,mdss_mdp@fd900000 {
+                /* Fudge factors */
+                qcom,mdss-ab-factor = <2 1>;            /* 2 times    */
+                qcom,mdss-ib-factor = <3 2>;            /* 1.5 times  */
+
+                qcom,vbif-settings = <0x004 0x00000001>,
+                                     <0x0D8 0x00000707>,
+                                     <0x124 0x00000003>,
+                                     <0x0C0 0x04101010>;//for limiting the number of outstanding transactions for the rotator write port
+        };
+};
+&mdss_dsi0 {
+	qcom,platform-enable-gpio = <&msmgpio 111 0>;
+	/delete-property/ qcom,platform-te-gpio;
 };

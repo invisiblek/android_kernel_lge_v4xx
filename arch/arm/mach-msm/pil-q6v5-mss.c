@@ -61,6 +61,14 @@ struct modem_data {
 	bool ignore_errors;
 	struct completion stop_ack;
 };
+struct lge_hw_smem_id2_type {
+	uint32_t sbl_log_meta_info;
+	uint32_t lcd_maker;
+	uint32_t sbl_delta_time;
+	uint32_t secure_auth;
+	uint32_t build_info;
+	int modem_reset;
+};
 
 #define subsys_to_drv(d) container_of(d, struct modem_data, subsys_desc)
 
@@ -105,28 +113,26 @@ static void restart_modem(struct modem_data *drv)
 static int check_modem_reset(struct modem_data *drv)
 {
 	u32 size;
-	char *smem_reason, reason[MAX_SSR_REASON_LEN];
 	int ret = -EPERM;
+	struct lge_hw_smem_id2_type *smem_id2;
 
-	smem_reason = smem_get_entry_no_rlock(SMEM_SSR_REASON_MSS0, &size);
+	smem_id2 = smem_get_entry(SMEM_ID_VENDOR2, &size);
 
-	if (!smem_reason || !size) {
-		pr_err("modem subsystem failure reason: (unknown, smem_get_entry_no_rlock failed).\n");
-		goto err;
-	}
-	if (!smem_reason[0]) {
-		pr_err("modem subsystem failure reason: (unknown, empty string found).\n");
-		goto err;
+	if (smem_id2 == NULL) {
+		pr_err("%s: smem_id2 is NULL.\n", __func__);
+		return ret;
 	}
 
-	strlcpy(reason, smem_reason, min(size, sizeof(reason)));
-	if (strstr(reason,"forced modem reset")){
-		subsys_set_crash_status(drv->subsys, true);
+	printk("smem_id2->modem_reset : %d",smem_id2->modem_reset);
+
+	if(smem_id2->modem_reset != 1) {
+		ret = 1;
+	} else {
+		wmb();
+		drv->ignore_errors = true;
 		subsys_modem_restart();
 		ret = 0;
 	}
-
-err:
 	return ret;
 }
 

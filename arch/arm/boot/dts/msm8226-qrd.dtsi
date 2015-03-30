@@ -153,6 +153,7 @@
 		qcom,cdc-vdd-spkr-gpios = <&pm8226_gpios 2 0>;
 		qcom,cdc-us-euro-gpios = <&msmgpio 69 0>;
 	};
+
 	sound-9302 {
 		qcom,audio-routing =
 			"RX_BIAS", "MCLK",
@@ -478,13 +479,6 @@
 	};
 
 	mpp@a700 { /* MPP 8 */
-	};
-};
-
-&slim_msm {
-	tapan_codec {
-		qcom,cdc-micbias1-ext-cap;
-		qcom,cdc-micbias3-ext-cap;
 	};
 };
 

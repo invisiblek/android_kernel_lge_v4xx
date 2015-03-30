@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -60,13 +60,28 @@ static int msm_buf_mngr_buf_done(struct msm_buf_mngr_device *buf_mngr_dev,
 		if ((bufs->session_id == buf_info->session_id) &&
 			(bufs->stream_id == buf_info->stream_id) &&
 			(bufs->vb2_buf->v4l2_buf.index == buf_info->index)) {
+/*                                                                 */
+#if 0
 			bufs->vb2_buf->v4l2_buf.sequence  = buf_info->frame_id;
 			bufs->vb2_buf->v4l2_buf.timestamp = buf_info->timestamp;
 			bufs->vb2_buf->v4l2_buf.reserved = 0;
+#endif
+/*                                                                 */
 			ret = buf_mngr_dev->vb2_ops.buf_done
 					(bufs->vb2_buf,
 						buf_info->session_id,
 						buf_info->stream_id);
+/*                                                                 */
+#if 1
+			if (!ret) {
+						bufs->vb2_buf->v4l2_buf.sequence  = buf_info->frame_id;
+						bufs->vb2_buf->v4l2_buf.timestamp = buf_info->timestamp;
+						bufs->vb2_buf->v4l2_buf.reserved = 0;
+			} else {
+						pr_err("%s:vb2_ops failed %d type= %d\n", __func__, ret,bufs->vb2_buf->v4l2_buf.type);
+            }
+#endif
+/*                                                                 */
 			list_del_init(&bufs->entry);
 			kfree(bufs);
 			break;
@@ -129,7 +144,6 @@ static int msm_generic_buf_mngr_open(struct v4l2_subdev *sd,
 		rc = -ENODEV;
 		return rc;
 	}
-	buf_mngr_dev->msm_buf_mngr_open_cnt++;
 	return rc;
 }
 
@@ -143,9 +157,6 @@ static int msm_generic_buf_mngr_close(struct v4l2_subdev *sd,
 		rc = -ENODEV;
 		return rc;
 	}
-	buf_mngr_dev->msm_buf_mngr_open_cnt--;
-	if (buf_mngr_dev->msm_buf_mngr_open_cnt == 0)
-		msm_buf_mngr_sd_shutdown(buf_mngr_dev);
 	return rc;
 }
 
@@ -203,6 +214,7 @@ static const struct v4l2_subdev_ops msm_buf_mngr_subdev_ops = {
 
 static const struct of_device_id msm_buf_mngr_dt_match[] = {
 	{.compatible = "qcom,msm_buf_mngr"},
+	{}
 };
 
 static int __init msm_buf_mngr_init(void)

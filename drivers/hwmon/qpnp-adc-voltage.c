@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -512,9 +512,6 @@ static int32_t qpnp_vadc_version_check(struct qpnp_vadc_chip *dev)
 #define QPNP_VBAT_COEFF_13	102640000
 #define QPNP_VBAT_COEFF_14	22220000
 #define QPNP_VBAT_COEFF_15	83060000
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE)|| defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 #define QPNP_VBAT_COEFF_16	2810
 #define QPNP_VBAT_COEFF_17	5260
 #define QPNP_VBAT_COEFF_18	8027
@@ -525,93 +522,42 @@ static int32_t qpnp_vadc_version_check(struct qpnp_vadc_chip *dev)
 #define QPNP_VBAT_OFFSET_GF	9441
 #define QPNP_OCV_OFFSET_SMIC	4596
 #define QPNP_OCV_OFFSET_GF	5896
-#else
-#define QPNP_VADC_REV_ID_8941_3_1	1
-#define QPNP_VADC_REV_ID_8026_1_0	2
-#define QPNP_VADC_REV_ID_8026_2_0	3
+#define QPNP_VBAT_COEFF_22	6800
+#define QPNP_VBAT_COEFF_23	3500
+#define QPNP_VBAT_COEFF_24	4360
+#define QPNP_VBAT_COEFF_25	8060
 
-static void qpnp_temp_comp_version_check(struct qpnp_vadc_chip *vadc,
-							int32_t *version)
-{
-	if (vadc->revision_dig_major == 3 &&
-			vadc->revision_ana_minor == 2)
-		*version = QPNP_VADC_REV_ID_8941_3_1;
-	else if (vadc->revision_dig_major == 1 &&
-			vadc->revision_ana_minor == 2)
-		*version = QPNP_VADC_REV_ID_8026_1_0;
-	else if (vadc->revision_dig_major == 2 &&
-			vadc->revision_ana_minor == 2)
-		*version = QPNP_VADC_REV_ID_8026_2_0;
-	else
-		*version = -EINVAL;
-
-	return;
-}
-#endif
 static int32_t qpnp_ocv_comp(int64_t *result,
 			struct qpnp_vadc_chip *vadc, int64_t die_temp)
 {
 	int64_t temp_var = 0;
 	int64_t old = *result;
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	int version;
+
 	version = qpnp_adc_get_revid_version(vadc->dev);
-#else
-	int32_t version;
-	qpnp_temp_comp_version_check(vadc, &version);
-#endif
 	if (version == -EINVAL)
 		return 0;
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
-	if (version == QPNP_REV_ID_8110_2_0) {
-		if (die_temp < -20000)
-			die_temp = -20000;
-	} else {
-		if (die_temp < 25000)
-			return 0;
-		if (die_temp > 60000)
-			die_temp = 60000;
-	}
-#else
-	if (die_temp < 25000)
-		return 0;
 
-	if (die_temp > 60000)
-		die_temp = 60000;
-#endif
+	if (version == QPNP_REV_ID_8026_2_2) {
+		if (die_temp > 25000)
+			return 0;
+	}
+
 	switch (version) {
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	case QPNP_REV_ID_8941_3_1:
-#else
-	case QPNP_VADC_REV_ID_8941_3_1:
-#endif
 		switch (vadc->id) {
 		case COMP_ID_TSMC:
-			temp_var = (((die_temp *
-			(-QPNP_VBAT_COEFF_4))
-			+ QPNP_VBAT_COEFF_5));
+			 temp_var = ((die_temp - 25000) *
+			(-QPNP_VBAT_COEFF_4));
 			break;
 		default:
 		case COMP_ID_GF:
-			temp_var = (((die_temp *
-			(-QPNP_VBAT_COEFF_1))
-			+ QPNP_VBAT_COEFF_2));
+			temp_var = ((die_temp - 25000) *
+			(-QPNP_VBAT_COEFF_1));
 			break;
 		}
 		break;
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	case QPNP_REV_ID_8026_1_0:
-#else
-	case QPNP_VADC_REV_ID_8026_1_0:
-#endif
 		switch (vadc->id) {
 		case COMP_ID_TSMC:
 			temp_var = (((die_temp *
@@ -626,37 +572,35 @@ static int32_t qpnp_ocv_comp(int64_t *result,
 			break;
 		}
 		break;
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	case QPNP_REV_ID_8026_2_0:
 	case QPNP_REV_ID_8026_2_1:
-#else
-	case QPNP_VADC_REV_ID_8026_2_0:
-#endif
 		switch (vadc->id) {
 		case COMP_ID_TSMC:
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 			temp_var = ((die_temp - 25000) *
-#else
-			temp_var = ((die_temp - 2500) *
-#endif
 			(-QPNP_VBAT_COEFF_10));
 			break;
 		default:
 		case COMP_ID_GF:
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 			temp_var = ((die_temp - 25000) *
-#else
-			temp_var = ((die_temp - 2500) *
-#endif
 			(-QPNP_VBAT_COEFF_8));
 			break;
 		}
 		break;
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
+	case QPNP_REV_ID_8026_2_2:
+		switch (vadc->id) {
+		case COMP_ID_TSMC:
+			*result -= QPNP_VBAT_COEFF_22;
+			temp_var = (die_temp - 25000) *
+					QPNP_VBAT_COEFF_24;
+			break;
+		default:
+		case COMP_ID_GF:
+			*result -= QPNP_VBAT_COEFF_22;
+			temp_var = (die_temp - 25000) *
+					QPNP_VBAT_COEFF_25;
+			break;
+		}
+		break;
 	case QPNP_REV_ID_8110_2_0:
 		switch (vadc->id) {
 		case COMP_ID_SMIC:
@@ -667,9 +611,6 @@ static int32_t qpnp_ocv_comp(int64_t *result,
 				temp_var = QPNP_VBAT_COEFF_19;
 			temp_var = (die_temp - 25000) * temp_var;
 			break;
-		case COMP_ID_TSMC:
-			pr_debug("No TSMC Comp Info, exiting\n");
-			return 0;
 		default:
 		case COMP_ID_GF:
 			*result -= QPNP_OCV_OFFSET_GF;
@@ -681,7 +622,6 @@ static int32_t qpnp_ocv_comp(int64_t *result,
 			break;
 		}
 		break;
-#endif
 	default:
 		temp_var = 0;
 		break;
@@ -704,66 +644,36 @@ static int32_t qpnp_vbat_sns_comp(int64_t *result,
 {
 	int64_t temp_var = 0;
 	int64_t old = *result;
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	int version;
+
 	version = qpnp_adc_get_revid_version(vadc->dev);
-#else
-	int32_t version;
-	qpnp_temp_comp_version_check(vadc, &version);
-#endif
 	if (version == -EINVAL)
 		return 0;
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
-		if (version == QPNP_REV_ID_8110_2_0) {
-			if (die_temp < -20000)
-				die_temp = -20000;
-		} else {
-			if (die_temp < 25000)
-				return 0;
-			/* min(die_temp_c, 60_degC) */
-			if (die_temp > 60000)
-				die_temp = 60000;
-		}
-#else
-	if (die_temp < 25000)
-		return 0;
 
-	/* min(die_temp_c, 60_degC) */
-	if (die_temp > 60000)
-		die_temp = 60000;
-#endif
+	if (version != QPNP_REV_ID_8941_3_1) {
+		/* min(die_temp_c, 60_degC) */
+		if (die_temp > 60000)
+			die_temp = 60000;
+	}
+
 	switch (version) {
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	case QPNP_REV_ID_8941_3_1:
-#else
-	case QPNP_VADC_REV_ID_8941_3_1:
-#endif
 		switch (vadc->id) {
 		case COMP_ID_TSMC:
-			temp_var = (die_temp *
+			temp_var = ((die_temp - 25000) *
 			(-QPNP_VBAT_COEFF_1));
 			break;
 		default:
 		case COMP_ID_GF:
-			temp_var = (((die_temp *
-			(-QPNP_VBAT_COEFF_6))
-			+ QPNP_VBAT_COEFF_7));
+			/* min(die_temp_c, 60_degC) */
+			if (die_temp > 60000)
+				die_temp = 60000;
+			temp_var = ((die_temp - 25000) *
+			(-QPNP_VBAT_COEFF_1));
 			break;
 		}
 		break;
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	case QPNP_REV_ID_8026_1_0:
-#else
-	case QPNP_VADC_REV_ID_8026_1_0:
-#endif
 		switch (vadc->id) {
 		case COMP_ID_TSMC:
 			temp_var = (((die_temp *
@@ -778,37 +688,33 @@ static int32_t qpnp_vbat_sns_comp(int64_t *result,
 			break;
 		}
 		break;
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 	case QPNP_REV_ID_8026_2_0:
 	case QPNP_REV_ID_8026_2_1:
-#else
-	case QPNP_VADC_REV_ID_8026_2_0:
-#endif
 		switch (vadc->id) {
 		case COMP_ID_TSMC:
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 			temp_var = ((die_temp - 25000) *
-#else
-			temp_var = ((die_temp - 2500) *
-#endif
 			(-QPNP_VBAT_COEFF_11));
 			break;
 		default:
 		case COMP_ID_GF:
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
 			temp_var = ((die_temp - 25000) *
-#else
-			temp_var = ((die_temp - 2500) *
-#endif
 			(-QPNP_VBAT_COEFF_9));
 			break;
 		}
 		break;
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
+	case QPNP_REV_ID_8026_2_2:
+		switch (vadc->id) {
+		case COMP_ID_TSMC:
+			*result -= QPNP_VBAT_COEFF_23;
+			temp_var = 0;
+			break;
+		default:
+		case COMP_ID_GF:
+			*result -= QPNP_VBAT_COEFF_23;
+			temp_var = 0;
+			break;
+		}
+		break;
 	case QPNP_REV_ID_8110_2_0:
 		switch (vadc->id) {
 		case COMP_ID_SMIC:
@@ -816,9 +722,6 @@ static int32_t qpnp_vbat_sns_comp(int64_t *result,
 			temp_var = ((die_temp - 25000) *
 			(QPNP_VBAT_COEFF_17));
 			break;
-		case COMP_ID_TSMC:
-			pr_debug("No TSMC Comp Info, exiting\n");
-			return 0;
 		default:
 		case COMP_ID_GF:
 			*result -= QPNP_VBAT_OFFSET_GF;
@@ -827,7 +730,6 @@ static int32_t qpnp_vbat_sns_comp(int64_t *result,
 			break;
 		}
 		break;
-#endif
 	default:
 		temp_var = 0;
 		break;
@@ -846,13 +748,7 @@ static int32_t qpnp_vbat_sns_comp(int64_t *result,
 }
 
 int32_t qpnp_vbat_sns_comp_result(struct qpnp_vadc_chip *vadc,
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
-						int64_t *result, bool is_pon_ocv)
-#else
-						int64_t *result)
-#endif
+					int64_t *result, bool is_pon_ocv)
 {
 	struct qpnp_vadc_result die_temp_result;
 	int rc = 0;
@@ -867,18 +763,13 @@ int32_t qpnp_vbat_sns_comp_result(struct qpnp_vadc_chip *vadc,
 		pr_err("Error reading die_temp\n");
 		return rc;
 	}
-/*                                             
-                                                   */
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E7LTE_ATT_US) || defined (CONFIG_MACH_MSM8926_E7LTE_VZW_US) || defined (CONFIG_MACH_MSM8926_E7LTE_USC_US)
+
 	if (is_pon_ocv)
 		rc = qpnp_ocv_comp(result, vadc, die_temp_result.physical);
 	else
 		rc = qpnp_vbat_sns_comp(result, vadc,
 				die_temp_result.physical);
 
-#else
-	rc = qpnp_ocv_comp(result, vadc, die_temp_result.physical);
-#endif
 	if (rc < 0)
 		pr_err("Error with vbat compensation\n");
 
@@ -1157,11 +1048,6 @@ int32_t qpnp_vadc_conv_seq_request(struct qpnp_vadc_chip *vadc,
 
 	mutex_lock(&vadc->adc->adc_lock);
 
-	if (vadc->vadc_poll_eoc) {
-		pr_debug("requesting vadc eoc stay awake\n");
-		pm_stay_awake(vadc->dev);
-	}
-
 	if (!vadc->vadc_init_calib) {
 		rc = qpnp_vadc_version_check(vadc);
 		if (rc)
@@ -1284,6 +1170,8 @@ int32_t qpnp_vadc_conv_seq_request(struct qpnp_vadc_chip *vadc,
 		qpnp_vadc_amux_scaling_ratio[amux_prescaling].num;
 	vadc->adc->amux_prop->chan_prop->offset_gain_denominator =
 		 qpnp_vadc_amux_scaling_ratio[amux_prescaling].den;
+	vadc->adc->amux_prop->chan_prop->calib_type =
+		vadc->adc->adc_channels[dt_index].calib_type;
 
 	scale_type = vadc->adc->adc_channels[dt_index].adc_scale_fn;
 	if (scale_type >= SCALE_NONE) {
@@ -1295,11 +1183,6 @@ int32_t qpnp_vadc_conv_seq_request(struct qpnp_vadc_chip *vadc,
 		vadc->adc->adc_prop, vadc->adc->amux_prop->chan_prop, result);
 
 fail_unlock:
-	if (vadc->vadc_poll_eoc) {
-		pr_debug("requesting vadc eoc stay awake\n");
-		pm_relax(vadc->dev);
-	}
-
 	mutex_unlock(&vadc->adc->adc_lock);
 
 	return rc;
@@ -1470,19 +1353,7 @@ static ssize_t qpnp_adc_show(struct device *dev,
 		pr_err("VADC read error with %d\n", rc);
 		return 0;
 	}
-#ifdef CONFIG_LGE_PM
-	if((attr->index==LR_MUX10_USB_ID_LV) && (result.physical==0)) {
-		pr_err("adc result is zero with adc code 0x%x!! \n",result.adc_code);
-		msleep(100);
-		rc = qpnp_vadc_read(vadc, attr->index, &result);
 
-		if (rc) {
-			pr_err("VADC read error with %d\n", rc);
-			return 0;
-		}
-		pr_err("new adc result is %lld \n",result.physical);
-	}
-#endif
 	return snprintf(buf, QPNP_ADC_HWMON_NAME_LENGTH,
 		"Result:%lld Raw:%d\n", result.physical, result.adc_code);
 }
@@ -1647,8 +1518,6 @@ static int __devexit qpnp_vadc_remove(struct spmi_device *spmi)
 	}
 	hwmon_device_unregister(vadc->vadc_hwmon);
 	list_del(&vadc->list);
-	if (vadc->vadc_poll_eoc)
-		pm_relax(vadc->dev);
 	dev_set_drvdata(&spmi->dev, NULL);
 
 	return 0;
@@ -1660,10 +1529,33 @@ static const struct of_device_id qpnp_vadc_match_table[] = {
 	{}
 };
 
+static int qpnp_vadc_suspend_noirq(struct device *dev)
+{
+	struct qpnp_vadc_chip *vadc = dev_get_drvdata(dev);
+	u8 status = 0;
+
+	if (vadc->vadc_poll_eoc) {
+		qpnp_vadc_read_reg(vadc, QPNP_VADC_STATUS1, &status);
+		status &= QPNP_VADC_STATUS1_REQ_STS_EOC_MASK;
+		pr_debug("vadc conversion status=%d\n", status);
+		if (status != QPNP_VADC_STATUS1_EOC) {
+			pr_err(
+				"Aborting suspend, adc conversion requested while suspending\n");
+			return -EBUSY;
+		}
+	}
+	return 0;
+}
+
+static const struct dev_pm_ops qpnp_vadc_pm_ops = {
+	.suspend_noirq	= qpnp_vadc_suspend_noirq,
+};
+
 static struct spmi_driver qpnp_vadc_driver = {
 	.driver		= {
 		.name	= "qcom,qpnp-vadc",
 		.of_match_table = qpnp_vadc_match_table,
+		.pm		= &qpnp_vadc_pm_ops,
 	},
 	.probe		= qpnp_vadc_probe,
 	.remove		= qpnp_vadc_remove,

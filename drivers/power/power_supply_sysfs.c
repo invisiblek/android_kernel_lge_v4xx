@@ -44,7 +44,7 @@
 	.show = power_supply_show_property,				\
 	.store = power_supply_store_property,				\
 }
-#else // QCT ORG
+#else	/* QCT ORG */
 #define POWER_SUPPLY_ATTR(_name)					\
 {									\
 	.attr = { .name = #_name },					\
@@ -96,11 +96,14 @@ static ssize_t power_supply_show_property(struct device *dev,
 		"Unknown", "Battery", "UPS", "Mains", "USB",
 		"USB_DCP", "USB_CDP", "USB_ACA"
 #ifdef CONFIG_MAX17048_FUELGAUGE
-		,"BMS"
-		,"Max17048"
+		, "BMS"
+		, "Max17048"
+#endif
+#ifdef CONFIG_CHG_DETECTOR_MAX14656
+                , "Max14656"
 #endif
 #ifdef CONFIG_LGE_WIRELESS_CHARGER_RT9536
-		,"Wireless"
+		, "Wireless"
 #endif
 	};
 	static char *status_text[] = {
@@ -128,15 +131,15 @@ static ssize_t power_supply_show_property(struct device *dev,
 	defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) || \
 	defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR)
 	static char *lge_hw_rev_text[] = {
-		"rev_0", "rev_a", "rev_a2", "rev_b", "rev_b2","rev_c", "rev_10", "rev_11", "revserved"
+		"rev_0", "rev_a", "rev_a2", "rev_b", "rev_b2", "rev_c", "rev_10", "rev_11", "revserved"
 	};
 #else
 	static char *lge_hw_rev_text[] = {
-		"rev_0", "rev_a", "rev_b", "rev_c", "rev_d","rev_e", "rev_10", "rev_11", "revserved"
+		"rev_0", "rev_a", "rev_b", "rev_c", "rev_d", "rev_e", "rev_10", "rev_11", "revserved"
 	};
 #endif
 	static char *lge_usb_id_text[] = {
-		"NOT INIT", "56K", "100K","130K", "180K", "200K", "220K", "270K", "330K", "620K","910K", "OPEN"
+		"NOT INIT", "56K", "100K", "130K", "180K", "200K", "220K", "270K", "330K", "620K", "910K", "OPEN"
 	};
 #endif
 	ssize_t ret = 0;
@@ -209,7 +212,7 @@ static ssize_t power_supply_store_property(struct device *dev,
 }
 
 #ifdef CONFIG_LGE_PM_FACTORY_PSEUDO_BATTERY
-extern int pseudo_batt_set(struct pseudo_batt_info_type*);
+extern int pseudo_batt_set(struct pseudo_batt_info_type *);
 
 static ssize_t pseudo_batt_show_property(struct device *dev,
 		struct device_attribute *attr,
@@ -247,10 +250,8 @@ static ssize_t pseudo_batt_store_property(struct device *dev,
 	struct pseudo_batt_info_type info;
 
 	if (sscanf(buf, "%d %d %d %d %d %d %d", &info.mode, &info.id, &info.therm,
-				&info.temp, &info.volt, &info.capacity, &info.charging) != 7)
-	{
-		if(info.mode == 1) //pseudo mode
-		{
+				&info.temp, &info.volt, &info.capacity, &info.charging) != 7) {
+		if (info.mode == 1) {	/* pseudo mode */
 			printk(KERN_ERR "usage : echo [mode] [ID] [therm] [temp] [volt] [cap] [charging] > pseudo_batt");
 			goto out;
 		}
@@ -287,7 +288,7 @@ static ssize_t store_demo_enabled_show_property(struct device *dev,
 	}
 	if (off == POWER_SUPPLY_PROP_STORE_DEMO_ENABLED)
 		return sprintf(buf, "%d\n", value.intval);
-		
+
 	return 0;
 }
 
@@ -300,12 +301,11 @@ static ssize_t store_demo_enabled_store_property(struct device *dev,
 	if (!count) {
 		return -EINVAL;
 	}
-	
+
 	if (strncmp(buf, "1", 1) == 0) {
 		pr_info("store demo enabled\n");
 		ret = store_demo_enabled_set(true);
-	}
-	else if (strncmp(buf, "0", 1) == 0) {
+	} else if (strncmp(buf, "0", 1) == 0) {
 		pr_info("store demo disabled\n");
 		ret = store_demo_enabled_set(false);
 	}
@@ -354,7 +354,7 @@ static ssize_t at_chg_status_show(struct device *dev,
 		ret = snprintf(buf, 3, "%d\n", 1);
 		pr_info("[Diag] true ! buf = %s, charging=1\n", buf);
 	} else {
-		ret= snprintf(buf, 3, "%d\n", 0);
+		ret = snprintf(buf, 3, "%d\n", 0);
 		pr_info("[Diag] false ! buf = %s, charging=0\n", buf);
 	}
 
@@ -417,6 +417,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(input_current_max),
 	POWER_SUPPLY_ATTR(input_current_trim),
 	POWER_SUPPLY_ATTR(input_current_settled),
+	POWER_SUPPLY_ATTR(bypass_vchg_loop_debouncer),
 	POWER_SUPPLY_ATTR(current_now),
 	POWER_SUPPLY_ATTR(current_avg),
 	POWER_SUPPLY_ATTR(power_now),
@@ -449,7 +450,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(time_to_full_avg),
 	POWER_SUPPLY_ATTR(type),
 	POWER_SUPPLY_ATTR(scope),
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFI) || defined (CONFIG_MACH_MSM8226_E9WIFIN) || defined (CONFIG_MACH_MSM8926_E9LTE)
 	POWER_SUPPLY_ATTR(battery_dualization),
 #endif
 #ifndef CONFIG_LGE_PM
@@ -477,6 +478,11 @@ static struct device_attribute power_supply_attrs[] = {
 #ifdef CONFIG_MAX17048_FUELGAUGE
 	POWER_SUPPLY_ATTR(use_fuelgauge),
 #endif
+#ifdef CONFIG_CHG_DETECTOR_MAX14656
+	POWER_SUPPLY_ATTR(usb_chg_detect_done),
+	POWER_SUPPLY_ATTR(usb_chg_type),
+	POWER_SUPPLY_ATTR(usb_dcd_timeout),
+#endif
 #ifdef CONFIG_LGE_WIRELESS_CHARGER_RT9536
 	POWER_SUPPLY_ATTR(enabled),
 #endif
@@ -485,6 +491,9 @@ static struct device_attribute power_supply_attrs[] = {
 #endif
 #ifdef CONFIG_LGE_PM_FIX_CEC_FAIL
 POWER_SUPPLY_ATTR(cv_lock),
+#endif
+#ifdef CONFIG_LGE_PM_SUPPORT_WEAK_BATTERYPACK
+	POWER_SUPPLY_ATTR(batterypack_online),
 #endif
 	/* Properties of type `const char *' */
 	POWER_SUPPLY_ATTR(model_name),

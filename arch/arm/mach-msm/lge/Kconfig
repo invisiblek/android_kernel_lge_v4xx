@@ -122,6 +122,14 @@ config MACH_MSM8926_E8LTE
         help
           Support for the Qualcomm MSM8926 E8 LTE device.
 
+config MACH_MSM8926_E8LTE_KR
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "MSM8926 E8LTE OPEN"
+        help
+          Support for the Qualcomm MSM8926 E8 LTE device.
+
+
 config MACH_MSM8226_E7WIFI
         depends on ARCH_MSM8226
         select MACH_LGE
@@ -142,6 +150,55 @@ config MACH_MSM8926_E7LTE_VZW_US
         bool "MSM8926 E7LTE VZW US"
         help
           Support for the Qualcomm MSM8926 E7 LTE device.
+
+config MACH_MSM8926_T8LTE
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "MSM8926 T8LTE"
+        help
+          Support for the Qualcomm MSM8926 T8 LTE device.
+
+config MACH_MSM8926_T8LTE_ATT_US
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "MSM8926 T8LTE ATT US"
+        help
+          Support for the Qualcomm MSM8926 T8 LTE device.
+
+config MACH_MSM8926_T8LTE_TMO_US
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "MSM8926 T8LTE TMO US"
+        help
+          Support for the Qualcomm MSM8926 T8 LTE device.
+
+config MACH_MSM8926_T8LTE_USC_US
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "MSM8926 T8LTE USC US"
+        help
+          Support for the Qualcomm MSM8926 T8 LTE device.
+
+config MACH_MSM8926_T8LTE_ACG_US
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "MSM8926 T8LTE ACG US"
+        help
+          Support for the Qualcomm MSM8926 T8 LTE device.
+
+config MACH_MSM8926_E9LTE_VZW_US
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "MSM8926 E9LTE VZW US"
+        help
+          Support for the Qualcomm MSM8926 E9 LTE device.
+
+config MACH_MSM8926_E9LTE
+	   depends on ARCH_MSM8226
+	   select MACH_LGE
+	   bool "MSM8926 E9LTE"
+	   help
+	       Support for the Qualcomm MSM8926 E9 LTE device.
 
 config MACH_MSM8926_E2_SPR_US
         depends on ARCH_MSM8226
@@ -348,6 +405,13 @@ config MACH_MSM8926_B2LN_KR
           Support for the Qualcomm MSM8926 B2LN KR device.
 
 config MACH_MSM8926_JAGNM_ATT
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "MSM8926 B2L ATT"
+        help
+          Support for the Qualcomm MSM8926 B2L ATT device.
+
+config MACH_MSM8926_JAGNM_BELL
         depends on ARCH_MSM8226
         select MACH_LGE
         bool "MSM8926 B2L ATT"
@@ -759,6 +823,20 @@ config MACH_MSM8926_JAGDSNM_CTC_CN
         help
           Support for the Qualcomm MSM8926 JAGDSNM CTC device.
 
+config MACH_MSM8926_AKA_CN
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "MSM8926 AKA CN"
+        help
+          Support for the Qualcomm MSM8926 AKA CN device.
+
+config MACH_MSM8926_AKA_KR
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "MSM8926 AKA KR"
+        help
+          Support for the Qualcomm MSM8926 AKA KR device.
+
 config MACH_MSM8X10_L70P
         depends on ARCH_MSM8610
         select MACH_LGE
@@ -850,6 +928,13 @@ config LGE_ENABLE_MMC_STRENGTH_CONTROL
 	depends on MACH_LGE
 	help
 	  LGE mmc data,cmd,clk strength control support
+
+config LGE_PM_CONTROL_TSENS_CRITICAL_TEMPERATURE
+    bool "Support tsens critical temperature contorol"
+    default n
+    help
+      change tsens critical temperature for Accelerated High Temperature &
+	  Humidity Test
 
 menu "LGE Battery Profile"
 

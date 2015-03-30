@@ -47,7 +47,7 @@ void irrc_amp_off(int amp_no, int num);
 #endif
 
 struct audio_amp_platform_data {
-#ifdef CONFIG_SND_SOC_TPA2028D_E10WIFI
+#ifdef CONFIG_SND_SOC_TPA2028D_STEREO_E9
 	int (*enable)(int, int, int);
 #else
 	int (*enable)(int);
@@ -56,7 +56,7 @@ struct audio_amp_platform_data {
 	char agc_compression_rate;
 	char agc_output_limiter_disable;
 	char agc_fixed_gain;
-#ifdef CONFIG_SND_SOC_TPA2028D_E10WIFI
+#ifdef CONFIG_SND_SOC_TPA2028D_STEREO_E9
 	int enable_gpio;
 #endif
 };

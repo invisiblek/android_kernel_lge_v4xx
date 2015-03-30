@@ -189,6 +189,9 @@ static unsigned int ksm_thread_pages_to_scan = 100;
 /* Milliseconds ksmd should sleep between batches */
 static unsigned int ksm_thread_sleep_millisecs = 20;
 
+/* Boolean to indicate whether to use deferred timer or not */
+static bool use_deferred_timer;
+
 #define KSM_RUN_STOP	0
 #define KSM_RUN_MERGE	1
 #define KSM_RUN_UNMERGE	2
@@ -483,20 +486,9 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
  * pointing back to this stable node.  This relies on freeing a PageAnon
  * page to reset its page->mapping to NULL, and relies on no other use of
  * a page to put something that might look like our key in page->mapping.
- *
- * include/linux/pagemap.h page_cache_get_speculative() is a good reference,
- * but this is different - made simpler by ksm_thread_mutex being held, but
- * interesting for assuming that no other use of the struct page could ever
- * put our expected_mapping into page->mapping (or a field of the union which
- * coincides with page->mapping).  The RCU calls are not for KSM at all, but
- * to keep the page_count protocol described with page_cache_get_speculative.
- *
- * Note: it is possible that get_ksm_page() will return NULL one moment,
- * then page the next, if the page is in between page_freeze_refs() and
- * page_unfreeze_refs(): this shouldn't be a problem anywhere, the page
  * is on its way to being freed; but it is an anomaly to bear in mind.
  */
-static struct page *get_ksm_page(struct stable_node *stable_node)
+static struct page *get_ksm_page(struct stable_node *stable_node, bool locked)
 {
 	struct page *page;
 	void *expected_mapping;
@@ -504,7 +496,6 @@ static struct page *get_ksm_page(struct stable_node *stable_node)
 
 	expected_mapping = (void *)stable_node +
 				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
-	rcu_read_lock();
 again:
 	kpfn = ACCESS_ONCE(stable_node->kpfn);
 	page = pfn_to_page(kpfn);
@@ -545,11 +536,18 @@ again:
 		put_page(page);
 		goto stale;
 	}
-	rcu_read_unlock();
+
+	if (locked) {
+		lock_page(page);
+		if (ACCESS_ONCE(page->mapping) != expected_mapping) {
+			unlock_page(page);
+			put_page(page);
+			goto stale;
+		}
+	}
 	return page;
 
 stale:
-	rcu_read_unlock();
 	/*
 	 * We come here from above when page->mapping or !PageSwapCache
 	 * suggests that the node is stale; but it might be under migration.
@@ -574,11 +572,10 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		struct page *page;
 
 		stable_node = rmap_item->head;
-		page = get_ksm_page(stable_node);
+		page = get_ksm_page(stable_node, true);
 		if (!page)
 			goto out;
 
-		lock_page(page);
 		hlist_del(&rmap_item->hlist);
 		unlock_page(page);
 		put_page(page);
@@ -1047,7 +1044,7 @@ static struct page *stable_tree_search(struct page *page)
 
 		cond_resched();
 		stable_node = rb_entry(node, struct stable_node, node);
-		tree_page = get_ksm_page(stable_node);
+		tree_page = get_ksm_page(stable_node, false);
 		if (!tree_page)
 			return NULL;
 
@@ -1066,7 +1063,7 @@ static struct page *stable_tree_search(struct page *page)
 			 * It would be more elegant to return stable_node
 			 * than kpage, but that involves more changes.
 			 */
-			tree_page = get_ksm_page(stable_node);
+			tree_page = get_ksm_page(stable_node, true);
 			if (tree_page)
 				unlock_page(tree_page);
 			return tree_page;
@@ -1095,7 +1092,7 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
 
 		cond_resched();
 		stable_node = rb_entry(*new, struct stable_node, node);
-		tree_page = get_ksm_page(stable_node);
+		tree_page = get_ksm_page(stable_node, false);
 		if (!tree_page)
 			return NULL;
 
@@ -1480,6 +1477,41 @@ static void ksm_do_scan(unsigned int scan_npages)
 	}
 }
 
+static void process_timeout(unsigned long __data)
+{
+	wake_up_process((struct task_struct *)__data);
+}
+
+static signed long __sched deferred_schedule_timeout(signed long timeout)
+{
+	struct timer_list timer;
+	unsigned long expire;
+
+	__set_current_state(TASK_INTERRUPTIBLE);
+	if (timeout < 0) {
+		pr_err("schedule_timeout: wrong timeout value %lx\n",
+							timeout);
+		__set_current_state(TASK_RUNNING);
+		goto out;
+	}
+
+	expire = timeout + jiffies;
+
+	setup_deferrable_timer_on_stack(&timer, process_timeout,
+			(unsigned long)current);
+	mod_timer(&timer, expire);
+	schedule();
+	del_singleshot_timer_sync(&timer);
+
+	/* Remove the timer from the object tracker */
+	destroy_timer_on_stack(&timer);
+
+	timeout = expire - jiffies;
+
+out:
+	return timeout < 0 ? 0 : timeout;
+}
+
 static int ksmd_should_run(void)
 {
 	return (ksm_run & KSM_RUN_MERGE) && !list_empty(&ksm_mm_head.mm_list);
@@ -1499,7 +1531,11 @@ static int ksm_scan_thread(void *nothing)
 		try_to_freeze();
 
 		if (ksmd_should_run()) {
-			schedule_timeout_interruptible(
+			if (use_deferred_timer)
+				deferred_schedule_timeout(
+				msecs_to_jiffies(ksm_thread_sleep_millisecs));
+			else
+				schedule_timeout_interruptible(
 				msecs_to_jiffies(ksm_thread_sleep_millisecs));
 		} else {
 			wait_event_freezable(ksm_thread_wait,
@@ -1987,6 +2023,26 @@ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
 }
 KSM_ATTR(run);
 
+static ssize_t deferred_timer_show(struct kobject *kobj,
+				    struct kobj_attribute *attr, char *buf)
+{
+	return snprintf(buf, 8, "%d\n", use_deferred_timer);
+}
+
+static ssize_t deferred_timer_store(struct kobject *kobj,
+				     struct kobj_attribute *attr,
+				     const char *buf, size_t count)
+{
+	unsigned long enable;
+	int err;
+
+	err = kstrtoul(buf, 10, &enable);
+	use_deferred_timer = enable;
+
+	return count;
+}
+KSM_ATTR(deferred_timer);
+
 static ssize_t pages_shared_show(struct kobject *kobj,
 				 struct kobj_attribute *attr, char *buf)
 {
@@ -2041,6 +2097,7 @@ static struct attribute *ksm_attrs[] = {
 	&pages_unshared_attr.attr,
 	&pages_volatile_attr.attr,
 	&full_scans_attr.attr,
+	&deferred_timer_attr.attr,
 	NULL,
 };
 

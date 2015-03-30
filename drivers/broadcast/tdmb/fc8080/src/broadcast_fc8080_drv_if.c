@@ -116,6 +116,11 @@ int broadcast_fc8080_drv_if_stop(void)
 	return res;
 }
 
+int broadcast_fc8080_drv_if_is_on(void)
+{
+	return tunerbb_drv_fc8080_is_on();
+}
+
 int broadcast_fc8080_drv_if_set_channel(unsigned int freq_num, unsigned int subch_id, unsigned int op_mode)
 {
 	int8 rc = ERROR;

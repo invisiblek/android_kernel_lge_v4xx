@@ -511,13 +511,6 @@
 			status = "okay";
 		};
 	};
-	rpm-regulator-ldoa5 {
-		status = "okay";
-		pm8226_l5: regulator-l5 {
-			qcom,init-enable = <0>;
-			status = "okay";
-		};
-	};
 	rpm-regulator-ldoa19 {
 		status = "okay";
 		pm8226_l19: regulator-l19 {

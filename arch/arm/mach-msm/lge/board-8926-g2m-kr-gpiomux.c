@@ -507,7 +507,7 @@ static struct msm_gpiomux_config usb_otg_sw_configs[] __initdata = {
 #endif
 
 /*                                                      */
-#ifdef CONFIG_LGE_NFC_PN547_C2
+#ifdef CONFIG_LGE_NFC_PN547
 static struct gpiomux_setting nfc_pn547_sda_cfg = {
 	.func = GPIOMUX_FUNC_3,
 	.drv = GPIOMUX_DRV_8MA,
@@ -705,41 +705,11 @@ static struct msm_gpiomux_config msm_sensor_configs_rev_b[] __initdata = {
 //Need to set GPIO[032] FLASH_STROBE_TRIG
 static struct msm_gpiomux_config gpio_func_flash_led_configs[] __initdata = {
 };
-#ifdef CONFIG_MACH_LGE
-// GPIO related function <<0.Resreved Pin>>
-#define MSM8x26_GPIO_END 121
-static int gpio_reserved_pin_rev_A[] = {
-	0, 1, 2, 3, 5, 12, 13, 14, 15, 16, 31, 49, 50, 51, 52, 54, 55, 56, 63, 64, 65, 75, 76, 77, 78, 79, 80, 82, 86, 88, 89, 90, 91, 92, 93, 94, 97, 98, 104, 107, 109, 110, 112, 115, 116, 117, 118,
-	MSM8x26_GPIO_END // This is included to notify the end of reserved GPIO configuration.
-	};
-
-static int gpio_reserved_pin_rev_B[] = {
-	0, 1, 2, 3, 5, 12, 13, 14, 15, 16, 31, 36, 49, 50, 51, 52, 54, 55, 56, 63, 64, 65, 66, 75, 76, 77, 78, 79, 80, 82, 86, 88, 89, 90, 91, 92, 93, 94, 97, 98, 103, 104, 107, 109, 110, 112, 115, 116, 117, 118,
-	MSM8x26_GPIO_END // This is included to notify the end of reserved GPIO configuration.
-	};
-
-static struct gpiomux_setting reserved_pin_cfg = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_DOWN,
-	.dir  = GPIOMUX_IN,
-};
-
-static struct msm_gpiomux_config gpio_func_reserved_pin_config __initdata = {
-	.gpio = 0,
-	.settings = {
-		[GPIOMUX_SUSPENDED] = &reserved_pin_cfg,
-		[GPIOMUX_ACTIVE] = &reserved_pin_cfg,
-	},
-};
-
-#endif /*                 */
-
 void __init msm8226_init_gpiomux(void)
 {
 	int rc;
 #ifdef CONFIG_MACH_LGE
-	int gpio_index = 0;
+	//int gpio_index = 0;
 	hw_rev_type hw_rev;
 	hw_rev = lge_get_board_revno();
 #endif
@@ -772,34 +742,6 @@ void __init msm8226_init_gpiomux(void)
 				ARRAY_SIZE(wcnss_5wire_interface));
 
 	msm_gpiomux_install(&sd_card_det, 1);
-#ifdef CONFIG_MACH_LGE
-	switch ( hw_rev ){
-		case HW_REV_0 :
-		case HW_REV_A :
-		    for ( gpio_index = 0 ; gpio_reserved_pin_rev_A[gpio_index] < MSM8x26_GPIO_END ; gpio_index++ ){
-				gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_A[gpio_index];
-				msm_gpiomux_install(&gpio_func_reserved_pin_config, 1);
-				}
-			break;
-		case HW_REV_B :
-		    for ( gpio_index = 0 ; gpio_reserved_pin_rev_B[gpio_index] < MSM8x26_GPIO_END ; gpio_index++ ){
-				gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_B[gpio_index];
-				msm_gpiomux_install(&gpio_func_reserved_pin_config, 1);
-				}
-			break;
-		case HW_REV_C :
-		case HW_REV_D :
-		case HW_REV_1_0 :
-		case HW_REV_1_1 :
-		default :
-			for ( gpio_index = 0 ; gpio_reserved_pin_rev_B[gpio_index] < MSM8x26_GPIO_END ; gpio_index++ ){
-				gpio_func_reserved_pin_config.gpio = gpio_reserved_pin_rev_B[gpio_index];
-				msm_gpiomux_install(&gpio_func_reserved_pin_config, 1);
-				}
-			break;
-	}
-#endif /*                 */
-
 
 	if (hw_rev == HW_REV_0) {
 		msm_gpiomux_install(msm_melfas_configs, ARRAY_SIZE(msm_melfas_configs));
@@ -826,7 +768,7 @@ void __init msm8226_init_gpiomux(void)
 
 
 /*                                                       */
-#ifdef CONFIG_LGE_NFC_PN547_C2
+#ifdef CONFIG_LGE_NFC_PN547
 	msm_gpiomux_install(msm_nfc_configs, ARRAY_SIZE(msm_nfc_configs));
 #endif
 /*                                                       */

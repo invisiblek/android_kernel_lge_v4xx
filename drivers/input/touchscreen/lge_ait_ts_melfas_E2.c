@@ -26,12 +26,43 @@
 #define ts_role		(ts_pdata->role)
 #define ts_pwr		(ts_pdata->pwr)
 
-#ifdef SENSING_TEST
-#define SENSING_TEST_PATH		"/data/ts_log.txt"
-static char sensing_test = 0;
-#endif
-static uint8_t edge_expand[4] = {0};
+/* LPWG Control Value */
+#define IDLE_REPORTRATE_CTRL    1
+#define ACTIVE_REPORTRATE_CTRL  2
+#define SENSITIVITY_CTRL        3
+
+#define TCI_ENABLE_CTRL         11
+#define TOUCH_SLOP_CTRL         12
+#define TAP_MIN_DISTANCE_CTRL   13
+#define TAP_MAX_DISTANCE_CTRL   14
+#define MIN_INTERTAP_CTRL       15
+#define MAX_INTERTAP_CTRL       16
+#define TAP_COUNT_CTRL          17
+#define INTERRUPT_DELAY_CTRL    18
+
+#define TCI_ENABLE_CTRL2        21
+#define TOUCH_SLOP_CTRL2        22
+#define TAP_MIN_DISTANCE_CTRL2  23
+#define TAP_MAX_DISTANCE_CTRL2  24
+#define MIN_INTERTAP_CTRL2      25
+#define MAX_INTERTAP_CTRL2      26
+#define TAP_COUNT_CTRL2         27
+#define INTERRUPT_DELAY_CTRL2   28
+
+#define LPWG_STORE_INFO_CTRL    31
+#define LPWG_START_CTRL         32
+#define LPWG_PANEL_DEBUG_CTRL   33
+#define LPWG_FAIL_REASON_CTRL   34
+
 int lockscreen_stat = 0;
+extern int get_batt_therm_touch(void);
+extern int batt_present_touch;
+
+extern bool battery_thermal_check_enable;
+
+#if defined(TOUCH_USE_DSV)
+extern int lpwg_alc_cdata;
+#endif
 
 static int mms_get_packet(struct i2c_client *client);
 static int mms_power(struct i2c_client* client, int power_ctrl);
@@ -55,7 +86,7 @@ int mms_i2c_read(struct i2c_client *client, u8 reg, char *buf, int len)
 		},
 	};
 
-	if(reg == MIT_FW_VERSION) {
+	if (reg == MIT_FW_VERSION) {
 		cmd[0] = 0x00;
 	}
 	msgs[0].buf = cmd;
@@ -95,201 +126,9 @@ static int mms_i2c_write(struct i2c_client *client, u8 reg, int len, u8 *buf)
 }
 #endif
 
-static struct gpiomux_setting gpio_isp_config[] = {
-	{ // SDA, SCL
-		.func = GPIOMUX_FUNC_GPIO,
-		.drv = GPIOMUX_DRV_2MA,
-		.pull = GPIOMUX_PULL_DOWN,
-		.dir = GPIOMUX_OUT_LOW,
-	},
-	{ // INT
-		.func = GPIOMUX_FUNC_GPIO,
-		.drv = GPIOMUX_DRV_2MA,
-		.pull = GPIOMUX_PULL_UP,
-		.dir = GPIOMUX_IN,
-	}
-};
-
-static struct gpiomux_setting gpio_i2c_config[] = {
-	{ // SDA, SCL
-		.func = GPIOMUX_FUNC_3,
-		.drv = GPIOMUX_DRV_2MA,
-		.pull = GPIOMUX_PULL_NONE,
-		.dir = GPIOMUX_IN,
-	},
-	{ // INT
-		.func = GPIOMUX_FUNC_GPIO,
-		.drv = GPIOMUX_DRV_2MA,
-		.pull = GPIOMUX_PULL_UP,
-		.dir = GPIOMUX_IN,
-	}
-};
-
-static struct gpiomux_setting gpio_fx_config[] = {
-	{ // SDA, SCL
-		.func = GPIOMUX_FUNC_GPIO,
-		.drv = GPIOMUX_DRV_2MA,
-		.pull = GPIOMUX_PULL_NONE,
-		.dir = GPIOMUX_IN,
-	},
-	{ // INT
-		.func = GPIOMUX_FUNC_GPIO,
-		.drv = GPIOMUX_DRV_2MA,
-		.pull = GPIOMUX_PULL_NONE,
-		.dir = GPIOMUX_IN,
-	}
-};
-
-static struct msm_gpiomux_config gpio_configs[] = {
-	{
-		.gpio = 0,
-		.settings = {
-			[GPIOMUX_ACTIVE] = &gpio_i2c_config[0],
-			[GPIOMUX_SUSPENDED] = &gpio_i2c_config[0],
-		}
-	},
-	{
-		.gpio = 0,
-		.settings = {
-			[GPIOMUX_ACTIVE] = &gpio_i2c_config[0],
-			[GPIOMUX_SUSPENDED] = &gpio_i2c_config[0],
-		}
-	},
-	{
-		.gpio = 0,
-		.settings = {
-			[GPIOMUX_ACTIVE] = &gpio_i2c_config[1],
-			[GPIOMUX_SUSPENDED] = &gpio_i2c_config[1],
-		}
-	},
-};
-
-int mms_set_gpio_mode(struct touch_platform_data *pdata, int mode)
-{
-	int ret = 0;
-
-	gpio_configs[GPIO_SDA].gpio = pdata->sda_pin;
-	gpio_configs[GPIO_SCL].gpio = pdata->scl_pin;
-	gpio_configs[GPIO_INT].gpio = pdata->int_pin;
-
-	TOUCH_INFO_MSG("PIN Set : SDA:%d SCL:%d INT:%d \n", pdata->sda_pin, pdata->scl_pin, pdata->int_pin);
-
-	if (mode == GPIOMODE_ISP_START) {
-		TOUCH_INFO_MSG("%s (ISP Start) \n", __func__);
-		gpio_configs[GPIO_SDA].settings[GPIOMUX_ACTIVE] = &gpio_isp_config[0];
-		gpio_configs[GPIO_SDA].settings[GPIOMUX_SUSPENDED] = &gpio_isp_config[0];
-		gpio_configs[GPIO_SCL].settings[GPIOMUX_ACTIVE] = &gpio_isp_config[0];
-		gpio_configs[GPIO_SCL].settings[GPIOMUX_SUSPENDED] = &gpio_isp_config[0];
-		gpio_configs[GPIO_INT].settings[GPIOMUX_ACTIVE] = &gpio_isp_config[1];
-		gpio_configs[GPIO_INT].settings[GPIOMUX_SUSPENDED] = &gpio_isp_config[1];
-
-		msm_gpiomux_install(gpio_configs, ARRAY_SIZE(gpio_configs));
-		msleep(30);
-
-		ret = gpio_request(pdata->sda_pin, "GPIO_TOUCH_SDA");
-		if (ret) {
-			gpio_free(pdata->sda_pin);
-			ret = gpio_request(pdata->sda_pin, "GPIO_TOUCH_SDA");
-			if (ret)
-				TOUCH_INFO_MSG("gpio_request(%d) failed \n", pdata->sda_pin);
-		}
-		ret = gpio_request(pdata->scl_pin, "GPIO_TOUCH_SCL");
-		if (ret) {
-			gpio_free(pdata->scl_pin);
-			ret = gpio_request(pdata->scl_pin, "GPIO_TOUCH_SCL");
-			if (ret)
-				TOUCH_INFO_MSG("gpio_request(%d) failed \n", pdata->scl_pin);
-		}
-		ret = gpio_request(pdata->int_pin, "GPIO_TOUCH_INT");
-		if (ret) {
-			gpio_free(pdata->int_pin);
-			ret = gpio_request(pdata->int_pin, "GPIO_TOUCH_INT");
-			if (ret)
-				TOUCH_INFO_MSG("gpio_request(%d) failed \n", pdata->int_pin);
-		}
-	} else if (mode == GPIOMODE_ISP_END) {
-		TOUCH_INFO_MSG("%s (ISP End) \n", __func__);
-		gpio_configs[GPIO_SDA].settings[GPIOMUX_ACTIVE] = &gpio_i2c_config[0];
-		gpio_configs[GPIO_SDA].settings[GPIOMUX_SUSPENDED] = &gpio_i2c_config[0];
-		gpio_configs[GPIO_SCL].settings[GPIOMUX_ACTIVE] = &gpio_i2c_config[0];
-		gpio_configs[GPIO_SCL].settings[GPIOMUX_SUSPENDED] = &gpio_i2c_config[0];
-		gpio_configs[GPIO_INT].settings[GPIOMUX_ACTIVE] = &gpio_i2c_config[1];
-		gpio_configs[GPIO_INT].settings[GPIOMUX_SUSPENDED] = &gpio_i2c_config[1];
-
-		gpio_free(pdata->sda_pin);
-		gpio_free(pdata->scl_pin);
-		gpio_free(pdata->int_pin);
-		msleep(30);
-
-		msm_gpiomux_install(gpio_configs , ARRAY_SIZE(gpio_configs));
-	} else if (mode == GPIOMODE_FX_START) {
-		TOUCH_INFO_MSG("%s (FX Start) \n", __func__);
-		gpio_configs[GPIO_SDA].settings[GPIOMUX_ACTIVE] = &gpio_fx_config[0];
-		gpio_configs[GPIO_SDA].settings[GPIOMUX_SUSPENDED] = &gpio_fx_config[0];
-		gpio_configs[GPIO_SCL].settings[GPIOMUX_ACTIVE] = &gpio_fx_config[0];
-		gpio_configs[GPIO_SCL].settings[GPIOMUX_SUSPENDED] = &gpio_fx_config[0];
-		gpio_configs[GPIO_INT].settings[GPIOMUX_ACTIVE] = &gpio_fx_config[1];
-		gpio_configs[GPIO_INT].settings[GPIOMUX_SUSPENDED] = &gpio_fx_config[1];
-
-		msm_gpiomux_install(gpio_configs , ARRAY_SIZE(gpio_configs));
-	} else if (mode == GPIOMODE_FX_END) {
-		TOUCH_INFO_MSG("%s (FX End) \n", __func__);
-		gpio_configs[GPIO_SDA].settings[GPIOMUX_ACTIVE] = &gpio_i2c_config[0];
-		gpio_configs[GPIO_SDA].settings[GPIOMUX_SUSPENDED] = &gpio_i2c_config[0];
-		gpio_configs[GPIO_SCL].settings[GPIOMUX_ACTIVE] = &gpio_i2c_config[0];
-		gpio_configs[GPIO_SCL].settings[GPIOMUX_SUSPENDED] = &gpio_i2c_config[0];
-		gpio_configs[GPIO_INT].settings[GPIOMUX_ACTIVE] = &gpio_i2c_config[1];
-		gpio_configs[GPIO_INT].settings[GPIOMUX_SUSPENDED] = &gpio_i2c_config[1];
-
-		msm_gpiomux_install(gpio_configs , ARRAY_SIZE(gpio_configs));
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL(mms_set_gpio_mode);
-
-void mms_edge_expand_write(struct mms_data *ts)
-{
-	int i = 0;
-	uint8_t write_buf[5] = {0};
-	struct i2c_msg msg[] = {
-		{
-			.addr = ts->client->addr,
-			.flags = 0,
-			.buf = write_buf,
-		},
-		{
-			.addr = ts->client->addr,
-			.flags = 1,
-		},
-	};
-
-	for (i = 0; i < 4; i++) {
-		if (edge_expand[i] == 0 )
-			return;
-	}
-
-	msg[0].len = 5;
-	write_buf[0] = MMS_SET_EDGE_EXPAND;
-	write_buf[1] = edge_expand[0]; //top
-	write_buf[2] = edge_expand[1]; //bottom
-	write_buf[3] = edge_expand[2]; //left
-	write_buf[4] = edge_expand[3]; //right
-
-	if (i2c_transfer(ts->client->adapter, &msg[0], 1) != 1) {
-		TOUCH_INFO_MSG("mms_edge_expand_write i2c transfer failed\n");
-	}
-
-	TOUCH_INFO_MSG("Write Edge Expand : %d, %d, %d, %d \n",
-		edge_expand[0], edge_expand[1], edge_expand[2], edge_expand[3]);
-}
-
-void mms_edge_expand_read(struct mms_data *ts)
-{
-	int i = 0;
+static int mit_get_otp(struct mms_data *ts) {
 	uint8_t read_buf[16] = {0};
 	uint8_t write_buf[4] = {0};
-	uint8_t edge_tmp[4] = {0};
 	struct i2c_msg msg[] = {
 		{
 			.addr = ts->client->addr,
@@ -300,71 +139,83 @@ void mms_edge_expand_read(struct mms_data *ts)
 			.flags = 1,
 		},
 	};
+	write_buf[0] = MIT_REGH_CMD;
+	write_buf[1] = MIT_REGL_UCMD;
+	write_buf[2] = MIT_UNIV_GET_READ_OTP_STATUS;
+	msg[0].len = 3;
 
-	for ( i = 0; i < 4; i++) {
-		write_buf[0] = MMS_UNIVERSAL_CMD;
-		write_buf[1] = MMS_UNIVCMD_GET_TOP_EDGE_EXPAND + i;
-		msg[0].len = 2;
-
-		if (i2c_transfer(ts->client->adapter, &msg[0], 1) != 1) {
-			TOUCH_INFO_MSG("%s : i2c transfer failed\n", __func__);
-			return;
-		}
-
-		if (mms_i2c_read(ts->client, MMS_UNIVERSAL_RESULT_SIZE, read_buf, 1) < 0) {
-			TOUCH_INFO_MSG("%s : Fail to get MMS_UNIVERSAL_RESULT_SIZE \n", __func__);
-			return;
-		}
-
-		if (mms_i2c_read(ts->client, MMS_UNIVERSAL_RESULT, read_buf, 1) < 0) {
-			TOUCH_INFO_MSG("%s : Fail to get MMS_UNIVERSAL_RESULT \n", __func__);
-			return;
-		}
-
-		if (read_buf[0] == 0)
-			return;
-
-		edge_tmp[i] = read_buf[0];
-	}
-
-	for ( i = 0; i < 4; i++)
-		edge_expand[i] = edge_tmp[i];
-
-	TOUCH_INFO_MSG("Read Edge Expand : %d, %d, %d, %d \n",
-		edge_expand[0], edge_expand[1], edge_expand[2], edge_expand[3]);
-
-	return;
-}
-static int mms_get_ic_info(struct mms_data *ts, struct touch_fw_info *fw_info)
-{
-	struct i2c_client *client = ts->client;
-
-	TOUCH_TRACE_FUNC();
-
-	if (mms_i2c_read(client, MMS_TX_NUM, &ts->dev.row_num, 1) < 0) {
-		TOUCH_INFO_MSG("MMS_TX_NUM read failed");
+	if (i2c_transfer(ts->client->adapter, &msg[0], 1) != 1) {
+		TOUCH_INFO_MSG("%s : i2c transfer failed\n", __func__);
 		return -EIO;
 	}
 
-	if (mms_i2c_read(client, MMS_RX_NUM, &ts->dev.col_num, 1) < 0) {
-		TOUCH_INFO_MSG("MMS_RX_NUM read failed");
+	if (mms_i2c_read(ts->client, MIT_REGL_UCMD_RESULT_LENGTH, read_buf, 1) < 0) {
+		TOUCH_INFO_MSG("%s : Fail to get MIT_REGL_UCMD_RESULT_LENGTH \n", __func__);
+		return -EIO;
+	}
+
+	if (mms_i2c_read(ts->client, MIT_REGL_UCMD_RESULT, read_buf, 1) < 0) {
+		TOUCH_INFO_MSG("%s : Fail to get MIT_REGL_UCMD_RESULT \n", __func__);
+		return -EIO;
+	}
+	ts->module.otp = read_buf[0];
+	return 0;
+}
+
+static int mms_get_ic_info(struct mms_data *ts, struct touch_fw_info *fw_info)
+{
+	struct i2c_client *client = ts->client;
+	int i = 0;
+	int otp_check_max = 20;
+
+	TOUCH_TRACE_FUNC();
+
+	if (mms_i2c_read(client, MIT_ROW_NUM, &ts->dev.row_num, 1) < 0) {
+		TOUCH_INFO_MSG("MIT_ROW_NUM read failed\n");
+		return -EIO;
+	}
+
+	if (mms_i2c_read(client, MIT_COL_NUM, &ts->dev.col_num, 1) < 0) {
+		TOUCH_INFO_MSG("MIT_COL_NUM read failed\n");
 		return -EIO;
 	}
 
 	if (mms_i2c_read(client, MIT_FW_VERSION,(u8 *) &ts->module.version, 2) < 0) {
-		TOUCH_INFO_MSG("MIT_FW_VERSION read failed");
+		TOUCH_INFO_MSG("MIT_FW_VERSION read failed\n");
 		return -EIO;
 	}
 
 	if (mms_i2c_read(client, MIT_FW_PRODUCT,(u8 *) &ts->module.product_code, 16) < 0){
-		TOUCH_INFO_MSG("MIT_FW_PRODUCT read failed");
+		TOUCH_INFO_MSG("MIT_FW_PRODUCT read failed\n");
 		return -EIO;
 	}
 
+	for (i = 0; i < otp_check_max; i++) { // need to time check for OTP status
+		if (mit_get_otp(ts) < 0) {
+			TOUCH_INFO_MSG("failed to get the otp-enable\n");
+			return 1;
+		}
+
+		if (ts->module.otp == OTP_APPLIED)
+			break;
+
+		msleep(5);
+	}
+
+	if (ts->pdata->panel_on) {
+		TOUCH_INFO_MSG("====== LCD  ON  ======\n");
+	} else {
+		TOUCH_INFO_MSG("====== LCD  OFF ======\n");
+	}
 	TOUCH_INFO_MSG("======================\n");
 	TOUCH_INFO_MSG("F/W Version : %X.%02X \n", ts->module.version[0], ts->module.version[1]);
 	TOUCH_INFO_MSG("F/W Product : %s \n", ts->module.product_code);
-	TOUCH_INFO_MSG("F/W Row : %d Col : %d \n", ts->dev.row_num, ts->dev.col_num);
+	TOUCH_INFO_MSG("F/W Row : %d, Col : %d \n", ts->dev.row_num, ts->dev.col_num);
+	if (ts->module.otp == OTP_NOT_SUPPORTED) {
+		TOUCH_INFO_MSG("OTP : F/W Not support \n");
+	} else {
+		TOUCH_INFO_MSG("OTP : %s \n", (ts->module.otp == OTP_APPLIED) ? "Applied" : "None");
+	}
 	TOUCH_INFO_MSG("======================\n");
 
 	return 0;
@@ -388,12 +239,131 @@ static void write_file(char *filename, char *data, int time)
 	set_fs(KERNEL_DS);
 	fd = sys_open(filename, O_WRONLY|O_CREAT|O_APPEND, 0666);
 	if (fd >= 0) {
-		if(time > 0)
+		if (time > 0)
 			sys_write(fd, time_string, strlen(time_string));
 		sys_write(fd, data, strlen(data));
 		sys_close(fd);
 	}
 	set_fs(old_fs);
+}
+
+static void mit_battery_thermal(struct i2c_client* client, char caller)
+{
+	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
+	short ret = 0xFFF;
+	uint8_t write_buf[8] = {0};
+	bool i2c_comm_ok = true;
+	int count = 1;
+
+	struct i2c_msg msg[] = {
+		{
+			.addr = ts->client->addr,
+			.flags = 0,
+			.buf = write_buf,
+		},{
+			.addr = ts->client->addr,
+			.flags = 1,
+		},
+	};
+
+	if (!gpio_get_value(ts->pdata->reset_pin)) {
+		return;
+	}
+
+	if (!battery_thermal_check_enable) {
+		TOUCH_INFO_MSG("%s : cannot send thermal info before device is not initalized. \n", __func__);
+		return;
+	}
+
+	if (ts->thermal_info_send_block) {
+		TOUCH_INFO_MSG("%s : cannot send thermal info during FW upgrade! \n", __func__);
+		return;
+	}
+
+	ret = (short)get_batt_therm_touch();
+
+	if (ret >= 2000 || ret == (short)0xFFF)
+		goto DATA_ERROR;
+
+	TOUCH_INFO_MSG("Thermal value %d %s\n", ret, (caller ? "[IC]" : ""));
+
+	if (batt_present_touch == 0) {
+		TOUCH_INFO_MSG("No battery , ret = %d, change ret = 300 \n", ret);
+		ret = 300;
+	} else if (batt_present_touch == 1) {
+		TOUCH_INFO_MSG("Battery Present , ret = %d \n", ret);
+	} else if (batt_present_touch == -1) {
+		TOUCH_INFO_MSG("Battery Present Read Error , ret = %d \n", ret);
+		goto DATA_ERROR;
+	} else {}
+
+	write_buf[0] = MIT_REGH_CMD;
+	write_buf[1] = MIT_REGL_UCMD;
+	write_buf[2] = MIT_UNIV_SEND_THERMAL_INFO;
+	write_buf[3] = (char)((ret & 0xFF00) >> 8);
+	write_buf[4] = (char)(ret & 0xFF);
+	msg[0].len = 5;
+
+	do {
+		if (i2c_transfer(ts->client->adapter, &msg[0], 1) != 1) {
+			TOUCH_INFO_MSG("%s : i2c transfer failed, Retry :%d!! \n", __func__, count++);
+			mms_power_reset(ts);
+			msleep((ts_role->booting_delay)*count);
+			i2c_comm_ok = false;
+		} else {
+			i2c_comm_ok = true;
+		}
+	} while ((i2c_comm_ok == false) && (count < 5));
+	return;
+
+DATA_ERROR :
+	TOUCH_INFO_MSG("%s SKIP ret = %d \n", __func__,ret);
+	return;
+}
+
+#if defined(TOUCH_USE_DSV)
+void mms_dsv_control(struct i2c_client *client)
+{
+	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
+	int set_value = ts->pdata->use_dsv;
+
+	if (set_value) {
+		/* only 200ms delay when dsv is on */
+		msleep(200);
+	}
+	mdss_dsv_ctl(set_value);
+
+	TOUCH_INFO_MSG("dsv_ctrl onoff: %d\n", set_value);
+}
+#endif
+
+static int set_tci_info(struct i2c_client *client)
+{
+	struct mms_data *ts = get_touch_handle_(client);
+	TOUCH_INFO_MSG("Setting tci info data\n");
+
+	//common
+	ts->pdata->tci_info->idle_report_rate = 20;
+	ts->pdata->tci_info->active_report_rate = 40;
+	ts->pdata->tci_info->sensitivity = 30;
+
+	//double tap only
+	ts->pdata->tci_info->touch_slope = 10;
+	ts->pdata->tci_info->min_distance = 0;
+	ts->pdata->tci_info->max_distance = 10;
+	ts->pdata->tci_info->min_intertap = 0;
+	ts->pdata->tci_info->max_intertap = 700;
+	ts->pdata->tci_info->tap_count = 2;
+
+	//multitap only
+	ts->pdata->tci_info->touch_slope_2 = 10;
+	ts->pdata->tci_info->min_distance_2 = 0;
+	ts->pdata->tci_info->max_distance_2 = 255;
+	ts->pdata->tci_info->min_intertap_2 = 0;
+	ts->pdata->tci_info->max_intertap_2 = 700;
+	ts->pdata->tci_info->interrupt_delay_2 = 0;
+
+	return 0;
 }
 
 static int mms_probe(struct i2c_client *client, struct touch_platform_data *pdata)
@@ -415,11 +385,11 @@ static int mms_probe(struct i2c_client *client, struct touch_platform_data *pdat
 	ts->client = client;
 	ts->pdata = pdata;
 	ts->log.data = ts->buf;
-#ifdef LPWG_TEMP
-	ts->pdata->tap_count = 4;           //default tap count set
+	ts->pdata->tap_count = 4; //default tap count set
 	ts->pdata->lpwg_prox = 1; //default proxi sensor information
-#endif
+
 	set_touch_handle_(client, ts);
+	set_tci_info(client);
 
 	for (i = 0; i < TOUCH_PWR_NUM; ++i) {
 		if (ts_pwr[i].type == 1 && gpio_is_valid(ts_pwr[i].value)) {
@@ -451,7 +421,7 @@ static int mms_probe(struct i2c_client *client, struct touch_platform_data *pdat
 		}
 	}
 
-	for( i = 0; i < MAX_ROW; i++) {
+	for (i = 0; i < MAX_ROW; i++) {
 		ts->mit_data[i] = kzalloc(sizeof(uint16_t) * MAX_COL, GFP_KERNEL);
 		if (ts->mit_data[i] == NULL) {
 			TOUCH_ERR_MSG("mit_data kzalloc error\n");
@@ -470,7 +440,7 @@ err_regulator_get:
 		if (ts_pwr[i].type == 1) {
 			if (gpio_is_valid(ts_pwr[i].value))
 				gpio_free(ts_pwr[i].value);
-		} else if(ts_pwr[i].type == 2) {
+		} else if (ts_pwr[i].type == 2) {
 			if (ts->vdd_regulator != NULL && !IS_ERR(ts->vdd_regulator[i]))
 				regulator_put(ts->vdd_regulator[i]);
 		}
@@ -501,7 +471,7 @@ static void mms_remove(struct i2c_client* client)
 		}
 	} while(--i >= 0);
 
-	for(i = 0 ; i < MAX_ROW ; i++) {
+	for (i = 0; i < MAX_ROW; i++) {
 		if (ts->mit_data[i] != NULL) {
 			kfree(ts->mit_data[i]);
 		}
@@ -509,7 +479,6 @@ static void mms_remove(struct i2c_client* client)
 			kfree(ts->intensity_data[i]);
 		}
 	}
-
 }
 
 static int mms_init(struct i2c_client* client, struct touch_fw_info* fw_info)
@@ -522,136 +491,6 @@ static int mms_init(struct i2c_client* client, struct touch_fw_info* fw_info)
 
 	return 0;
 }
-#ifdef LPWG_TEMP
-#define LPWG_XY_MARGIN	30
-#define LPWG_STR_MAX		256
-struct lpwg_xy
-{
-	int x;
-	int y;
-};
-
-struct lpwg_xy pInput[10];
-
-void mms_lpwg_touch_test(struct mms_data *ts, u16 x, u16 y)
-{
-	int i = 0;
-	int len = 0;
-	int tap_count = ts->pdata->lpwg_test_count;
-	int passwords[10] = {0};
-	static int current_count = 0;
-	struct lpwg_xy most_left = {0};
-	struct lpwg_xy most_top = {0};
-	struct lpwg_xy most_right = {0};
-	struct lpwg_xy most_bottom = {0};
-	int x_line_only = 0;
-	int y_line_only = 0;
-	char buf[LPWG_STR_MAX] = {0};
-
-	if (tap_count == 0) {
-		if (current_count == 0)
-			return;
-
-		current_count = 0;
-		memset(pInput, 0x0, sizeof(struct lpwg_xy)*10);
-		return;
-	}
-
-	if (current_count < tap_count) {
-		pInput[current_count].x = x;
-		pInput[current_count].y = y;
-		current_count++;
-	}
-
-	if (current_count < tap_count)
-		return;
-
-	most_left.x = 0xFFFF;
-	most_top.y = 0xFFFF;
-
-	for (i = 0; i < tap_count; i++) {
-		if (pInput[i].x < most_left.x) {
-			most_left.x = pInput[i].x;
-			most_left.y = pInput[i].y;
-		}
-
-		if (pInput[i].x > most_right.x) {
-			most_right.x = pInput[i].x;
-			most_right.y = pInput[i].y;
-		}
-
-		if (pInput[i].y < most_top.y) {
-			most_top.x = pInput[i].x;
-			most_top.y = pInput[i].y;
-		}
-
-		if (pInput[i].y > most_bottom.y) {
-			most_bottom.x = pInput[i].x;
-			most_bottom.y = pInput[i].y;
-		}
-	}
-
-	if (((most_left.x - LPWG_XY_MARGIN) <= most_right.x) && ((most_left.x + LPWG_XY_MARGIN) >= most_right.x)) {
-		x_line_only = 1;
-	}
-
-	if (((most_top.y - LPWG_XY_MARGIN) <= most_bottom.y) && ((most_top.y + LPWG_XY_MARGIN) >= most_bottom.y)) {
-		y_line_only = 1;
-	}
-
-	if (x_line_only && !y_line_only) { /* "1 and 3" or "2 and 4" */
-
-		for (i = 0; i < tap_count; i++) {
-			if (((most_left.x - LPWG_XY_MARGIN) <= pInput[i].x) && ((most_left.x + LPWG_XY_MARGIN) >= pInput[i].x) &&
-				((most_top.y - LPWG_XY_MARGIN) <= pInput[i].y) && ((most_top.y + LPWG_XY_MARGIN) >= pInput[i].y)) {
-				passwords[i] = 1;
-			} else
-				passwords[i] = 3;
-		}
-
-	} else if (!x_line_only && y_line_only) { /* "1 and 2" or "3 and 4" */
-
-		for (i = 0; i < tap_count; i++) {
-			if (((most_left.x - LPWG_XY_MARGIN) <= pInput[i].x) && ((most_left.x + LPWG_XY_MARGIN) >= pInput[i].x) &&
-				((most_top.y - LPWG_XY_MARGIN) <= pInput[i].y) && ((most_top.y + LPWG_XY_MARGIN) >= pInput[i].y)) {
-				passwords[i] = 1;
-			} else
-				passwords[i] = 2;
-		}
-
-	} else {
-		for (i = 0; i < tap_count; i++) {
-			if (((most_left.x - LPWG_XY_MARGIN) <= pInput[i].x) && ((most_left.x + LPWG_XY_MARGIN) >= pInput[i].x)) {
-				if (((most_top.y - LPWG_XY_MARGIN) <= pInput[i].y) && ((most_top.y + LPWG_XY_MARGIN) >= pInput[i].y)) {
-					passwords[i] = 1;
-				} else
-					passwords[i] = 3;
-			} else {
-				if (((most_top.y - LPWG_XY_MARGIN) <= pInput[i].y) && ((most_top.y + LPWG_XY_MARGIN) >= pInput[i].y)) {
-					passwords[i] = 2;
-				} else {
-					passwords[i] = 4;
-				}
-			}
-		}
-	}
-
-	len += snprintf(buf + len, LPWG_STR_MAX - len, "LPWG : ");
-
-	for (i = 0; i < tap_count; i++) {
-		len += snprintf(buf + len, LPWG_STR_MAX - len, "%d ", passwords[i]);
-	}
-
-	TOUCH_INFO_MSG("%s \n", buf);
-
-	for (i = 0; i < tap_count; i++) {
-		TOUCH_INFO_MSG("LPWG : %d  x[%3d] y[%3d] \n", passwords[i], pInput[i].x, pInput[i].y);
-	}
-
-	current_count = 0;
-	memset(pInput, 0x0, sizeof(struct lpwg_xy)*10);
-}
-#endif
 
 static int mms_touch_event(struct i2c_client *client, struct touch_data *data, u8 *buf, int sz)
 {
@@ -670,9 +509,6 @@ static int mms_touch_event(struct i2c_client *client, struct touch_data *data, u
 	u8 touch_major = 0;
 	u8 pressure = 0;
 	int finger_event_sz = 0;
-#ifdef SENSING_TEST
-	char log_buf[256] = {0};
-#endif
 
 	TOUCH_TRACE_FUNC();
 
@@ -685,7 +521,7 @@ static int mms_touch_event(struct i2c_client *client, struct touch_data *data, u
 		index = (tmp[0] & 0xf) - 1;
 		state = (tmp[0] & 0x80) ? 1 : 0;
 
-		if (tmp[0] & MMS_TOUCH_KEY_EVENT) {
+		if (tmp[0] & MIT_TOUCH_KEY_EVENT) {
 			if (index < 0 || index >= ts_caps->number_of_button) {
 				TOUCH_ERR_MSG("invalid key index (%d)\n", index);
 				return -EIO;
@@ -736,10 +572,17 @@ static int mms_touch_event(struct i2c_client *client, struct touch_data *data, u
 			}
 
 			if (unlikely(touch_debug_mask_ & DEBUG_GET_DATA)) {
-				TOUCH_INFO_MSG("<%d> pos(%4d,%4d) w_m[%2d] w_n[%2d] w_o[%2d] p[%2d]\n, s[%d]",
-						id, data->curr_data[id].x_position, data->curr_data[id].y_position,
-						data->curr_data[id].width_major, data->curr_data[id].width_minor,
-						data->curr_data[id].width_orientation, data->curr_data[id].pressure, state);
+#ifdef ISIS
+				TOUCH_INFO_MSG("<%d> pos(****,****) w_m[%2d] w_n[%2d] w_o[%2d] p[%2d] s[%d]\n",
+					id,
+					data->curr_data[id].width_major, data->curr_data[id].width_minor,
+					data->curr_data[id].width_orientation, data->curr_data[id].pressure, state);
+#else
+				TOUCH_INFO_MSG("<%d> pos(%4d,%4d) w_m[%2d] w_n[%2d] w_o[%2d] p[%2d] s[%d]\n",
+					id, data->curr_data[id].x_position, data->curr_data[id].y_position,
+					data->curr_data[id].width_major, data->curr_data[id].width_minor,
+					data->curr_data[id].width_orientation, data->curr_data[id].pressure, state);
+#endif
 			}
 
 			if (data->curr_data[id].status == FINGER_PRESSED
@@ -748,26 +591,22 @@ static int mms_touch_event(struct i2c_client *client, struct touch_data *data, u
 					data->curr_data[id].touch_conut = 0;
 					++data->touch_count_num;
 					if (likely(touch_debug_mask_ & DEBUG_ABS_POINT)) {
-						if(lockscreen_stat == 1) {
-							TOUCH_INFO_MSG("%d finger pressed : <%d> x[XXX] y[XXX] z[XXX]\n",
+						if (lockscreen_stat == 1) {
+							TOUCH_INFO_MSG("%d finger pressed : <%d> x[***] y[***] z[***]\n",
 							data->touch_count_num, id);
 						} else {
-						TOUCH_INFO_MSG("%d finger pressed : <%d> x[%3d] y[%3d] z[%3d]\n",
-						data->touch_count_num, id,
-						data->curr_data[id].x_position,
-						data->curr_data[id].y_position,
-						data->curr_data[id].pressure);
-						}
-#ifdef SENSING_TEST
-						if(sensing_test == 1) {
-							sprintf(log_buf,"%3d %3d %3d %s\n",
+#ifdef ISIS
+							TOUCH_INFO_MSG("%d finger pressed : <%d> x[***] y[***] z[%3d]\n",
+								data->touch_count_num, id,
+								data->curr_data[id].pressure);
+#else
+							TOUCH_INFO_MSG("%d finger pressed : <%d> x[%3d] y[%3d] z[%3d]\n",
+								data->touch_count_num, id,
 								data->curr_data[id].x_position,
 								data->curr_data[id].y_position,
-								data->curr_data[id].pressure,
-								data->curr_data[id].status > 0 ? "DOWN" : "UP");
-							write_file(SENSING_TEST_PATH, log_buf, 1);
-						}
+								data->curr_data[id].pressure);
 #endif
+						}
 					}
 					data->curr_data[id].point_log_state = 1;
 			}
@@ -777,33 +616,26 @@ static int mms_touch_event(struct i2c_client *client, struct touch_data *data, u
 					data->touch_count_num--;
 
 					if (likely(touch_debug_mask_ & DEBUG_ABS_POINT)) {
-						if(lockscreen_stat == 1) {
-							TOUCH_INFO_MSG("touch_release[%s] : <%d> x[XXX] y[XXX] M:XX\n",
+						if (lockscreen_stat == 1) {
+							TOUCH_INFO_MSG("touch_release[%s] : <%d> x[***] y[***] M:**\n",
 							data->palm?"Palm":" ", id);
 						} else {
-						TOUCH_INFO_MSG("touch_release[%s] : <%d> x[%3d] y[%3d] M:%d\n",
-						data->palm?"Palm":" ", id,
-						data->prev_data[id].x_position,
-						data->prev_data[id].y_position,
-						data->curr_data[id].touch_conut);
-						}
-#ifdef LPWG_TEMP
-						mms_lpwg_touch_test(ts, data->prev_data[id].x_position, data->prev_data[id].y_position);
+#ifdef ISIS
+							TOUCH_INFO_MSG("touch_release[%s] : <%d> x[***] y[***] M:%d\n",
+								data->palm?"Palm":" ", id,
+								data->curr_data[id].touch_conut);
+#else
+							TOUCH_INFO_MSG("touch_release[%s] : <%d> x[%3d] y[%3d] M:%d\n",
+								data->palm?"Palm":" ", id,
+								data->prev_data[id].x_position,
+								data->prev_data[id].y_position,
+								data->curr_data[id].touch_conut);
 #endif
-#ifdef SENSING_TEST
-						if(sensing_test == 1) {
-							sprintf(log_buf,"%3d %3d     UP\n",
-								data->curr_data[id].x_position,
-								data->curr_data[id].y_position);
-							write_file(SENSING_TEST_PATH, log_buf, 1);
 						}
-#endif
 					}
 					data->curr_data[id].point_log_state = 0;
-			}
-
-			else {
-					data->curr_data[id].touch_conut++;
+			} else {
+				data->curr_data[id].touch_conut++;
 			}
 		}
 	}
@@ -815,7 +647,7 @@ static int mms_touch_event(struct i2c_client *client, struct touch_data *data, u
 
 	return 0;
 }
-#ifdef LPWG_TEMP
+
 static int mms_lpwg_event(struct i2c_client *client, struct touch_data *data, u8 *buf, int sz)
 {
 	struct mms_data *ts = get_touch_handle_(client);
@@ -828,32 +660,41 @@ static int mms_lpwg_event(struct i2c_client *client, struct touch_data *data, u8
 	ts->pdata->send_lpwg = 0;
 	ts->pdata->lpwg_size = 0;
 
-	if(buf[1] == 0) {
+	if (buf[1] == 0) {
 		TOUCH_INFO_MSG("LPWG Password Tap detected \n");
 		for (i = 2; i < sz; i += MIT_LPWG_EVENT_SZ) {
 			tmp = buf + i;
 			id = i;
 			x = tmp[1] | ((tmp[0] & 0xf) << 8);
 			y = tmp[2] | (((tmp[0] >> 4 ) & 0xf) << 8);
-			//Report Knock-Code
+#if 0
 			TOUCH_INFO_MSG("LPWG %d TAP x[%3d] y[%3d] \n", (i+1)/MIT_LPWG_EVENT_SZ, x, y);
-			ts->pdata->lpwg_x[((i+1)/MIT_LPWG_EVENT_SZ)-1] = x;
-			ts->pdata->lpwg_y[((i+1)/MIT_LPWG_EVENT_SZ)-1] = y;
+#endif
+			ts->pdata->lpwg_x[((i + 1) / MIT_LPWG_EVENT_SZ) - 1] = x;
+			ts->pdata->lpwg_y[((i + 1) / MIT_LPWG_EVENT_SZ) - 1] = y;
 			ts->pdata->lpwg_size++;
 			ts->pdata->send_lpwg = LPWG_MULTI_TAP;
 		}
 	} else if (buf[1] == 1) {
-		//Knock-on
-		//Report Knock-On
 		TOUCH_INFO_MSG("LPWG Double Tap detected \n");
-		ts->pdata->send_lpwg = LPWG_DOUBLE_TAP;
+		for (i = 2; i < sz; i += MIT_LPWG_EVENT_SZ) {
+			tmp = buf + i;
+			id = i;
+			x = tmp[1] | ((tmp[0] & 0xf) << 8);
+			y = tmp[2] | (((tmp[0] >> 4 ) & 0xf) << 8);
+			TOUCH_INFO_MSG("LPWG %d TAP x[%3d] y[%3d] \n", (i+1)/MIT_LPWG_EVENT_SZ, x, y);
+			ts->pdata->lpwg_x[((i + 1) / MIT_LPWG_EVENT_SZ) - 1] = x;
+			ts->pdata->lpwg_y[((i + 1) / MIT_LPWG_EVENT_SZ) - 1] = y;
+			ts->pdata->lpwg_size++;
+			ts->pdata->send_lpwg = LPWG_DOUBLE_TAP;
+		}
 	} else {
 		TOUCH_INFO_MSG("Unknown Packet Error : %02X %02X %02X %02X %02X \n", buf[0], buf[1], buf[2], buf[3], buf[4]);
 	}
 
 	return 0;
 }
-#endif
+
 static int mms_log_event(struct i2c_client *client, struct mms_data *ts)
 {
 	struct mms_log_pkt *pkt = (struct mms_log_pkt *) ts->buf;
@@ -870,28 +711,28 @@ static int mms_log_event(struct i2c_client *client, struct mms_data *ts)
 	}
 
 	switch (pkt->log_info >> 4) {
-	case LOG_TYPE_U08:
-	case LOG_TYPE_S08:
-		len = pkt->element_sz;
-		break;
-	case LOG_TYPE_U16:
-	case LOG_TYPE_S16:
-		len = pkt->element_sz * 2;
-		break;
-	case LOG_TYPE_U32:
-	case LOG_TYPE_S32:
-		len = pkt->element_sz * 4;
-		break;
-	default:
-		dev_err(&client->dev, "invalied log type\n");
-		return -EIO;
+		case LOG_TYPE_U08:
+		case LOG_TYPE_S08:
+			len = pkt->element_sz;
+			break;
+		case LOG_TYPE_U16:
+		case LOG_TYPE_S16:
+			len = pkt->element_sz * 2;
+			break;
+		case LOG_TYPE_U32:
+		case LOG_TYPE_S32:
+			len = pkt->element_sz * 4;
+			break;
+		default:
+			dev_err(&client->dev, "invalied log type\n");
+			return -EIO;
 	}
 
 	tmp = ts->buf + sizeof(struct mms_log_pkt);
 	row_num = pkt->row_sz ? pkt->row_sz : 1;
 
 	while (row_num--) {
-		mms_i2c_read(client, MMS_UNIVERSAL_RESULT, tmp, len);
+		mms_i2c_read(client, MIT_REGL_UCMD_RESULT, tmp, len);
 		tmp += len;
 	}
 
@@ -905,7 +746,7 @@ static int mms_get_packet(struct i2c_client *client)
 
 	TOUCH_TRACE_FUNC();
 
-	if (mms_i2c_read(client, MMS_EVENT_PKT_SZ, &sz, 1) < 0)
+	if (mms_i2c_read(client, MIT_EVENT_PKT_SZ, &sz, 1) < 0)
 		return -EIO;
 
 	if (sz == 0) {
@@ -915,19 +756,63 @@ static int mms_get_packet(struct i2c_client *client)
 
 	memset(ts->buf, 0, FINGER_EVENT_SZ * ts->pdata->caps->max_id);
 
-	if (mms_i2c_read(client, MMS_INPUT_EVENT, ts->buf, sz) < 0)
+	if (mms_i2c_read(client, MIT_INPUT_EVENT, ts->buf, sz) < 0)
 		return -EIO;
 
 	return (int) sz;
 }
 
+static void mms_check_lpwg_fail_reason(struct i2c_client *client, int cnt)
+{
+	struct mms_data *ts = get_touch_handle_(client);
+	int i = 0;
+
+	for (i = 2; i < cnt; i++) {
+		if (i == 2) {
+			switch (ts->buf[i]) {
+				case FAIL_MULTI_TOUCH:
+					TOUCH_INFO_MSG("LPWG FAIL REASON = Multi-Touch\n");
+					break;
+				case FAIL_TOUCH_SLOP:
+					TOUCH_INFO_MSG("LPWG FAIL REASON = Touch Slop\n");
+					break;
+				case FAIL_TAP_DISTANCE:
+					TOUCH_INFO_MSG("LPWG FAIL REASON = Tap Distance\n");
+					break;
+				case FAIL_TAP_TIME:
+					TOUCH_INFO_MSG("LPWG FAIL REASON = Tap Time\n");
+					break;
+				case FAIL_TOTAL_COUNT:
+					TOUCH_INFO_MSG("LPWG FAIL REASON = Total Count\n");
+					break;
+				case FAIL_DELAY_TIME:
+					TOUCH_INFO_MSG("LPWG FAIL REASON = Delay Time\n");
+					break;
+				case FAIL_PALM:
+					TOUCH_INFO_MSG("LPWG FAIL REASON = Palm\n");
+					break;
+				case FAIL_ACTIVE_AREA:
+					TOUCH_INFO_MSG("LPWG FAIL REASON = Active Area\n");
+					break;
+				case FAIL_LOW_INTENSITY:
+					TOUCH_INFO_MSG("LPWG FAIL REASON = Low Intensity\n");
+					break;
+				default:
+					TOUCH_INFO_MSG("LPWG FAIL REASON = Unknown Fail Reason %d\n", ts->buf[i]);
+					break;
+			}
+		} else if (i == 3) {
+			TOUCH_INFO_MSG("LPWG INTENSITY = %d\n",ts->buf[i]);
+		} else {}
+	}
+}
 
 static int mms_get_data(struct i2c_client *client, struct touch_data *data)
 {
 	struct mms_data *ts = get_touch_handle_(client);
 	int sz = 0;
 	u8 event_type;
-
+//	uint8_t *dummy_buf = NULL;
 	TOUCH_TRACE_FUNC();
 
 	sz = mms_get_packet(client);
@@ -937,44 +822,47 @@ static int mms_get_data(struct i2c_client *client, struct touch_data *data)
 		return -EIO;
 
 	event_type = ts->buf[0] & 0xf;
-#ifdef LPWG_TEMP
+
 	if (event_type >= 0x1 && event_type <= 0xa) {
 		if (mms_touch_event(client, data, ts->buf, sz) < 0)
 			goto err_event_type;
-	} else if (event_type == MMS_LPWG_EVENT) {
+	} else if (event_type == MIT_LPWG_EVENT) {
 		if (mms_lpwg_event(client, data, ts->buf, sz) < 0)
 			goto err_event_type;
-	} else if (event_type == MMS_ERROR_EVENT) {
-		data->state = ts->buf[1];
-		goto mms_error_event;
-	} else if (event_type == MMS_LOG_EVENT) {
-		if (mms_log_event(client, ts) < 0)
-			goto err_event_type;
-	} else {
-		TOUCH_ERR_MSG("Unkown, event type %d\n", event_type);
-		goto err_event_type;
-	}
-#else
-	if (event_type >= 0x1 && event_type <= 0xa) {
-		if (mms_touch_event(client, data, ts->buf, sz) < 0)
-			goto err_event_type;
-	} else if (event_type == MMS_ERROR_EVENT) {
-		data->state = ts->buf[1];
-		goto mms_error_event;
-	} else if (event_type == MMS_LOG_EVENT) {
-		if (mms_log_event(client, ts) < 0)
-			goto err_event_type;
-	} else {
-		TOUCH_ERR_MSG("Unkown, event type %d\n", event_type);
-		goto err_event_type;
-	}
+	} else if (event_type == MIT_ERROR_EVENT) {
+		if (ts->buf[1] == MIT_REQUEST_THERMAL_INFO) {
+			mit_battery_thermal(client, 1);
+			return 0;
+		} else if (ts->buf[1] == MIT_ERRORCODE_FAIL_REASON) {
+			mms_check_lpwg_fail_reason(client, sz);
+#if 0
+			if ((dummy_buf = kzalloc(PAGE_SIZE, GFP_KERNEL)) !=  NULL) {
+				mit_delta_show(client, dummy_buf);
+				kfree(dummy_buf);
+			}
 #endif
+			return 0;
+		} else {
+			TOUCH_ERR_MSG("Error Event Data Buf[1] : 0x%x\n", ts->buf[1]);
+			data->state = ts->buf[1];
+			goto mms_error_event;
+		}
+	} else if (event_type == MIT_LOG_EVENT) {
+		if (mms_log_event(client, ts) < 0)
+			goto err_event_type;
+	} else {
+		TOUCH_ERR_MSG("Unkown, event type 0x%x\n", event_type);
+		goto err_event_type;
+	}
 
 	return 0;
 
 err_event_type:
+	TOUCH_ERR_MSG("Unkown, event type 0x%x\n", event_type);
 	return -EIO;
+
 mms_error_event:
+	TOUCH_ERR_MSG("Unkown, event type 0x%x\n", event_type);
 	return -ENXIO;
 }
 
@@ -991,86 +879,85 @@ static int mms_wake(struct i2c_client *client)
 static int mms_power(struct i2c_client* client, int power_ctrl)
 {
 	struct mms_data* ts = get_touch_handle_(client);
-	static char power_state = 0;
 	int i = 0;
 	int ret = 0;
 
 	TOUCH_POWER_MSG("%s = %d\n", __func__, power_ctrl);
 
-	if (power_state == power_ctrl) {
+	if (ts->pdata->curr_pwr_state == power_ctrl) {
+		TOUCH_INFO_MSG("Ignore Power Control : curr_pwr_state = %d\n", power_ctrl);
 		return 0;
 	}
 
 	switch (power_ctrl) {
 	case POWER_OFF:
-		i = TOUCH_PWR_NUM-1;
-		do {
-			if (ts_pwr[i].type == 1) {
-				if (!strncmp(ts_pwr[i].name, "low", strlen("low"))) {
-					gpio_direction_output(ts_pwr[i].value, 1);
-					TOUCH_POWER_MSG("power[%d]: gpio[%d] set 1", i, ts_pwr[i].value);
-				} else {
-					gpio_direction_output(ts_pwr[i].value, 0);
-					TOUCH_POWER_MSG("power[%d]: gpio[%d] set 0", i, ts_pwr[i].value);
-				}
-			} else if (ts_pwr[i].type == 2) {
-				if (ts->vdd_regulator[i] != NULL && !IS_ERR(ts->vdd_regulator[i])) {
-					regulator_disable(ts->vdd_regulator[i]);
-					/*
-					TOUCH_POWER_MSG("power[%d]: regulator[%s] disabled", i,
-						rdev_get_name(ts->vdd_regulator[i]->rdev));
-					*/
-				}
-			}
-			mdelay(2);
-		} while(--i >= 0);
 		gpio_direction_output(ts_pdata->reset_pin, 0);
-		break;
-
-	case POWER_ON:
+		TOUCH_POWER_MSG("power: reset_pin low \n");
+		msleep(2);
 		i = 0;
 		do {
 			if (ts_pwr[i].type == 1) {
 				if (!strncmp(ts_pwr[i].name, "low", strlen("low"))) {
+					gpio_direction_output(ts_pwr[i].value, 1);
+					TOUCH_POWER_MSG("power[%d]: gpio[%d] set 1\n", i, ts_pwr[i].value);
+				} else {
 					gpio_direction_output(ts_pwr[i].value, 0);
-					TOUCH_POWER_MSG("power[%d]: gpio[%d] set 0", i, ts_pwr[i].value);
+					TOUCH_POWER_MSG("power[%d]: gpio[%d] set 0\n", i, ts_pwr[i].value);
+				}
+			} else if (ts_pwr[i].type == 2) {
+				if (ts->vdd_regulator[i] != NULL && !IS_ERR(ts->vdd_regulator[i])) {
+					regulator_disable(ts->vdd_regulator[i]);
+					TOUCH_POWER_MSG("power[%d]: regulator disabled\n", i);
+				}
+			}
+			mdelay(2);
+		} while(++i < TOUCH_PWR_NUM);
+		TOUCH_INFO_MSG("Power Off \n");
+		break;
+	case POWER_ON:
+		i = TOUCH_PWR_NUM - 1;
+		do {
+			if (ts_pwr[i].type == 1) {
+				if (!strncmp(ts_pwr[i].name, "low", strlen("low"))) {
+					gpio_direction_output(ts_pwr[i].value, 0);
+					TOUCH_POWER_MSG("power[%d]: gpio[%d] set 0\n", i, ts_pwr[i].value);
 				} else {
 					gpio_direction_output(ts_pwr[i].value, 1);
-					TOUCH_POWER_MSG("power[%d]: gpio[%d] set 1", i, ts_pwr[i].value);
+					TOUCH_POWER_MSG("power[%d]: gpio[%d] set 1\n", i, ts_pwr[i].value);
 				}
 			} else if (ts_pwr[i].type == 2) {
 				if (ts->vdd_regulator[i] != NULL && !IS_ERR(ts->vdd_regulator[i])) {
 					ret = regulator_enable(ts->vdd_regulator[i]);
 					if (ret) {
-						TOUCH_POWER_MSG("power: regulator[%d] enable failed ret =%d\n", i, ret );
+						TOUCH_INFO_MSG("power[%d]: regulator enable failed ret =%d\n", i, ret );
+					} else {
+						TOUCH_POWER_MSG("power[%d]: regulator enabled\n", i);
 					}
-					/*
-					TOUCH_POWER_MSG("power[%d]: regulator[%s] enabled", i,
-						rdev_get_name(ts->vdd_regulator[i]->rdev));
-					*/
 				}
 			}
 			mdelay(2);
-		} while(++i < TOUCH_PWR_NUM);
+		} while(--i >= 0);
 		gpio_direction_output(ts_pdata->reset_pin, 1);
+		TOUCH_POWER_MSG("power: reset_pin high \n");
+		msleep(ts_role->booting_delay);
+		TOUCH_INFO_MSG("Power On \n");
 		break;
-
 	case POWER_SLEEP:
-		if (mms_sleep(client))
+		if (mms_sleep(client)) {
 			return -EIO;
+		}
 		break;
-
 	case POWER_WAKE:
-		if (mms_wake(client))
+		if (mms_wake(client)) {
 			return -EIO;
+		}
 		break;
-
 	default:
 		return -EIO;
 		break;
 	}
 
-	power_state = power_ctrl;
+	ts->pdata->curr_pwr_state = power_ctrl;
 
 	return 0;
 }
@@ -1132,122 +1019,372 @@ static int mms_fw_upgrade(struct i2c_client* client, struct touch_fw_info *info)
 	return ret;
 }
 
-#ifdef LPWG_TEMP
-static int mms_set_lpwg(struct mms_data* ts, u8 mode)
+static int mms_set_active_area(struct mms_data* ts, u8 mode)
 {
 	char write_buf[255] = {0};
-	int ret = 0;
 
-	if (mode) {  // LPWG enable mode
-		write_buf[0] = MIT_REGH_CMD;
-		write_buf[1] = MIT_LPWG_MODE;
-		write_buf[2] = mode & (LPWG_DOUBLE_TAP | LPWG_MULTI_TAP);
-		if (i2c_master_send(ts->client,write_buf,3) != 3) {
-			TOUCH_INFO_MSG("MIT_LPWG_MODE write error \n");
-		} else {
-			TOUCH_INFO_MSG("MIT_LPWG_MODE = %X \n", write_buf[2]);
-		}
-
-		if (mode & LPWG_MULTI_TAP) {
-			write_buf[0] = MIT_REGH_CMD;
-			write_buf[1] = MIT_LPWG_TOTAL_TAP_COUNT;
-			write_buf[2] = ts->pdata->tap_count;
-			if (i2c_master_send(ts->client,write_buf,3) != 3) {
-				TOUCH_INFO_MSG("MIT_LPWG_TOTAL_TAP_COUNT write error \n");
-			} else {
-				TOUCH_INFO_MSG("MIT_LPWG_TOTAL_TAP_COUNT = %d \n", write_buf[2]);
-			}
-
-			write_buf[0] = MIT_REGH_CMD;
-			write_buf[1] = MIT_LPWG_TAP_DISTANCE;
-			write_buf[2] = 10;
-			if (i2c_master_send(ts->client,write_buf,3) != 3) {
-				TOUCH_INFO_MSG("MIT_LPWG_TAP_DISTANCE write error \n");
-			} else {
-				TOUCH_INFO_MSG("MIT_LPWG_TAP_DISTANCE = %d \n", write_buf[2]);
-				TOUCH_INFO_MSG("MIT_LPWG_TAP_DISTANCE2 = 0xff \n");
-			}
-		} else if (mode & LPWG_DOUBLE_TAP) {
-
-			write_buf[0] = MIT_REGH_CMD;
-			write_buf[1] = MIT_LPWG_TAP_DISTANCE;
-			write_buf[2] = 10;
-			if (i2c_master_send(ts->client,write_buf,3) != 3) {
-				TOUCH_INFO_MSG("MIT_LPWG_TAP_DISTANCE write error \n");
-			} else {
-				TOUCH_INFO_MSG("MIT_LPWG_TAP_DISTANCE = %d \n", write_buf[2]);
-			}
-		}
-
-		write_buf[0] = MIT_REGH_CMD;
-		write_buf[1] = MIT_LPWG_TOUCH_SLOP;
-		write_buf[2] = 10;
-		if(i2c_master_send(ts->client,write_buf,3)!=3) {
-			TOUCH_INFO_MSG("MIT_LPWG_TOUCH_SLOP write error \n");
-		} else {
-			TOUCH_INFO_MSG("MIT_LPWG_TOUCH_SLOP = %d \n", write_buf[2]);
-		}
-
-		write_buf[0] = MIT_REGH_CMD;
-		write_buf[1] = MIT_LPWG_TAP_TIME_GAP;
-		write_buf[2] = (700 >> 8);
-		write_buf[3] = (700 & 0xFF);
-		if(i2c_master_send(ts->client,write_buf,3)!=3) {
-			TOUCH_INFO_MSG("MIT_LPWG_TAP_TIME_GAP write error \n");
-		} else {
-			TOUCH_INFO_MSG("MIT_LPWG_TAP_TIME_GAP = %d, %d \n", write_buf[2], write_buf[3]);
-		}
-
-		write_buf[0] = MIT_REGH_CMD;
-		write_buf[1] = MIT_LPWG_STORE_INFO;
-		write_buf[2] = 0x01;
-		if (i2c_master_send(ts->client,write_buf,3) != 3) {
-			TOUCH_INFO_MSG("MIT_LPWG_STORE_INFO write error \n");
-		} else {
-			TOUCH_INFO_MSG("MIT_LPWG_STORE_INFO \n");
-		}
-	}
-	else { // LPWG disable mode
-
-		write_buf[0] = MIT_REGH_CMD;
-		write_buf[1] = MIT_LPWG_MODE;
-		write_buf[2] = 0;
-		if (i2c_master_send(ts->client,write_buf,3) != 3) {
-			TOUCH_INFO_MSG("MIT_LPWG_MODE write error \n");
-		} else {
-			TOUCH_INFO_MSG("MIT_LPWG_MODE = %X \n", write_buf[2]);
-		}
-		write_buf[0] = MIT_REGH_CMD;
-		write_buf[1] = MIT_LPWG_STORE_INFO;
-		write_buf[2] = 0x01;
-		if (i2c_master_send(ts->client,write_buf,3) != 3) {
-			TOUCH_INFO_MSG("MIT_LPWG_STORE_INFO write error \n");
-		} else {
-			TOUCH_INFO_MSG("MIT_LPWG_STORE_INFO \n");
-		}
-
-	} // LPWG disable mode end
-
-	return ret;
-}
-
-static int mms_lpwg_start(struct mms_data* ts, u8 mode)
-{
-	char write_buf[255] = {0};
-	int ret = 0;
 	if (mode) {
 		write_buf[0] = MIT_REGH_CMD;
-		write_buf[1] = MIT_LPWG_START;
-		write_buf[2] = 0x01;
-		if (i2c_master_send(ts->client,write_buf,3) != 3) {
-			TOUCH_INFO_MSG("MIT_LPWG_START write error \n");
+		write_buf[1] = MIT_LPWG_ACTIVE_AREA_REG;
+		write_buf[2] = ts->pdata->active_area_x1 >> 8;
+		write_buf[3] = ts->pdata->active_area_x1 & 0xFF;
+		write_buf[4] = ts->pdata->active_area_y1 >> 8;
+		write_buf[5] = ts->pdata->active_area_y1 & 0xFF;
+		write_buf[6] = ts->pdata->active_area_x2 >> 8;
+		write_buf[7] = ts->pdata->active_area_x2 & 0xFF;
+		write_buf[8] = ts->pdata->active_area_y2 >> 8;
+		write_buf[9] = ts->pdata->active_area_y2 & 0xFF;
+
+		if (i2c_master_send(ts->client, write_buf, 10) != 10) {
+			TOUCH_INFO_MSG("MIT_LPWG_ACTIVE_AREA write error \n");
 		} else {
-			TOUCH_INFO_MSG("MIT_LPWG_START \n");
+			TOUCH_INFO_MSG("MIT_LPWG_ACTIVE_AREA\n");
 		}
+	} else {
+		TOUCH_INFO_MSG("None Active Area \n");
 	}
-	return ret;
+
+	return 0;
 }
-#endif
+
+static int tci_control(struct mms_data* ts, int type, u16 value)
+{
+	char write_buf[255] = {0};
+	/* Common Reg */
+	bool i2c_comm_ok = true;
+	int count = 1;
+
+	do {
+		i2c_comm_ok = true; /* init i2c comm status */
+
+		switch (type) {
+		case IDLE_REPORTRATE_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_IDLE_REPORTRATE_REG;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_IDLE_REPORTRATE_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_IDLE_REPORTRATE_REG\n");
+			}
+			break;
+		case ACTIVE_REPORTRATE_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_ACTIVE_REPORTRATE_REG;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_ACTIVE_REPORTRATE_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_ACTIVE_REPORTRATE_REG\n");
+			}
+			break;
+		case SENSITIVITY_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_SENSITIVITY_REG;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_SENSITIVITY_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_SENSITIVITY_REG = %d \n", write_buf[2]);
+			}
+			break;
+		/* TCI1 reg */
+		case TCI_ENABLE_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_TCI_ENABLE_REG;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_TCI_ENABLE_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_TCI_ENABLE_REG = %d \n", write_buf[2]);
+			}
+			break;
+		case TOUCH_SLOP_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_TOUCH_SLOP_REG;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_TOUCH_SLOP_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_TOUCH_SLOP_REG\n");
+			}
+			break;
+		case TAP_MIN_DISTANCE_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_TAP_MIN_DISTANCE_REG;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_TAP_MIN_DISTANCE_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_TAP_MIN_DISTANCE_REG\n");
+			}
+			break;
+		case TAP_MAX_DISTANCE_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_TAP_MAX_DISTANCE_REG;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_TAP_MAX_DISTANCE_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_TAP_MAX_DISTANCE_REG\n");
+			}
+			break;
+		case MIN_INTERTAP_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_MIN_INTERTAP_REG;
+			write_buf[2] = (value >> 8);
+			write_buf[3] = (value & 0xFF);
+			if (i2c_master_send(ts->client, write_buf, 4) != 4) {
+				TOUCH_INFO_MSG("MIT_LPWG_MIN_INTERTAP_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_MIN_INTERTAP_REG\n");
+			}
+			break;
+		case MAX_INTERTAP_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_MAX_INTERTAP_REG;
+			write_buf[2] = (value >> 8);
+			write_buf[3] = (value & 0xFF);
+			if (i2c_master_send(ts->client, write_buf, 4) != 4) {
+				TOUCH_INFO_MSG("MIT_LPWG_MAX_INTERTAP_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_MAX_INTERTAP_REG\n");
+			}
+			break;
+		case TAP_COUNT_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_TAP_COUNT_REG;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_TAP_COUNT_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_TAP_COUNT_REG\n");
+			}
+			break;
+		case INTERRUPT_DELAY_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_INTERRUPT_DELAY_REG;
+			write_buf[2] = ((value ? KNOCKON_DELAY : 0) >> 8);
+			write_buf[3] = ((value ? KNOCKON_DELAY : 0) & 0xFF);
+			if (i2c_master_send(ts->client, write_buf, 4) != 4) {
+				TOUCH_INFO_MSG("MIT_LPWG_INTERRUPT_DELAY_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_INTERRUPT_DELAY_REG\n");
+			}
+			break;
+		/* TCI2 reg */
+		case TCI_ENABLE_CTRL2:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_TCI_ENABLE_REG2;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_TCI_ENABLE_REG2 write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_TCI_ENABLE_REG2 = %d\n", write_buf[2]);
+			}
+			break;
+		case TOUCH_SLOP_CTRL2:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_TOUCH_SLOP_REG2;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_TOUCH_SLOP_REG2 write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_TOUCH_SLOP_REG2\n");
+			}
+			break;
+		case TAP_MIN_DISTANCE_CTRL2:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_TAP_MIN_DISTANCE_REG2;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_TAP_MIN_DISTANCE_REG2 write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_TAP_MIN_DISTANCE_REG2\n");
+			}
+			break;
+		case TAP_MAX_DISTANCE_CTRL2:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_TAP_MAX_DISTANCE_REG2;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_TAP_MAX_DISTANCE_REG2 write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_TAP_MAX_DISTANCE_REG2\n");
+			}
+			break;
+		case MIN_INTERTAP_CTRL2:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_MIN_INTERTAP_REG2;
+			write_buf[2] = (value >> 8);
+			write_buf[3] = (value & 0xFF);
+			if (i2c_master_send(ts->client, write_buf, 4) != 4) {
+				TOUCH_INFO_MSG("MIT_LPWG_MIN_INTERTAP_REG2 write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_MIN_INTERTAP_REG2\n");
+			}
+			break;
+		case MAX_INTERTAP_CTRL2:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_MAX_INTERTAP_REG2;
+			write_buf[2] = (value >> 8);
+			write_buf[3] = (value & 0xFF);
+			if (i2c_master_send(ts->client, write_buf, 4) != 4) {
+				TOUCH_INFO_MSG("MIT_LPWG_MAX_INTERTAP_REG2 write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_MAX_INTERTAP_REG2\n");
+			}
+			break;
+		case TAP_COUNT_CTRL2:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_TAP_COUNT_REG2;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_TAP_COUNT_REG2 write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_TAP_COUNT_REG2 = %d\n", write_buf[2]);
+			}
+			break;
+		case INTERRUPT_DELAY_CTRL2:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_INTERRUPT_DELAY_REG2;
+			write_buf[2] = ((value ? KNOCKON_DELAY : 0) >> 8);
+			write_buf[3] = ((value ? KNOCKON_DELAY : 0) & 0xFF);
+			if (i2c_master_send(ts->client, write_buf, 4) != 4) {
+				TOUCH_INFO_MSG("MIT_LPWG_INTERRUPT_DELAY_REG2 write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_INTERRUPT_DELAY_REG2\n");
+			}
+			break;
+
+		case LPWG_STORE_INFO_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_STORE_INFO_REG;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_STORE_INFO_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_STORE_INFO_REG = %d\n", write_buf[2]);
+			}
+			break;
+		case LPWG_START_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_START_REG;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_START_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_START\n");
+			}
+			break;
+		case LPWG_PANEL_DEBUG_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_PANEL_DEBUG_REG;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_PANEL_DEBUG_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_PANEL_DEBUG_REG = %d \n", write_buf[2]);
+			}
+			break;
+		case LPWG_FAIL_REASON_CTRL:
+			write_buf[0] = MIT_REGH_CMD;
+			write_buf[1] = MIT_LPWG_FAIL_REASON_REG;
+			write_buf[2] = value;
+			if (i2c_master_send(ts->client, write_buf, 3) != 3) {
+				TOUCH_INFO_MSG("MIT_LPWG_FAIL_REASON_REG write error \n");
+				i2c_comm_ok = false;
+			} else {
+				TOUCH_INFO_MSG("MIT_LPWG_FAIL_REASON_REG = %d \n", write_buf[2]);
+			}
+			break;
+		default:
+			break;
+		}
+
+		if ( i2c_comm_ok == false ) {
+			TOUCH_INFO_MSG("%s : i2c write failed, Retry :%d!! \n", __func__, count++);
+			mms_power_reset(ts);
+			msleep((ts_role->booting_delay)*count);
+		} else {
+			/* i2c write ok */
+		}
+	} while ((i2c_comm_ok == false) && (count < 5));
+
+	return 0;
+}
+
+static int lpwg_control(struct mms_data* ts, u8 mode)
+{
+	switch (mode) {
+	case LPWG_SIGNATURE:
+		break;
+	case LPWG_DOUBLE_TAP:
+		tci_control(ts, IDLE_REPORTRATE_CTRL, ts->pdata->tci_info->idle_report_rate);
+		tci_control(ts, ACTIVE_REPORTRATE_CTRL, ts->pdata->tci_info->active_report_rate);
+		tci_control(ts, SENSITIVITY_CTRL, ts->pdata->tci_info->sensitivity);
+		tci_control(ts, TCI_ENABLE_CTRL, 1);
+		tci_control(ts, TOUCH_SLOP_CTRL, ts->pdata->tci_info->touch_slope);
+		tci_control(ts, TAP_MIN_DISTANCE_CTRL, ts->pdata->tci_info->min_distance);
+		tci_control(ts, TAP_MAX_DISTANCE_CTRL, ts->pdata->tci_info->max_distance);
+		tci_control(ts, MIN_INTERTAP_CTRL, ts->pdata->tci_info->min_intertap);
+		tci_control(ts, MAX_INTERTAP_CTRL, ts->pdata->tci_info->max_intertap);
+		tci_control(ts, TAP_COUNT_CTRL, ts->pdata->tci_info->tap_count);
+		tci_control(ts, INTERRUPT_DELAY_CTRL, 0);
+		tci_control(ts, TCI_ENABLE_CTRL2, 0);
+		break;
+	case LPWG_MULTI_TAP:
+		tci_control(ts, IDLE_REPORTRATE_CTRL, ts->pdata->tci_info->idle_report_rate);
+		tci_control(ts, ACTIVE_REPORTRATE_CTRL, ts->pdata->tci_info->active_report_rate);
+		tci_control(ts, SENSITIVITY_CTRL, ts->pdata->tci_info->sensitivity);
+		tci_control(ts, TCI_ENABLE_CTRL, 1);
+		tci_control(ts, TOUCH_SLOP_CTRL, ts->pdata->tci_info->touch_slope);
+		tci_control(ts, TAP_MIN_DISTANCE_CTRL, ts->pdata->tci_info->min_distance);
+		tci_control(ts, TAP_MAX_DISTANCE_CTRL, ts->pdata->tci_info->max_distance);
+		tci_control(ts, MIN_INTERTAP_CTRL, ts->pdata->tci_info->min_intertap);
+		tci_control(ts, MAX_INTERTAP_CTRL, ts->pdata->tci_info->max_intertap);
+		tci_control(ts, TAP_COUNT_CTRL, ts->pdata->tci_info->tap_count);
+		tci_control(ts, INTERRUPT_DELAY_CTRL, ts->pdata->double_tap_check);
+		tci_control(ts, TCI_ENABLE_CTRL2, 1);
+		tci_control(ts, TOUCH_SLOP_CTRL2, ts->pdata->tci_info->touch_slope_2);
+		tci_control(ts, TAP_MIN_DISTANCE_CTRL2, ts->pdata->tci_info->min_distance_2);
+		tci_control(ts, TAP_MAX_DISTANCE_CTRL2, ts->pdata->tci_info->max_distance_2);
+		tci_control(ts, MIN_INTERTAP_CTRL2, ts->pdata->tci_info->min_intertap_2);
+		tci_control(ts, MAX_INTERTAP_CTRL2, ts->pdata->tci_info->max_intertap_2);
+		tci_control(ts, TAP_COUNT_CTRL2, ts->pdata->tap_count);
+		tci_control(ts, INTERRUPT_DELAY_CTRL2, ts->pdata->tci_info->interrupt_delay_2);
+		break;
+	default:
+		tci_control(ts, TCI_ENABLE_CTRL, 0);
+		tci_control(ts, TCI_ENABLE_CTRL2, 0);
+		break;
+	}
+
+	TOUCH_INFO_MSG("%s : lpwg_mode[%d]\n", __func__, mode);
+	return 0;
+}
 
 static int mms_ic_ctrl(struct i2c_client *client, u32 code, u32 value)
 {
@@ -1268,10 +1405,20 @@ static int mms_ic_ctrl(struct i2c_client *client, u32 code, u32 value)
 		if (param) {
 			buf = (char *) param->v1;
 			if (buf) {
+				if (ts->pdata->panel_on) {
+					ret += sprintf(buf + ret, "====== LCD  ON  ======\n");
+				} else {
+					ret += sprintf(buf + ret, "====== LCD  OFF ======\n");
+				}
 				ret += sprintf(buf + ret, "======================\n");
 				ret += sprintf(buf + ret, "F/W Version : %X.%02X \n", ts->module.version[0], ts->module.version[1]);
 				ret += sprintf(buf + ret, "F/W Product : %s \n", ts->module.product_code);
-				ret += sprintf(buf + ret, "F/W Row : %d Col : %d \n", ts->dev.row_num, ts->dev.col_num);
+				ret += sprintf(buf + ret, "F/W Row : %d, Col : %d\n", ts->dev.row_num, ts->dev.col_num);
+				if (ts->module.otp == OTP_NOT_SUPPORTED) {
+					ret += sprintf(buf + ret, "OTP : F/W Not support \n");
+				} else {
+					ret += sprintf(buf + ret, "OTP : %s \n", (ts->module.otp == OTP_APPLIED) ? "Applied" : "None");
+				}
 				ret += sprintf(buf + ret, "======================\n");
 			}
 		}
@@ -1291,18 +1438,33 @@ static int mms_ic_ctrl(struct i2c_client *client, u32 code, u32 value)
 	case IC_CTRL_SAVE_IC_INFO:
 		mms_get_ic_info(ts, NULL);
 		break;
-#ifdef LPWG_TEMP
+
 	case IC_CTRL_LPWG:
-		mms_set_lpwg(ts, (u8)param->v1);
-		if (param) {
-			// LPWG enable mode
-			mms_lpwg_start(ts, (u8)param->v1);
+		tci_control(ts, LPWG_PANEL_DEBUG_CTRL, ts->pdata->lpwg_debug_enable);
+		tci_control(ts, LPWG_FAIL_REASON_CTRL, ts->pdata->lpwg_fail_reason);
+		// FAIL REASON Always ON for debugging
+		//tci_control(ts, LPWG_FAIL_REASON_CTRL, 1);
+		lpwg_control(ts, (u8)param->v1);
+		mms_set_active_area(ts, (u8)param->v1);
+
+		tci_control(ts, LPWG_START_CTRL, 1);
+#if defined(TOUCH_USE_DSV)
+		if (ts_pdata->enable_sensor_interlock) {
+			if (lpwg_alc_cdata==4 || ts_pdata->sensor_value) {
+				ts_pdata->use_dsv = 1;
+				mms_dsv_control(client);
+			}
 		} else {
-			// LPWG disable mode
-			mms_lpwg_start(ts, 1);
+			if (ts_pdata->use_dsv) {
+				mms_dsv_control(client);
+			}
 		}
-		break;
 #endif
+		break;
+
+	case IC_CTRL_ACTIVE_AREA:
+		mms_set_active_area(ts, (u8)param->v1);
+		break;
 	}
 	return ret;
 }
@@ -1310,560 +1472,162 @@ static int mms_ic_ctrl(struct i2c_client *client, u32 code, u32 value)
 static int mms_reg_control_store(struct i2c_client *client, const char *buf)
 {
 	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
-	int cmd = 0, ret = 0, reg_addr = 0, length = 0, i = 0;
-	uint8_t reg_buf[100] = {0};
+	int cmd = 0;
+	int ret = 0;
+	int reg_addr[2] = {0};
+	int value = 0;
+	uint8_t write_buf[50] = {0};
+	uint8_t read_buf[50] = {0};
+	int i = 0;
+	int len = 2;
 
-	mms_get_ic_info(ts, NULL);
-
-	if (sscanf(buf, "%d, 0x%x, %d", &cmd, &reg_addr, &length) != 3)
+	if ( sscanf(buf, "%d %x %x %d", &cmd, &reg_addr[0], &reg_addr[1], &value) != 4) {
+		TOUCH_INFO_MSG("data parsing fail.\n");
+		TOUCH_INFO_MSG("%d, 0x%x, 0x%x, %d\n", cmd, reg_addr[0], reg_addr[1], value);
 		return -EINVAL;
+	}
+	TOUCH_INFO_MSG("%d, 0x%x, 0x%x, %d\n", cmd, reg_addr[0], reg_addr[1], value);
+
 	switch (cmd) {
 		case 1:
-			reg_buf[0] = reg_addr;
-			ret = i2c_master_send(ts->client, reg_buf, 1);
+			write_buf[0] = reg_addr[0];
+			write_buf[1] = reg_addr[1];
+
+			ret = i2c_master_send(ts->client, write_buf,len);
 			if (ret < 0) {
 				TOUCH_INFO_MSG("i2c master send fail\n");
 				break;
 			}
-			ret = i2c_master_recv(ts->client, reg_buf, length);
+			ret = i2c_master_recv(ts->client, read_buf, value);
 			if (ret < 0) {
 				TOUCH_INFO_MSG("i2c master recv fail\n");
 				break;
 			}
-			for (i = 0; i < length; i++) {
-				TOUCH_INFO_MSG("0x%x", reg_buf[i]);
+			for (i = 0; i < value; i ++) {
+				TOUCH_INFO_MSG("read_buf=[%d]\n",read_buf[i]);
 			}
-			TOUCH_INFO_MSG("\n 0x%x register read done\n", reg_addr);
+			TOUCH_INFO_MSG("register read done\n");
 			break;
 		case 2:
-			reg_buf[0] = reg_addr;
-			reg_buf[1] = length;
-			ret = i2c_master_send(ts->client, reg_buf, 2);
+			write_buf[0] = reg_addr[0];
+			write_buf[1] = reg_addr[1];
+			if (value >= 256) {
+				write_buf[2] = (value >> 8);
+				write_buf[3] = (value & 0xFF);
+				len = len + 2;
+			} else {
+				write_buf[2] = value;
+				len++;
+			}
+			ret = i2c_master_send(ts->client, write_buf, len);
 			if (ret < 0) {
 				TOUCH_INFO_MSG("i2c master send fail\n");
 				break;
 			}
-			TOUCH_INFO_MSG("\n 0x%x register write done\n", reg_addr);
+			TOUCH_INFO_MSG("register write done\n");
 			break;
 		default:
-			TOUCH_INFO_MSG("usage: echo [1(read)|2(write)], [reg address], [length|value] > reg_control\n");
+			TOUCH_INFO_MSG("usage: echo [1(read)|2(write)], [reg address0], [reg address1], [length(read)|value(write)] > reg_control\n");
 			TOUCH_INFO_MSG("  - Register Set or Read\n");
 			break;
 	}
-	return 0;
+	return ret;
 }
-
-static int mms_fx_control_store(struct i2c_client *client, const char *buf)
+static int mit_tci_store(struct i2c_client *client, const char *buf)
 {
 	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
-	static int fx_state = 0;
-	int	ret = 0;
-	int cmd = 0;
-	if (sscanf(buf, "%d", &cmd) != 1)
-		return -EINVAL;
-
-	switch (cmd) {
-	case 0:
-		if (fx_state == 0) {
-			TOUCH_INFO_MSG("already no fx mode\n");
-			break;
-		}
-		if (ts->pdata->panel_on == 0) {
-			TOUCH_INFO_MSG("try again after power on\n");
-			break;
-		}
-		fx_state = 0;
-
-		enable_irq(ts->client->irq);
-		TOUCH_INFO_MSG("enable irq\n");
-
-		ts_pwr[1].type = 0;
-		ret = mms_power(client, POWER_ON);
-		ts_pwr[1].type = 2;
-		if (ret < 0) {
-			TOUCH_INFO_MSG("Regulator vdd enable failed retval = %d\n", ret);
-		}else{
-			TOUCH_INFO_MSG("regulator_enable(VDD) \n");
-		}
-
-		msleep(30);
-
-		mms_set_gpio_mode(ts->pdata, GPIOMODE_FX_END);
-		break;
-	case 1:
-		if (fx_state == 1) {
-			TOUCH_INFO_MSG("already fx mode\n");
-			break;
-		}
-		if (ts->pdata->panel_on == 0) {
-			TOUCH_INFO_MSG("try again after power on\n");
-			break;
-		}
-		fx_state = 1;
-
-		disable_irq_nosync(ts->client->irq);
-		TOUCH_INFO_MSG("disable irq\n");
-
-		ts_pwr[1].type = 0;
-		ret = mms_power(client, POWER_OFF);
-		ts_pwr[1].type = 2;
-		TOUCH_INFO_MSG("regulator_disable(VDD) \n");
-		mms_set_gpio_mode(ts->pdata, GPIOMODE_FX_START);
-		break;
-	default:
-		TOUCH_INFO_MSG("usage: echo [0|1] > control\n");
-		break;
-	}
-	return 0;
-}
-#if 0
-static int get_limit(struct mms_data *ts, char* breakpoint, int *limit_data, int *limit_spec)
-{
-	int fd = 0;
-	char *fname = "/data/mit_limit.txt";
-	int p = 0;
-	int q = 0;
-	char *qq = NULL;
-	int cipher = 1;
-	int r = 0;
-	const struct firmware *fwlimit = NULL;
 	int ret = 0;
-	char* line = NULL;
+	int value = 0;
+	int type = 0;
 
-	mm_segment_t old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	line = kzalloc(1024, GFP_KERNEL);
-	if (line == NULL) {
-		TOUCH_INFO_MSG("failed to allocate line\n");
-		ret = -1;
-		goto exit;
+	if (sscanf(buf, "%d %d", &type, &value) != 2) {
+		TOUCH_INFO_MSG("data parsing fail.\n");
+		TOUCH_INFO_MSG("%d, %d\n", type, value);
+		return -EINVAL;
 	}
 
-	fd = sys_open(fname, O_RDONLY, 0);
-	if ( fd < 0 ) {
-		if (ts->pdata->panel_spec == NULL) {
-			TOUCH_INFO_MSG("panel_spec_file name is null\n");
-			ret = -1;
-			goto exit;
-		} else if (request_firmware(&fwlimit, ts->pdata->panel_spec, &ts->client->dev) >= 0) {
-			if (fwlimit->size > 1024) {
-				ret = -1;
-				goto exit;
-			}
-			strcpy(line, fwlimit->data);
-			ret = 0;
-		} else {
-			TOUCH_INFO_MSG("failed to request limit ihex");
-			ret = -1;
-			goto exit;
-		}
-	} else {
-		sys_read(fd, line, 1024);
-		ret = 1;
+	TOUCH_INFO_MSG("%s - TCI reg control type : %d, value : %d\n", __func__, type, value);
+
+	switch(type) {
+		case IDLE_REPORTRATE_CTRL:
+			ts->pdata->tci_info->idle_report_rate = value;
+		break;
+	case ACTIVE_REPORTRATE_CTRL:
+			ts->pdata->tci_info->active_report_rate =value;
+		break;
+	case SENSITIVITY_CTRL:
+			ts->pdata->tci_info->sensitivity = value;
+		break;
+	case TCI_ENABLE_CTRL:
+		TOUCH_INFO_MSG("You can't control TCI_ENABLE_CTRL register\n");
+		return 0;
+	case TOUCH_SLOP_CTRL:
+		ts->pdata->tci_info->touch_slope = value;
+		break;
+	case TAP_MIN_DISTANCE_CTRL:
+		ts->pdata->tci_info->min_distance = value;
+		break;
+	case TAP_MAX_DISTANCE_CTRL:
+		ts->pdata->tci_info->max_distance = value;
+		break;
+	case MIN_INTERTAP_CTRL:
+		ts->pdata->tci_info->min_intertap = value;
+		break;
+	case MAX_INTERTAP_CTRL:
+		ts->pdata->tci_info->max_intertap = value;
+		break;
+	case TAP_COUNT_CTRL:
+		ts->pdata->tci_info->tap_count = value;
+		break;
+	case INTERRUPT_DELAY_CTRL:
+		TOUCH_INFO_MSG("You can't control INTERRUPT_DELAY_CTRL register\n");
+		return 0;
+	case TCI_ENABLE_CTRL2:
+		TOUCH_INFO_MSG("You can't control TCI_ENABLE_CTRL2 register\n");
+		return 0;
+	case TOUCH_SLOP_CTRL2:
+		ts->pdata->tci_info->touch_slope_2 = value;
+		break;
+	case TAP_MIN_DISTANCE_CTRL2:
+		ts->pdata->tci_info->min_distance_2 = value;
+		break;
+	case TAP_MAX_DISTANCE_CTRL2:
+		ts->pdata->tci_info->max_distance_2 = value;
+		break;
+	case MIN_INTERTAP_CTRL2:
+		ts->pdata->tci_info->min_intertap_2 = value;
+		break;
+	case MAX_INTERTAP_CTRL2:
+		ts->pdata->tci_info->max_intertap_2 = value;
+		break;
+	case TAP_COUNT_CTRL2:
+		TOUCH_INFO_MSG("You can't control TAP_COUNT_CTRL2 register\n");
+		return 0;
+	case INTERRUPT_DELAY_CTRL2:
+		ts->pdata->tci_info->interrupt_delay_2 = value;
+		break;
+	case LPWG_STORE_INFO_CTRL:
+		TOUCH_INFO_MSG("You can't control LPWG_STORE_INFO_CTRL register\n");
+		return 0;
+	case LPWG_START_CTRL:
+		TOUCH_INFO_MSG("You can't control LPWG_START_CTRL register\n");
+		return 0;
+	default:
+		TOUCH_INFO_MSG("incorrect command\n");
+		return 0;
 	}
 
-	qq = strstr(line, breakpoint);
-	if (qq == NULL) {
-		TOUCH_INFO_MSG("failed to find breakpoint. The limit file is wrong");
-		ret = -1;
-		goto exit;
-	} else {
-		q = (int)(qq - line);
-	}
-
-	if (limit_data == NULL)
-		goto get_openshort_limit;
-
-	memset(limit_data, 0, MAX_ROW * sizeof(int));
-	while(1) {
-		if (line[q] == ',') {
-			cipher = 1;
-			for (p = 1; (line[q - p] >= '0') && (line[q - p] <= '9'); p++) {
-				limit_data[r] += ((line[q-p] - '0') * cipher);
-				cipher *= 10;
-			}
-			r++;
-		}
-		q++;
-
-		if(line[q] == '}') {
-			if(r == ts->dev.row_num){
-				ret = -2;
-				goto exit;
-			}
-			ret = -3;
-			goto exit;
-		}
-		if (r == ts->dev.row_num) {
-			break;
-		}
-	}
-
-	if(line)
-		kfree(line);
-
-	if (fd >= 0)
-		sys_close(fd);
-
-	set_fs(old_fs);
-
-	if (fwlimit)
-		release_firmware(fwlimit);
-
-	return ret;
-
-get_openshort_limit:
-	cipher = 10;
-	*limit_spec = 0;
-	while(1) {
-		if ((line[q] >= '0') && (line[q] <= '9')) {
-			*limit_spec = (*limit_spec) * cipher + (line[q] - '0');
-			if (p == 0)
-				p = q - 1;
-		} else if (p != 0) {
-			break;
-		}
-		q++;
-	}
-	if (line[p] == '-')
-		*limit_spec *= -1;
-
-exit :
-	if(line)
-		kfree(line);
-
-	if (fd >= 0)
-		sys_close(fd);
-
-	set_fs(old_fs);
-
-	if (fwlimit)
-		release_firmware(fwlimit);
+	tci_control(ts,type,value);
 
 	return ret;
 }
-#endif
 
-#ifdef SENSING_TEST
-static int mms_sensing_test_store(struct i2c_client *client, const char *buf)
-{
-	int cmd = 2;
-
-	if(sscanf(buf, "%d", &cmd) != 1)
-		return -EINVAL;
-
-	switch (cmd) {
-	case 0:
-		TOUCH_INFO_MSG("Stop Writing\n");
-		sensing_test = 0;
-		break;
-	case 1:
-		TOUCH_INFO_MSG("Start Writing \n");
-		sensing_test = 1;
-		break;
-	default:
-		TOUCH_INFO_MSG("usage: echo [0|1] > sensing_test\n");
-		TOUCH_INFO_MSG("  - 0: Stop Writing\n");
-		TOUCH_INFO_MSG("  - 1: Start Writing\n");
-		break;
-	}
-	return 0;
-}
-#endif
-/*
-static ssize_t mms_chstatus_show(struct i2c_client *client, char *buf)
-{
-	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
-	char c = '-';
-	int len=0, i=0, j=0, t=0;
-	uint8_t write_buf[5] = {0};
-	uint8_t read_buf[80] = {0};
-	uint8_t read_size = 0;
-	uint16_t chstatus = 0;
-	int flag = 0;
-	int count = 0;
-	int *error_point = NULL;
-	int *chstatus_max = NULL;
-	int *chstatus_min = NULL;
-	int ret = 0;
-	int alloc_flag = 0;
-
-	mms_get_ic_info(ts, NULL);
-	ts->pdata->selfdiagnostic_state[0] = 1;
-
-	if ((ts->dev.tx_ch_num > MMS_MAX_TX_NUM) || (ts->dev.rx_ch_num > MMS_MAX_RX_NUM) || (ts->dev.key_num > MMS_MAX_KEY_NUM)) {
-		ts->pdata->selfdiagnostic_state[0] = 0;
-		TOUCH_INFO_MSG("error. exceed max num of ch.\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "error. exceed max num of ch.\n");
-		return len;
-	}
-
-	error_point = kzalloc(sizeof(int) * (ts->dev.rx_ch_num * ts->dev.tx_ch_num + ts->dev.key_num), GFP_KERNEL);
-	if (error_point == NULL) {
-		TOUCH_INFO_MSG("failed to allocate error_point\n");
-		alloc_flag = -1;
-	}
-
-	chstatus_max = kzalloc(sizeof(int) * (ts->dev.rx_ch_num * ts->dev.tx_ch_num + ts->dev.key_num), GFP_KERNEL);
-	if (chstatus_max == NULL) {
-		TOUCH_INFO_MSG("failed to allocate chstatus_max\n");
-		alloc_flag = -1;
-	}
-
-	chstatus_min = kzalloc(sizeof(int) * (ts->dev.rx_ch_num * ts->dev.tx_ch_num + ts->dev.key_num), GFP_KERNEL);
-	if (chstatus_min == NULL) {
-		TOUCH_INFO_MSG("failed to allocate chstatus_min\n");
-		alloc_flag = -1;
-	}
-
-	if (alloc_flag != -1) {
-		ret = get_limit(ts, "chstatus_max", chstatus_max, NULL);
-		if ((ret != -1) && (get_limit(ts, "chstatus_min", chstatus_min, NULL) == -1))
-			ret = -1;
-	}
-
-	TOUCH_INFO_MSG("disable_irq\n");
-	disable_irq(ts->client->irq);
-
-	write_buf[0] = MMS_UNIVERSAL_CMD;
-	write_buf[1] = MMS_ENTER_TEST_MODE;
-	i2c_master_send(ts->client, write_buf, 2);
-
-	do{
-		while (gpio_get_value(ts->pdata->int_pin)) {
-			flag++;
-			if (flag == 30) {
-				flag = 0;
-				break;
-			}
-			msleep(100);
-		}
-		flag = 0;
-
-		write_buf[0] = 0x0F;
-		i2c_master_send(ts->client, write_buf, 1);
-		i2c_master_recv(ts->client, read_buf, 1);
-
-
-		write_buf[0] = 0x10;
-		i2c_master_send(ts->client, write_buf, 1);
-		i2c_master_recv(ts->client, read_buf, 1);
-		TOUCH_INFO_MSG("Maker is %x\n", read_buf[0]);
-		count++;
-	}while(read_buf[0]!=0x0C&&count!=10);
-
-	write_buf[0] = MMS_UNIVERSAL_CMD;
-	write_buf[1] = MMS_TEST_CHSTATUS;
-	i2c_master_send(ts->client, write_buf, 2);
-
-
-	while (gpio_get_value(ts->pdata->int_pin)) {
-		flag++;
-		if (flag == 30) {
-			flag = 0;
-			break;
-		}
-		msleep(100);
-	}
-	flag = 0;
-
-	write_buf[0] = MMS_UNIVERSAL_RESULT_SIZE;
-	i2c_master_send(ts->client, write_buf, 1);
-	i2c_master_recv(ts->client, &read_size, 1);
-	TOUCH_INFO_MSG("read size = %d\n", read_size);
-	write_buf[0] = MMS_UNIVERSAL_RESULT;
-	i2c_master_send(ts->client, write_buf, 1);
-	i2c_master_recv(ts->client, read_buf, read_size);
-	TOUCH_INFO_MSG("Chstatus TEST =%d \n", read_buf[0]);
-
-	len = snprintf(buf, PAGE_SIZE, "\n<< SHOW CHANNEL STATUS >>\n");
-	if(ts->pdata->panel_on == POWER_OFF){
-		len += snprintf(buf + len, PAGE_SIZE - len, "************************\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "*** LCD STATUS : OFF ***\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "************************\n");
-	}else if(ts->pdata->panel_on == POWER_ON){
-		len += snprintf(buf + len, PAGE_SIZE - len, "************************\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "*** LCD STATUS : O N ***\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "************************\n");
-	}
-	len += snprintf(buf + len, PAGE_SIZE - len, "===============================================");
-	len += snprintf(buf + len, PAGE_SIZE - len, "===============================================");
-	len += snprintf(buf + len, PAGE_SIZE - len, "========================\n");
-	len += snprintf(buf + len, PAGE_SIZE - len, "%5c", c);
-	for (j = 0; j < ts->dev.tx_ch_num; j++)
-		len += snprintf(buf + len, PAGE_SIZE - len, "%5d", j);
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n-----------------------------------------------");
-	len += snprintf(buf + len, PAGE_SIZE - len, "-----------------------------------------------");
-	len += snprintf(buf + len, PAGE_SIZE - len, "------------------------\n");
-
-	for (i = 0; i < ts->dev.rx_ch_num ; i++) {
-		len += snprintf(buf + len, PAGE_SIZE - len, "%2d : ", i);
-		for (j = 0; j < ts->dev.tx_ch_num; j++) {
-			write_buf[0] = MMS_UNIVERSAL_CMD;
-			write_buf[1] = MMS_GET_PIXEL_CHSTATUS;
-			write_buf[2] = j;
-			write_buf[3] = i;
-			i2c_master_send(ts->client, write_buf, 4);
-			while (gpio_get_value(ts->pdata->int_pin)) {
-				flag++;
-				if (flag == 100) {
-					flag = 0;
-					break;
-				}
-				udelay(100);
-			}
-			flag = 0;
-			write_buf[0] = MMS_UNIVERSAL_RESULT_SIZE;
-			i2c_master_send(ts->client, write_buf, 1);
-			i2c_master_recv(ts->client, &read_size, 1);
-			write_buf[0] = MMS_UNIVERSAL_RESULT;
-			i2c_master_send(ts->client, write_buf, 1);
-			i2c_master_recv(ts->client, read_buf, read_size);
-
-			chstatus = read_buf[1];
-			chstatus = ((chstatus << 8) | read_buf[0]);
-			if ((alloc_flag != -1) && (ret != -1)) {
-					if ((chstatus > chstatus_max[i * ts->dev.tx_ch_num + j]) || (chstatus < chstatus_min[i * ts->dev.tx_ch_num + j])) {
-						error_point[i * ts->dev.tx_ch_num + j] = 1;
-						ts->pdata->selfdiagnostic_state[0] = 0;
-					}
-			}
-			len += snprintf(buf + len, PAGE_SIZE - len, "%5d", chstatus);
-		}
-		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
-	}
-
-	if (ts->dev.key_num) {
-		// read touch key chstatus
-		len += snprintf(buf + len, PAGE_SIZE - len, "key: ");
-
-		write_buf[0] = MMS_UNIVERSAL_CMD;
-		write_buf[1] = MMS_KEY_CHSTATUS;
-		write_buf[2] = 0xff; //KEY CH.
-		write_buf[3] = 0; //Dummy Info
-		i2c_master_send(ts->client, write_buf, 4);
-		while (gpio_get_value(ts->pdata->int_pin)) {
-			flag++;
-
-			if (flag == 100) {
-				flag = 0;
-				break;
-			}
-			udelay(100);
-		}
-		flag = 0;
-		write_buf[0] = MMS_UNIVERSAL_RESULT_SIZE;
-		i2c_master_send(ts->client, write_buf, 1);
-		i2c_master_recv(ts->client, &read_size, 1);
-		write_buf[0] = MMS_UNIVERSAL_RESULT;
-		i2c_master_send(ts->client, write_buf, 1);
-		i2c_master_recv(ts->client, read_buf, read_size);
-		for (t = 0; t < ts->dev.key_num ; t++) //Model Dependent
-		{
-			chstatus = read_buf[2 * t] | (read_buf[2 * t + 1] << 8);
-			if((alloc_flag != -1) && (ret != -1)){
-				if((chstatus > chstatus_max[ts->dev.rx_ch_num* ts->dev.tx_ch_num + t]) || (chstatus < chstatus_min[ts->dev.rx_ch_num* ts->dev.tx_ch_num + t])){
-					error_point[ts->dev.rx_ch_num* ts->dev.tx_ch_num + t] = 1;
-					ts->pdata->selfdiagnostic_state[0] = 0;
-				}
-			}
-			len += snprintf(buf + len, PAGE_SIZE - len, "%5d", chstatus);
-		}
-	}
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n===============================================");
-	len += snprintf(buf + len, PAGE_SIZE - len, "===============================================");
-	len += snprintf(buf + len, PAGE_SIZE - len, "========================\n");
-	write_buf[0] = MMS_UNIVERSAL_CMD;
-	write_buf[1] = MMS_UNIVERSAL_CMD_EXIT;
-	i2c_master_send(ts->client, write_buf, 2);
-
-	while (gpio_get_value(ts->pdata->int_pin)) {
-		flag++;
-		if (flag == 30) {
-			flag = 0;
-			break;
-		}
-		msleep(100);
-	}
-	flag = 0;
-
-	write_buf[0] = MMS_UNIVERSAL_RESULT_SIZE;
-	i2c_master_send(ts->client, write_buf, 1);
-	i2c_master_recv(ts->client, &read_size, 1);
-
-	write_buf[0] = MMS_UNIVERSAL_RESULT;
-	i2c_master_send(ts->client, write_buf, 1);
-	i2c_master_recv(ts->client, read_buf, read_size);
-
-	if (alloc_flag == -1) {
-		len += snprintf(buf + len, PAGE_SIZE - len, "<<No spec examination>>");
-	} else if (ret == -1) {
-		len += snprintf(buf + len, PAGE_SIZE - len, "<<No spec file>>");
-	} else if (ret == -2) {
-		len += snprintf(buf + len, PAGE_SIZE - len, "<<Error spec file, please check key limit>>");
-	} else if (ret == -3) {
-		len += snprintf(buf + len, PAGE_SIZE - len, "<<Error spec file, please check the number of channel >>");
-	} else {
-		len += snprintf(buf + len, PAGE_SIZE - len, "Result = %s\n", ts->pdata->selfdiagnostic_state[0] == 1 ? "PASS" : "FAIL");
-		if (ts->pdata->selfdiagnostic_state[0] == 0) {
-			len += snprintf(buf + len, PAGE_SIZE - len, "===============================================");
-			len += snprintf(buf + len, PAGE_SIZE - len, "===============================================");
-			len += snprintf(buf + len, PAGE_SIZE - len, "========================\n");
-			len += snprintf(buf + len, PAGE_SIZE - len, "%5c", c);
-			for (j = 0; j < ts->dev.tx_ch_num; j++)
-				len += snprintf(buf + len, PAGE_SIZE - len, "%5d", j);
-			len += snprintf(buf + len, PAGE_SIZE - len, "\n");
-			len += snprintf(buf + len, PAGE_SIZE - len, "-----------------------------------------------");
-			len += snprintf(buf + len, PAGE_SIZE - len, "-----------------------------------------------");
-			len += snprintf(buf + len, PAGE_SIZE - len, "------------------------\n");
-			for (i = 0; i < ts->dev.rx_ch_num ; i++) {
-				len += snprintf(buf + len, PAGE_SIZE - len, "%2d : ", i);
-				for (j = 0; j < ts->dev.tx_ch_num; j++) {
-					if (error_point[i * ts->dev.tx_ch_num + j] == 1) {
-						len += snprintf(buf + len, PAGE_SIZE - len, "%5c", 'X');
-					} else {
-						len += snprintf(buf + len, PAGE_SIZE - len, "%5c", ' ');
-					}
-				}
-				len += snprintf(buf + len, PAGE_SIZE - len, "\n");
-			}
-			len += snprintf(buf + len, PAGE_SIZE - len, "key:");
-			for (t = 0; t < ts->dev.tx_ch_num; t++) {
-				if (error_point[ts->dev.rx_ch_num * ts->dev.tx_ch_num + t] == 1) {
-					len += snprintf(buf + len, PAGE_SIZE - len, "%5c", 'X');
-				} else {
-					len += snprintf(buf + len, PAGE_SIZE - len, "%5c", ' ');
-				}
-			}
-		}
-	}
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n===============================================");
-	len += snprintf(buf + len, PAGE_SIZE - len, "===============================================");
-	len += snprintf(buf + len, PAGE_SIZE - len, "========================\n");
-
-	TOUCH_INFO_MSG("enable_irq\n");
-	enable_irq(ts->client->irq);
-
-	if (error_point) {
-		kfree(error_point);
-	}
-	if (chstatus_max) {
-		kfree(chstatus_max);
-	}
-	if (chstatus_min) {
-		kfree(chstatus_min);
-	}
-
-	return len;
-}
-*/
 static ssize_t mms_rawdata_show(struct i2c_client *client, char *buf)
 {
 	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
 	int ret = 0;
+	ts->pdata->selfdiagnostic_state[SD_RAWDATA] = 1;	// rawdata
 
-	ts->pdata->selfdiagnostic_state[0] = 1;	// rawdata
 	TOUCH_TRACE_FUNC();
 
 	ret = mit_get_test_result(client, buf, RAW_DATA_SHOW);
@@ -1891,8 +1655,8 @@ static ssize_t mit_chstatus_show(struct i2c_client *client, char *buf)
 	int ret = 0;
 	int len = 0;
 	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
-	ts->pdata->selfdiagnostic_state[1] = 1;	// openshort
-	ts->pdata->selfdiagnostic_state[2] = 1;	// slope
+	ts->pdata->selfdiagnostic_state[SD_OPENSHORT] = 1;	// openshort
+	ts->pdata->selfdiagnostic_state[SD_SLOPE] = 1;	// slope
 
 	TOUCH_TRACE_FUNC();
 	TOUCH_INFO_MSG("mit_chstatus_show\n");
@@ -1904,6 +1668,7 @@ static ssize_t mit_chstatus_show(struct i2c_client *client, char *buf)
 		ret = snprintf(buf, PAGE_SIZE, "failed to OPEN SHORT data\n");
 		goto error;
 	}
+
 	ret = mit_get_test_result(client, buf, SLOPE);
 	memset(buf, 0, PAGE_SIZE);
 	if (ret < 0) {
@@ -1915,13 +1680,25 @@ static ssize_t mit_chstatus_show(struct i2c_client *client, char *buf)
 	len = snprintf(buf, PAGE_SIZE - len, "Firmware Version : %X.%02X \n", ts->module.version[0], ts->module.version[1]);
 	len += snprintf(buf + len, PAGE_SIZE - len, "FW Product : %s \n", ts->module.product_code);
 	len += snprintf(buf + len, PAGE_SIZE - len, "=======RESULT========\n");
-	len += snprintf(buf + len, PAGE_SIZE - len, "OPEN /  SHORT Test : %s\n", ts->pdata->selfdiagnostic_state[1]==1 ? "PASS" : "FAIL");
-	len += snprintf(buf + len, PAGE_SIZE - len, "SLOPE Test : %s\n", ts->pdata->selfdiagnostic_state[2] == 1 ? "PASS" : "FAIL");
+	len += snprintf(buf + len, PAGE_SIZE - len, "OPEN /  SHORT Test : %s\n", ts->pdata->selfdiagnostic_state[SD_OPENSHORT]==1 ? "PASS" : "FAIL");
+	len += snprintf(buf + len, PAGE_SIZE - len, "SLOPE Test : %s\n", ts->pdata->selfdiagnostic_state[SD_SLOPE] == 1 ? "PASS" : "FAIL");
 
 	return len;
 
-	error:
-		return ret;
+error:
+	return ret;
+}
+
+static ssize_t mit_chstatus_store(struct i2c_client *client, const char *buf)
+{
+	int ret = 0;
+	char temp_buf[255];
+	TOUCH_TRACE_FUNC();
+	strcpy(temp_buf,buf);
+
+	ret = mit_get_test_result(client, temp_buf, OPENSHORT_STORE);
+
+	return ret;
 }
 
 static int melfas_delta_show(struct i2c_client* client, char *buf)
@@ -1935,262 +1712,6 @@ static int melfas_delta_show(struct i2c_client* client, char *buf)
 	return ret;
 }
 
-static ssize_t mms_jitter_show(struct i2c_client *client, char *buf)
-{
-	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
-	char c = '-';
-	int len=0, i=0, j=0, t=0;
-	uint8_t write_buf[5] = {0};
-	uint8_t read_buf[40] = {0};
-	uint8_t read_size = 0;
-	uint16_t jitter = 0;
-	int flag = 0;
-	int count = 0;
-	int *error_point = NULL;
-	int jitter_upper_limit = 1;
-	int jitter_low_limit = -1;
-	int ret = 0;
-	int alloc_flag = 0;
-
-	mms_get_ic_info(ts, NULL);
-	ts->pdata->selfdiagnostic_state[2] = 1;
-
-	if ((ts->dev.tx_ch_num > MMS_MAX_TX_NUM) || (ts->dev.rx_ch_num > MMS_MAX_RX_NUM) || (ts->dev.key_num > MMS_MAX_KEY_NUM)) {
-		ts->pdata->selfdiagnostic_state[2] = 0;
-		TOUCH_INFO_MSG("error. exceed max num of ch.\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "error. exceed max num of ch.\n");
-		return len;
-	}
-
-	error_point = kzalloc(sizeof(int) * (ts->dev.rx_ch_num * ts->dev.tx_ch_num + ts->dev.key_num), GFP_KERNEL);
-	if (error_point == NULL) {
-		TOUCH_INFO_MSG("failed to allocate error_point\n");
-		alloc_flag = -1;
-	}
-
-	TOUCH_INFO_MSG("disable_irq\n");
-	disable_irq(ts->client->irq);
-
-	write_buf[0] = MMS_UNIVERSAL_CMD;
-	write_buf[1] = MMS_ENTER_TEST_MODE;
-	i2c_master_send(ts->client, write_buf, 2);
-
-	do{
-		while (gpio_get_value(ts->pdata->int_pin)) {
-			flag++;
-			if (flag == 30) {
-				flag = 0;
-				break;
-			}
-			msleep(100);
-		}
-		flag = 0;
-
-		write_buf[0] = 0x0F;
-		i2c_master_send(ts->client, write_buf, 1);
-		i2c_master_recv(ts->client, read_buf, 1);
-
-		write_buf[0] = 0x10;
-		i2c_master_send(ts->client, write_buf, 1);
-		i2c_master_recv(ts->client, read_buf, 1);
-		TOUCH_INFO_MSG("Maker is %x\n", read_buf[0]);
-		count++;
-	}while(read_buf[0]!=0x0C&&count!=10);
-
-	write_buf[0] = MMS_UNIVERSAL_CMD;
-	write_buf[1] = MMS_TEST_JITTER;
-	i2c_master_send(ts->client, write_buf, 2);
-
-	while (gpio_get_value(ts->pdata->int_pin)) {
-		flag++;
-		if (flag == 30) {
-			flag = 0;
-			break;
-		}
-		msleep(100);
-	}
-	flag = 0;
-
-	write_buf[0] = MMS_UNIVERSAL_RESULT_SIZE;
-	i2c_master_send(ts->client, write_buf, 1);
-	i2c_master_recv(ts->client, &read_size, 1);
-	TOUCH_INFO_MSG("read size = %d\n", read_size);
-	write_buf[0] = MMS_UNIVERSAL_RESULT;
-	i2c_master_send(ts->client, write_buf, 1);
-	i2c_master_recv(ts->client, read_buf, read_size);
-	TOUCH_INFO_MSG("JITTER TEST =%d \n", read_buf[0]);
-
-	len = snprintf(buf, PAGE_SIZE, "\n<< SHOW JITTER TEST >>\n");
-	if(ts->pdata->panel_on == POWER_OFF){
-		len += snprintf(buf + len, PAGE_SIZE - len, "************************\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "*** LCD STATUS : OFF ***\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "************************\n");
-	}else if(ts->pdata->panel_on == POWER_ON){
-		len += snprintf(buf + len, PAGE_SIZE - len, "************************\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "*** LCD STATUS : O N ***\n");
-		len += snprintf(buf + len, PAGE_SIZE - len, "************************\n");
-	}
-
-	len += snprintf(buf + len, PAGE_SIZE - len, "===============================================");
-	len += snprintf(buf + len, PAGE_SIZE - len, "===============================================");
-	len += snprintf(buf + len, PAGE_SIZE - len, "========================\n");
-	len += snprintf(buf + len, PAGE_SIZE - len, "%5c", c);
-	for (j = 0; j < ts->dev.tx_ch_num; j++)
-		len += snprintf(buf + len, PAGE_SIZE - len, "%5d", j);
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n-----------------------------------------------");
-	len += snprintf(buf + len, PAGE_SIZE - len, "-----------------------------------------------");
-	len += snprintf(buf + len, PAGE_SIZE - len, "------------------------\n");
-
-	for (i = 0; i < ts->dev.rx_ch_num ; i++) {
-		len += snprintf(buf + len, PAGE_SIZE - len, "%2d : ", i);
-		for (j = 0; j < ts->dev.tx_ch_num; j++) {
-			write_buf[0] = MMS_UNIVERSAL_CMD;
-			write_buf[1] = MMS_GET_PIXEL_JITTER;
-			write_buf[2] = j;
-			write_buf[3] = i;
-			i2c_master_send(ts->client, write_buf, 4);
-			while (gpio_get_value(ts->pdata->int_pin)) {
-				flag++;
-				if (flag == 100) {
-					flag = 0;
-					break;
-				}
-				udelay(100);
-			}
-			flag = 0;
-			write_buf[0] = MMS_UNIVERSAL_RESULT_SIZE;
-			i2c_master_send(ts->client, write_buf, 1);
-			i2c_master_recv(ts->client, &read_size, 1);
-			write_buf[0] = MMS_UNIVERSAL_RESULT;
-			i2c_master_send(ts->client, write_buf, 1);
-			i2c_master_recv(ts->client, read_buf, read_size);
-
-			jitter = read_buf[0];
-			if ((alloc_flag != -1) && (ret != -1)) {
-				if ((jitter > jitter_upper_limit) || (jitter < jitter_low_limit)) {
-					error_point[i * ts->dev.tx_ch_num + j] = 1;
-					ts->pdata->selfdiagnostic_state[2] = 0;
-				}
-			}
-			len += snprintf(buf + len, PAGE_SIZE - len, "%5d", jitter);
-		}
-		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
-	}
-
-	if (ts->dev.key_num) {
-		/* read touch key jitter */
-		len += snprintf(buf + len, PAGE_SIZE - len, "key: ");
-
-		write_buf[0] = MMS_UNIVERSAL_CMD;
-		write_buf[1] = MMS_KEY_JITTER;
-		write_buf[2] = 0xff; //KEY CH.
-		write_buf[3] = 0; //Dummy Info
-		i2c_master_send(ts->client, write_buf, 4);
-		while (gpio_get_value(ts->pdata->int_pin)) {
-			flag++;
-
-			if (flag == 100) {
-				flag = 0;
-				break;
-			}
-			udelay(100);
-		}
-		flag = 0;
-		write_buf[0] = MMS_UNIVERSAL_RESULT_SIZE;
-		i2c_master_send(ts->client, write_buf, 1);
-		i2c_master_recv(ts->client, &read_size, 1);
-		write_buf[0] = MMS_UNIVERSAL_RESULT;
-		i2c_master_send(ts->client, write_buf, 1);
-		i2c_master_recv(ts->client, read_buf, read_size);
-		for (t = 0; t < ts->dev.key_num ; t++) //Model Dependent
-		{
-			//jitter = read_buf[2 * t] | (read_buf[2 * t + 1] << 8);
-			jitter = read_buf[0];
-			if ((jitter > jitter_upper_limit) || (jitter < jitter_low_limit)) {
-				error_point[ts->dev.rx_ch_num* ts->dev.tx_ch_num + t] = 1;
-				ts->pdata->selfdiagnostic_state[2] = 0;
-			}
-			len += snprintf(buf + len, PAGE_SIZE - len, "%5d", jitter);
-		}
-	}
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n===============================================");
-	len += snprintf(buf + len, PAGE_SIZE - len, "===============================================");
-	len += snprintf(buf + len, PAGE_SIZE - len, "========================\n");
-	write_buf[0] = MMS_UNIVERSAL_CMD;
-	write_buf[1] = MMS_UNIVERSAL_CMD_EXIT;
-	i2c_master_send(ts->client, write_buf, 2);
-
-	while (gpio_get_value(ts->pdata->int_pin)) {
-		flag++;
-		if (flag == 30) {
-			flag = 0;
-			break;
-		}
-		msleep(100);
-	}
-	flag = 0;
-
-	write_buf[0] = MMS_UNIVERSAL_RESULT_SIZE;
-	i2c_master_send(ts->client, write_buf, 1);
-	i2c_master_recv(ts->client, &read_size, 1);
-
-	write_buf[0] = MMS_UNIVERSAL_RESULT;
-	i2c_master_send(ts->client, write_buf, 1);
-	i2c_master_recv(ts->client, read_buf, read_size);
-
-	if (alloc_flag == -1) {
-		len += snprintf(buf + len, PAGE_SIZE - len, "<<No spec examination>>");
-	} else if (ret == -1) {
-		len += snprintf(buf + len, PAGE_SIZE - len, "<<No spec file>>");
-	} else {
-		len += snprintf(buf + len, PAGE_SIZE - len, "Result = %s\n", ts->pdata->selfdiagnostic_state[2] == 1 ? "PASS" : "FAIL");
-
-		if (ts->pdata->selfdiagnostic_state[2] == 0) {
-			len += snprintf(buf + len, PAGE_SIZE - len, "===============================================");
-			len += snprintf(buf + len, PAGE_SIZE - len, "===============================================");
-			len += snprintf(buf + len, PAGE_SIZE - len, "========================\n");
-			len += snprintf(buf + len, PAGE_SIZE - len, "%5c", c);
-			for (j = 0; j < ts->dev.tx_ch_num; j++)
-				len += snprintf(buf + len, PAGE_SIZE - len, "%5d", j);
-			len += snprintf(buf + len, PAGE_SIZE - len, "\n");
-			len += snprintf(buf + len, PAGE_SIZE - len, "-----------------------------------------------");
-			len += snprintf(buf + len, PAGE_SIZE - len, "-----------------------------------------------");
-			len += snprintf(buf + len, PAGE_SIZE - len, "------------------------\n");
-			for (i = 0; i < ts->dev.rx_ch_num ; i++) {
-				len += snprintf(buf + len, PAGE_SIZE - len, "%2d : ", i);
-				for (j = 0; j < ts->dev.tx_ch_num; j++) {
-					if (error_point[i * ts->dev.tx_ch_num + j] == 1) {
-						len += snprintf(buf + len, PAGE_SIZE - len, "%5c", 'X');
-					} else {
-						len += snprintf(buf + len, PAGE_SIZE - len, "%5c", ' ');
-					}
-				}
-				len += snprintf(buf + len, PAGE_SIZE - len, "\n");
-			}
-			len += snprintf(buf + len, PAGE_SIZE - len, "key:");
-			for (t = 0; t < ts->dev.tx_ch_num; t++) {
-				if (error_point[ts->dev.rx_ch_num * ts->dev.tx_ch_num + t] == 1) {
-					len += snprintf(buf + len, PAGE_SIZE - len, "%5c", 'X');
-				} else {
-					len += snprintf(buf + len, PAGE_SIZE - len, "%5c", ' ');
-				}
-			}
-		}
-	}
-	len += snprintf(buf + len, PAGE_SIZE - len, "\n===============================================");
-	len += snprintf(buf + len, PAGE_SIZE - len, "===============================================");
-	len += snprintf(buf + len, PAGE_SIZE - len, "========================\n");
-
-	TOUCH_INFO_MSG("enable_irq\n");
-	enable_irq(ts->client->irq);
-
-	if (error_point) {
-		kfree(error_point);
-	}
-
-	return len;
-}
-
 static ssize_t mms_self_diagnostic_show(struct i2c_client *client, char *buf)
 {
 	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
@@ -2198,74 +1719,89 @@ static ssize_t mms_self_diagnostic_show(struct i2c_client *client, char *buf)
 	int ret = 0;
 	int row = 0;
 	int col = 0;
-	int max = 0;
-	int min = 0;
+	u32 limit_upper = 0;
+	u32 limit_lower = 0;
 	char *sd_path = "/sdcard/touch_self_test.txt";
-	ts->pdata->selfdiagnostic_state[0] = 1;	// rawdata
-	ts->pdata->selfdiagnostic_state[1] = 1;	// openshort
-	ts->pdata->selfdiagnostic_state[2] = 1;	// slope
+	ts->pdata->selfdiagnostic_state[SD_RAWDATA] = 1;	// rawdata
+	ts->pdata->selfdiagnostic_state[SD_OPENSHORT] = 1;	// openshort
+	ts->pdata->selfdiagnostic_state[SD_SLOPE] = 1;	// slope
+
+	mit_get_otp(ts);
 
 	write_file(sd_path, buf, 1);
 	msleep(30);
 
+	ts->pdata->selfdiagnostic_state[SD_OPENSHORT] = 1;	// openshort
 	ret = mit_get_test_result(client, buf, OPENSHORT);
 	if (ret < 0) {
 		TOUCH_ERR_MSG("failed to get open short data\n");
 		memset(buf, 0, PAGE_SIZE);
+		ts->o_max = 0;
+		ts->o_min = 0;
+		ts->pdata->selfdiagnostic_state[SD_OPENSHORT] = 0;
 		len += snprintf(buf, PAGE_SIZE, "failed to get open short data\n\n");
-		ts->pdata->selfdiagnostic_state[1] = 0;
 	}
 	write_file(sd_path, buf, 0);
 	msleep(30);
 
 	memset(buf, 0, PAGE_SIZE);
+	ts->pdata->selfdiagnostic_state[SD_SLOPE] = 1;	// slope
 	ret = mit_get_test_result(client, buf, SLOPE);
 	if (ret < 0) {
 		TOUCH_ERR_MSG("failed to get slope data\n");
 		memset(buf, 0, PAGE_SIZE);
+		ts->s_max = 0;
+		ts->s_min = 0;
+		ts->pdata->selfdiagnostic_state[SD_SLOPE] = 0;
 		len = snprintf(buf, PAGE_SIZE, "failed to get slope data\n\n");
-		ts->pdata->selfdiagnostic_state[2] = 0;
 	}
 	write_file(sd_path, buf, 0);
 	msleep(30);
 
 	memset(buf, 0, PAGE_SIZE);
+	ts->pdata->selfdiagnostic_state[SD_RAWDATA] = 1;	// rawdata
 	ret = mit_get_test_result(client, buf, RAW_DATA_SHOW);
 	if (ret < 0) {
 		TOUCH_ERR_MSG("failed to get raw data\n");
 		memset(buf, 0, PAGE_SIZE);
-		len = snprintf(buf, PAGE_SIZE, "failed to get raw data\n\n");
-		ts->pdata->selfdiagnostic_state[0] = 0;
+		ts->r_max = 0;
+		ts->r_min = 0;
+		ts->pdata->selfdiagnostic_state[SD_RAWDATA] = 0;
+		ret = snprintf(buf, PAGE_SIZE, "failed to get raw data\n\n");
 	}
-	min = ts->mit_data[0][0];
-	max = ts->mit_data[0][0];
-	ret += sprintf(buf+ret,"RAW DATA SPEC (UPPER : %d  LOWER : %d)\n",ts->pdata->limit->raw_data_max ,ts->pdata->limit->raw_data_min);
-	TOUCH_INFO_MSG("RAW DATA SPEC (UPPER : %d  LOWER : %d)\n",ts->pdata->limit->raw_data_max ,ts->pdata->limit->raw_data_min);
 
+	if (ts->module.otp == OTP_APPLIED) {
+		limit_upper = ts->pdata->limit->raw_data_otp_max + ts->pdata->limit->raw_data_margin;
+		limit_lower = ts->pdata->limit->raw_data_otp_min - ts->pdata->limit->raw_data_margin;
+		ret += sprintf(buf+ret,"RAW DATA SPEC (UPPER : %d  LOWER : %d  MARGIN : %d)\n",
+			ts->pdata->limit->raw_data_otp_max , ts->pdata->limit->raw_data_otp_min, ts->pdata->limit->raw_data_margin);
+		TOUCH_INFO_MSG("RAW DATA SPEC (UPPER : %d  LOWER : %d MARGIN : %d)\n",
+			ts->pdata->limit->raw_data_otp_max , ts->pdata->limit->raw_data_otp_min, ts->pdata->limit->raw_data_margin);
+	} else {
+		limit_upper = ts->pdata->limit->raw_data_max + ts->pdata->limit->raw_data_margin;
+		limit_lower = ts->pdata->limit->raw_data_min - ts->pdata->limit->raw_data_margin;
+		ret += sprintf(buf+ret,"RAW DATA SPEC (UPPER : %d  LOWER : %d MARGIN : %d)\n",
+			ts->pdata->limit->raw_data_max , ts->pdata->limit->raw_data_min, ts->pdata->limit->raw_data_margin);
+		TOUCH_INFO_MSG("RAW DATA SPEC (UPPER : %d  LOWER : %d MARGIN : %d)\n",
+			ts->pdata->limit->raw_data_max , ts->pdata->limit->raw_data_min, ts->pdata->limit->raw_data_margin);
+	}
+	if (ts->pdata->selfdiagnostic_state[SD_RAWDATA] == 0) {
 		for(row = 0 ; row < MAX_ROW; row++) {
-			if (ts->pdata->selfdiagnostic_state[0] == 0) {
-				ret += sprintf(buf+ret,"[%2d]  ",row);
-				printk("[%2d]  ",row);
-			}
+			ret += sprintf(buf+ret,"[%2d]  ",row);
+			printk("[Touch] [%2d]  ",row);
+
 			for(col = 0 ; col < MAX_COL ; col++) {
-				min = (min > ts->mit_data[row][col]) ? ts->mit_data[row][col] : min;
-				max = (max < ts->mit_data[row][col]) ? ts->mit_data[row][col] : max;
-				if (ts->pdata->selfdiagnostic_state[0] == 0) {
-					if(ts->mit_data[row][col] <= ts->pdata->limit->raw_data_max && ts->mit_data[row][col] >= ts->pdata->limit->raw_data_min ){
-							ret += sprintf(buf+ret," ,");
-							printk(" ,");
-						}else{
-							ret += sprintf(buf+ret,"X,");
-							printk("X,");
-						}
+				if (ts->mit_data[row][col] <= limit_upper && ts->mit_data[row][col] >= limit_lower ){
+					ret += sprintf(buf+ret," ,");
+					printk(" ,");
+				} else {
+					ret += sprintf(buf+ret,"X,");
+					printk("X,");
 				}
 			}
-			if (ts->pdata->selfdiagnostic_state[0] == 0) {
-				printk("\n");
-				ret += sprintf(buf+ret,"\n");
-			}
+			printk("\n");
+			ret += sprintf(buf+ret,"\n");
 		}
-	if (ts->pdata->selfdiagnostic_state[0] == 0) {
 		ret += sprintf(buf+ret,"RawData : FAIL\n\n");
 		TOUCH_INFO_MSG("RawData : FAIL\n\n");
 	}else {
@@ -2277,83 +1813,39 @@ static ssize_t mms_self_diagnostic_show(struct i2c_client *client, char *buf)
 
 	TOUCH_INFO_MSG("Firmware Version : %X.%02X \n", ts->module.version[0], ts->module.version[1]);
 	TOUCH_INFO_MSG("FW Product : %s \n", ts->module.product_code);
-	TOUCH_INFO_MSG("MAX : %d,  MIN : %d\nMAX - MIN = %d\n", max, min, max - min);
+	if (ts->module.otp == OTP_NOT_SUPPORTED) {
+		TOUCH_INFO_MSG("OTP : F/W Not support \n");
+	} else {
+		TOUCH_INFO_MSG("OTP : %s \n", (ts->module.otp == OTP_APPLIED) ? "Applied" : "None");
+	}
+	TOUCH_INFO_MSG("=====================\n");
+	if (ts->pdata->check_openshort)
+		TOUCH_INFO_MSG("OpenShort : %5d , %5d\n", ts->o_max, ts->o_min);
+	TOUCH_INFO_MSG("Slope     : %5d , %5d\n", ts->s_max, ts->s_min);
+	TOUCH_INFO_MSG("Rawdata   : %5d , %5d\n", ts->r_max, ts->r_min);
 	TOUCH_INFO_MSG("=======RESULT========\n");
-	TOUCH_INFO_MSG("Channel Status : %s\n", (ts->pdata->selfdiagnostic_state[1] * ts->pdata->selfdiagnostic_state[2]) == 1 ? "PASS" : "FAIL");
-	TOUCH_INFO_MSG("Raw Data : %s\n", ts->pdata->selfdiagnostic_state[0] == 1 ? "PASS" : "FAIL");
+	TOUCH_INFO_MSG("Channel Status : %s\n", (ts->pdata->selfdiagnostic_state[SD_OPENSHORT] * ts->pdata->selfdiagnostic_state[SD_SLOPE]) == 1 ? "PASS" : "FAIL");
+	TOUCH_INFO_MSG("Raw Data : %s\n", ts->pdata->selfdiagnostic_state[SD_RAWDATA] == 1 ? "PASS" : "FAIL");
 
 	memset(buf, 0, PAGE_SIZE);
 	len = snprintf(buf, PAGE_SIZE , "Firmware Version : %X.%02X \n", ts->module.version[0], ts->module.version[1]);
 	len += snprintf(buf + len, PAGE_SIZE - len, "FW Product : %s \n", ts->module.product_code);
-	len += snprintf(buf + len, PAGE_SIZE - len, "MAX = %d,  MIN = %d\nMAX - MIN = %d\n", max, min, max - min);
+	if (ts->module.otp == OTP_NOT_SUPPORTED) {
+		len += snprintf(buf + len, PAGE_SIZE - len, "OTP : F/W Not support \n");
+	} else {
+		len += snprintf(buf + len, PAGE_SIZE - len, "OTP : %s \n", (ts->module.otp == OTP_APPLIED) ? "Applied" : "None");
+	}
+	len += snprintf(buf + len, PAGE_SIZE - len, "=====================\n");
+	if (ts->pdata->check_openshort)
+		len += snprintf(buf + len, PAGE_SIZE - len, "OpenShort : %5d , %5d\n", ts->o_max, ts->o_min);
+	len += snprintf(buf + len, PAGE_SIZE - len, "Slope     : %5d , %5d\n", ts->s_max, ts->s_min);
+	len += snprintf(buf + len, PAGE_SIZE - len, "Rawdata   : %5d , %5d\n", ts->r_max, ts->r_min);
 	len += snprintf(buf + len, PAGE_SIZE - len, "=======RESULT========\n");
-	len += snprintf(buf + len, PAGE_SIZE - len, "Channel Status : %s\n", (ts->pdata->selfdiagnostic_state[1] * ts->pdata->selfdiagnostic_state[2]) == 1 ? "PASS" : "FAIL");
-	len += snprintf(buf + len, PAGE_SIZE - len, "Raw Data : %s\n", ts->pdata->selfdiagnostic_state[0] == 1 ? "PASS" : "FAIL");
+	len += snprintf(buf + len, PAGE_SIZE - len, "Channel Status : %s\n", (ts->pdata->selfdiagnostic_state[SD_OPENSHORT] * ts->pdata->selfdiagnostic_state[SD_SLOPE]) == 1 ? "PASS" : "FAIL");
+	len += snprintf(buf + len, PAGE_SIZE - len, "Raw Data : %s\n", ts->pdata->selfdiagnostic_state[SD_RAWDATA] == 1 ? "PASS" : "FAIL");
 	write_file(sd_path, buf, 0);
 	return len;
 }
-
-static ssize_t mms_edge_expand_show(struct i2c_client *client, char *buf)
-{
-	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
-	int len = 0;
-
-	mms_edge_expand_read(ts);
-
-	len += snprintf(buf + len, PAGE_SIZE - len, "%d, %d, %d, %d",
-		edge_expand[0], edge_expand[1], edge_expand[2], edge_expand[3]);
-
-	return len;
-}
-
-static ssize_t mms_edge_expand_store(struct i2c_client *client, const char *buf )
-{
-	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
-	int i = 0;
-	int len = 0;
-	int ret = 0;
-	int find_num_cnt = 0;
-	char *num_pos[4] = {0};
-	long value[4] = {0};
-	char *ptr = (char *)buf;
-
-	if (ptr[0] >= '0' && ptr[0] <= '9') {
-		len = strlen(ptr);
-		num_pos[find_num_cnt++] = ptr; // first value
-
-		for ( i = 1; i < len; i++) {
-			if (ptr[i] == ',' && ptr[i+1] == ' ') {
-				ptr[i] = '\0';
-				num_pos[find_num_cnt++] = &ptr[i+2];
-			}
-		}
-	}
-
-	if (find_num_cnt != 4) {
-		goto ErrorExit;
-	}
-
-	for (i = 0; i < 4; i++) {
-		ret = kstrtol(num_pos[i], 10, &value[i]);
-		if (ret || (value[i] < 64 || value[i] > 255)) {
-			goto ErrorExit;
-		}
-	}
-
-	for (i = 0; i < 4; i++) {
-		edge_expand[i] = (uint8_t)value[i];
-	}
-
-	mms_edge_expand_write(ts);
-
-	return 0;
-
-ErrorExit :
-	TOUCH_INFO_MSG("edge_expand_store error. %s \n", buf);
-
-	return 0;
-}
-
 static int mms_sensing_block_control(struct i2c_client *client, u8 type, u8 onoff)
 {
 	struct mms_data* ts = get_touch_handle_(client);
@@ -2428,7 +1920,7 @@ RETRY :
 	mms_power_reset(ts);
 	msleep(50);
 
-	for(addr = 0; addr < FW_MAX_SIZE; addr += FW_BLOCK_SIZE ) {
+	for (addr = 0; addr < FW_MAX_SIZE; addr += FW_BLOCK_SIZE ) {
 		if ( mit_isc_page_read(ts, &pDump[addr], addr) ) {
 			TOUCH_INFO_MSG("F/W Read failed \n");
 			if (retrycnt > 10) {
@@ -2471,7 +1963,6 @@ EXIT :
 	return len;
 }
 
-#ifdef LPWG_TEMP
 static ssize_t mms_lpwg_show(struct i2c_client *client, char *buf)
 {
 	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
@@ -2487,7 +1978,10 @@ static ssize_t mms_lpwg_store(struct i2c_client *client, char* buf1, const char 
 	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
 	int mode = LPWG_NONE;
 	int tap_count = 0;
-
+	int tap_check = 0;
+#if defined(TOUCH_USE_DSV)
+	static int pre_lpwg_prox_status = 1;
+#endif
 	/* set tap_count */
 	if (buf1 != NULL && !strcmp(buf1,"tap_count")) {
 		sscanf(buf2, "%d" ,&tap_count);
@@ -2496,66 +1990,104 @@ static ssize_t mms_lpwg_store(struct i2c_client *client, char* buf1, const char 
 		return 0;
 	}
 
-	/* set lpwg mode */
-	if (buf2 == NULL) {
-		TOUCH_INFO_MSG(" mode is NULL, Can't not set LPWG\n");
+	/* set active area */
+	if (buf1 != NULL && !strcmp(buf1,"area")) {
+		ts->pdata->active_area_x1 = ts->pdata->active_area_gap;
+		ts->pdata->active_area_x2 = ts->pdata->caps->lcd_x - ts->pdata->active_area_gap;
+		ts->pdata->active_area_y1 = ts->pdata->active_area_gap;
+		ts->pdata->active_area_y2 = ts->pdata->caps->lcd_y - ts->pdata->active_area_gap;
+		TOUCH_DEBUG_MSG("Active Area - X1:%d, X2:%d, Y1:%d, Y2:%d\n",ts->pdata->active_area_x1, ts->pdata->active_area_x2, ts->pdata->active_area_y1, ts->pdata->active_area_y2);
 		return 0;
 	}
-	sscanf(buf2, "%X", &mode);
-	ts->pdata->lpwg_mode = (u8)mode;
 
-	/* Proximity Sensor on/off */
-	if (ts->pdata->panel_on == 0 && ts->pdata->lpwg_panel_on == 0) {
-		TOUCH_INFO_MSG("SUSPEND AND SET\n");
-		if (ts->pdata->lpwg_mode == 0) {
-			touch_disable_wake(ts->client->irq);
-			touch_disable(ts->client->irq);
-			mms_set_lpwg(ts,0);
-			TOUCH_INFO_MSG("SUSPEND AND SET  off\n");
-		} else  {
-			touch_enable(ts->client->irq);
-			touch_enable_wake(ts->client->irq);
-			mms_ic_ctrl(client, IC_CTRL_LPWG, (u32)&(ts->pdata->lpwg_mode));
-			TOUCH_INFO_MSG("SUSPEND AND SET power on\n");
-		}
+	/* set double tap check */
+	if (buf1 != NULL && !strcmp(buf1,"tap_check")) {
+		sscanf(buf2, "%d" ,&tap_check);
+		ts->pdata->double_tap_check = tap_check;
+		TOUCH_INFO_MSG("Double Tap Check  = %d \n", ts->pdata->double_tap_check);
+		tci_control(ts, INTERRUPT_DELAY_CTRL, ts->pdata->double_tap_check);
+		return 0;
 	}
 
+	if (buf1 != NULL && !strcmp(buf1,"update_all")) {
+		/* set lpwg mode */
+		if (buf2 == NULL) {
+			TOUCH_INFO_MSG(" mode is NULL, Can't not set LPWG\n");
+			return 0;
+		}
+		sscanf(buf2, "%X", &mode);
+		ts->pdata->lpwg_mode = (u8)mode;
 
+		/* Proximity Sensor on/off */
+		if (ts->pdata->panel_on == 0 && ts->pdata->lpwg_panel_on == 0) {
+#if defined(TOUCH_USE_DSV)
+			if (pre_lpwg_prox_status == ts->pdata->lpwg_prox) {
+				TOUCH_INFO_MSG("%s, Skip LPWG setting!! \n",__func__);
+				TOUCH_INFO_MSG("%s, pre_lpwg_prox_status:%d, ts->pdata->lpwg_prox:%d, \n",__func__,pre_lpwg_prox_status,ts->pdata->lpwg_prox);
+			} else {
+				TOUCH_INFO_MSG("SUSPEND AND SET\n");
+				if (!ts->pdata->lpwg_mode && !ts->pdata->lpwg_prox) {
+					touch_disable_wake(ts->client->irq);
+					touch_disable(ts->client->irq);
+					if (wake_lock_active(&touch_wake_lock)) {
+						wake_unlock(&touch_wake_lock);
+					}
+					mms_power_ctrl(client, ts_role->suspend_pwr);
+					atomic_set(&dev_state,DEV_SUSPEND);
+					TOUCH_INFO_MSG("SUSPEND AND SET power off\n");
+
+					if(ts_pdata->enable_sensor_interlock) {
+						ts->pdata->use_dsv = 0;
+						mms_dsv_control(ts->client);
+					}
+				} else {
+					mms_power_ctrl(client, ts_role->resume_pwr);
+					wake_lock_timeout(&touch_wake_lock, msecs_to_jiffies(1000));
+					mms_ic_ctrl(client, IC_CTRL_LPWG, (u32)&(ts->pdata->lpwg_mode));
+					atomic_set(&dev_state,DEV_RESUME_ENABLE);
+					touch_enable(ts->client->irq);
+					touch_enable_wake(ts->client->irq);
+					TOUCH_INFO_MSG("SUSPEND AND SET power on\n");
+				}
+			}
+#else
+			TOUCH_INFO_MSG("SUSPEND AND SET\n");
+			if (!ts->pdata->lpwg_mode && !ts->pdata->lpwg_prox) {
+				touch_disable_wake(ts->client->irq);
+				touch_disable(ts->client->irq);
+				if (wake_lock_active(&touch_wake_lock)) {
+					wake_unlock(&touch_wake_lock);
+				}
+				mms_power_ctrl(client, ts_role->suspend_pwr);
+				atomic_set(&dev_state,DEV_SUSPEND);
+				TOUCH_INFO_MSG("SUSPEND AND SET power off\n");
+			} else {
+				mms_power_ctrl(client, ts_role->resume_pwr);
+				wake_lock_timeout(&touch_wake_lock, msecs_to_jiffies(1000));
+				mms_ic_ctrl(client, IC_CTRL_LPWG, (u32)&(ts->pdata->lpwg_mode));
+				atomic_set(&dev_state,DEV_RESUME_ENABLE);
+				touch_enable(ts->client->irq);
+				touch_enable_wake(ts->client->irq);
+				TOUCH_INFO_MSG("SUSPEND AND SET power on\n");
+			}
+#endif
+		} else {
+			TOUCH_INFO_MSG("PANEL ON \n");
+		}
+#if defined(TOUCH_USE_DSV)
+		pre_lpwg_prox_status = ts->pdata->lpwg_prox;
+#endif
+	}
 	TOUCH_INFO_MSG("%s %X \n", __func__, ts->pdata->lpwg_mode);
 
 	return 0;
 }
 
-static ssize_t mms_lpwg_wakeup_show(struct i2c_client *client, char *buf)
+static ssize_t mit_keyguard_info_store(struct i2c_client *client, const char *buf )
 {
-	struct lge_touch_data *ts = i2c_get_clientdata(client);
-
-	touch_send_wakeup((void *)ts);
-
-	return 0;
-}
-
-static ssize_t mms_lpwg_test_store(struct i2c_client *client, const char *buf )
-{
+#if defined(TOUCH_USE_DSV)
 	struct mms_data *ts = (struct mms_data *) get_touch_handle_(client);
-	int lpwg_test_count = 0;
-
-	sscanf(buf, "%d", &lpwg_test_count);
-
-	if (lpwg_test_count > 10)
-		lpwg_test_count = 10;
-
-	ts->pdata->lpwg_test_count = (u8)lpwg_test_count;
-
-	TOUCH_INFO_MSG("%s %d \n", __func__, ts->pdata->lpwg_test_count);
-
-	return 0;
-}
 #endif
-
-static ssize_t keyguard_info_store(struct i2c_client *client, const char *buf )
-{
-
 	int value;
 
 	if (sscanf(buf, "%d", &value) != 1)
@@ -2565,6 +2097,13 @@ static ssize_t keyguard_info_store(struct i2c_client *client, const char *buf )
 		case KEYGUARD_RESERVED:
 			lockscreen_stat = 0;
 			TOUCH_INFO_MSG("%s : Lockscreen unlocked, lockscreen_stat = %d\n", __func__, lockscreen_stat);
+
+#if defined(TOUCH_USE_DSV)
+			ts->pdata->sensor_value = 0;
+			if (ts->pdata->enable_sensor_interlock) {
+				ts->pdata->use_dsv = 0;
+			}
+#endif
 			break;
 		case KEYGUARD_ENABLE:
 			lockscreen_stat = 1;
@@ -2587,9 +2126,13 @@ static int mms_sysfs(struct i2c_client *client, char *buf1, const char *buf2, u3
 
 	TOUCH_TRACE_FUNC();
 
-	power_lock(POWER_SYSFS_LOCK);
-	mms_power(client, POWER_ON);
-	msleep(30);
+	if (code != SYSFS_TESTMODE_VERSION_SHOW && code != SYSFS_KEYGUARD_STORE) {
+		power_lock(POWER_SYSFS_LOCK);
+		mms_power(client, POWER_ON);
+		msleep(30);
+	} else {
+		TOUCH_INFO_MSG("[%s] Ignore power on.\n", __func__);
+	}
 
 	switch (code) {
 	case SYSFS_VERSION_SHOW :
@@ -2603,18 +2146,17 @@ static int mms_sysfs(struct i2c_client *client, char *buf1, const char *buf2, u3
 	case SYSFS_REG_CONTROL_STORE:
 		ret = mms_reg_control_store(client, buf2);
 		break;
-	case SYSFS_FX_CONTROL_STORE:
-		ret = mms_fx_control_store(client, buf2);
+	case SYSFS_LPWG_TCI_STORE:
+		ret = mit_tci_store(client, buf2);
 		break;
-#ifdef SENSING_TEST
-	case SYSFS_SENSING_TEST_STORE:
-		ret = mms_sensing_test_store(client, buf2);
-		break;
-#endif
-
 	case SYSFS_CHSTATUS_SHOW:
 		touch_disable(ts->client->irq);
 		ret = mit_chstatus_show(client, buf1);
+		touch_enable(ts->client->irq);
+		break;
+	case SYSFS_CHSTATUS_STORE:
+		touch_disable(ts->client->irq);
+		ret = mit_chstatus_store(client, buf2);
 		touch_enable(ts->client->irq);
 		break;
 	case SYSFS_RAWDATA_SHOW:
@@ -2627,9 +2169,6 @@ static int mms_sysfs(struct i2c_client *client, char *buf1, const char *buf2, u3
 		ret = mms_rawdata_store(client, buf2);
 		touch_enable(ts->client->irq);
 		break;
-	case SYSFS_JITTER_SHOW:
-		ret = mms_jitter_show(client, buf1);
-		break;
 	case SYSFS_DELTA_SHOW:
 		ret = melfas_delta_show(client, buf1);
 		break;
@@ -2637,12 +2176,6 @@ static int mms_sysfs(struct i2c_client *client, char *buf1, const char *buf2, u3
 		touch_disable(ts->client->irq);
 		ret = mms_self_diagnostic_show(client, buf1);
 		touch_enable(ts->client->irq);
-		break;
-	case SYSFS_EDGE_EXPAND_SHOW :
-		ret = mms_edge_expand_show(client, buf1);
-		break;
-	case SYSFS_EDGE_EXPAND_STORE :
-		ret = mms_edge_expand_store(client, buf2);
 		break;
 	case SYSFS_SENSING_ALL_BLOCK_CONTROL :
 		sscanf(buf1, "%d", &onoff);
@@ -2657,27 +2190,26 @@ static int mms_sysfs(struct i2c_client *client, char *buf1, const char *buf2, u3
 	case SYSFS_FW_DUMP :
 		ret = mms_fw_dump_show(client, buf1);
 		break;
-#ifdef LPWG_TEMP
 	case SYSFS_LPWG_SHOW :
 		ret = mms_lpwg_show(client, buf1);
 		break;
 	case SYSFS_LPWG_STORE :
 		ret = mms_lpwg_store(client, buf1 ,buf2);
 		break;
-	case SYSFS_LPWG_WAKEUP_SHOW :
-		ret = mms_lpwg_wakeup_show(client, buf1);
-		break;
-	case SYSFS_LPWG_TEST_STORE :
-		ret = mms_lpwg_test_store(client, buf2);
-		break;
-#endif
 	case SYSFS_KEYGUARD_STORE :
-		ret = keyguard_info_store(client, buf2);
+		ret = mit_keyguard_info_store(client, buf2);
+		break;
+	case SYSFS_LPWG_DEBUG_STORE:
+		tci_control(ts, LPWG_PANEL_DEBUG_CTRL, ts->pdata->lpwg_debug_enable);
+		break;
+	case SYSFS_LPWG_REASON_STORE:
+		tci_control(ts, LPWG_FAIL_REASON_CTRL, ts->pdata->lpwg_fail_reason);
 		break;
 	}
 
-	power_unlock(POWER_SYSFS_LOCK);
-
+	if (code != SYSFS_TESTMODE_VERSION_SHOW && code != SYSFS_KEYGUARD_STORE) {
+		power_unlock(POWER_SYSFS_LOCK);
+	}
 	return ret;
 }
 
@@ -2691,11 +2223,13 @@ enum window_status mms_check_crack(struct i2c_client *client)
 	TOUCH_TRACE_FUNC();
 
 	touch_disable(ts->client->irq);
+	ts->count_short = 0;
 	result = mit_get_test_result(client, buf, CRACK_CHECK);
 	touch_enable(ts->client->irq);
 
 	if (result < 0 || ts->count_short > CRACK_SPEC) {
 		ret = CRACK;
+		TOUCH_INFO_MSG("%s crack_result = %d, count_short = %d\n", __func__, result, ts->count_short);
 	}
 	return ret;
 }
@@ -2710,6 +2244,10 @@ struct touch_device_driver mms_driver = {
 	.ic_ctrl = mms_ic_ctrl,
 	.sysfs = mms_sysfs,
 	.inspection_crack = mms_check_crack,
+#if defined(TOUCH_USE_DSV)
+	.dsv_control = mms_dsv_control,
+#endif
+	.battery_thermal = mit_battery_thermal,
 };
 
 static void async_touch_init(void *data, async_cookie_t cookie)
