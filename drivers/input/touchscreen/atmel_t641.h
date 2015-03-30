@@ -850,7 +850,7 @@ struct tci_abs {
 	int y;
 };
 
-#define TOUCH_INFO_MSG(fmt, args...) 	printk(KERN_ERR "[Touch] " fmt, ##args)
+#define TOUCH_INFO_MSG(fmt, args...) 	pr_debug(KERN_ERR "[Touch] " fmt, ##args)
 #define TOUCH_ERR_MSG(fmt, args...) printk(KERN_ERR "[Touch E] [%s %d] " fmt, __FUNCTION__, __LINE__, ##args)
 #define TOUCH_PATCH_INFO_MSG(fmt, args...) 	printk(KERN_ERR "[Touch Patch] " fmt, ##args)
 
