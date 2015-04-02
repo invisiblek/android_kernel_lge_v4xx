@@ -331,9 +331,6 @@ static enum power_supply_property msm_bms_power_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER_SHADOW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
-#ifdef CONFIG_MACH_MSM8226_E7WIFI
-	POWER_SUPPLY_PROP_BATTERY_DUALIZATION,
-#endif
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 };
@@ -3675,11 +3672,6 @@ static int qpnp_bms_power_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		val->intval = get_prop_bms_charge_full_design(chip);
 		break;
-#ifdef CONFIG_MACH_MSM8226_E7WIFI
-	case POWER_SUPPLY_PROP_BATTERY_DUALIZATION:
-		val->intval = read_battery_id(chip);
-		break;
-#endif
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		val->intval = get_prop_bms_charge_full(chip);
 		break;

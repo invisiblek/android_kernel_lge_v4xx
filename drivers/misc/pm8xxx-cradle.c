@@ -32,9 +32,7 @@ struct pm8xxx_cradle {
 	int state;
 };
 
-#ifdef CONFIG_MACH_MSM8926_E7LTE_ATT_US
 #define POUCH_DETECT_DELAY 100
-#endif
 
 static struct workqueue_struct *cradle_wq;
 static struct pm8xxx_cradle *cradle;
