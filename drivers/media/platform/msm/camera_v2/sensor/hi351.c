@@ -81,8 +81,8 @@ typedef enum {
 } HI351ResolutionType;
 //                                                                        
 
-static int main_cam_id_value = HI351_LGIT;
-static int hi351_antibanding = HI351_60HZ;
+static int main_cam_id_value = HI351_COWELL;
+static int hi351_antibanding = HI351_50HZ;
 static int hi351_ab_mod = 0;
 static int hi351_cur_res = HI351_SENSOR_RES_QTR;  //                                                           
 static int hi351_prev_res = HI351_SENSOR_RES_QTR;  //                                                                                                                                       
@@ -1577,14 +1577,6 @@ int32_t hi351_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		for (i = 0; i < SUB_MODULE_MAX; i++)
 			cdata->cfg.sensor_info.subdev_id[i] =
 				s_ctrl->sensordata->sensor_info->subdev_id[i];
-		cdata->cfg.sensor_info.is_mount_angle_valid =
-			s_ctrl->sensordata->sensor_info->is_mount_angle_valid;
-		cdata->cfg.sensor_info.sensor_mount_angle =
-			s_ctrl->sensordata->sensor_info->sensor_mount_angle;
-		cdata->cfg.sensor_info.position =
-			s_ctrl->sensordata->sensor_info->position;
-		cdata->cfg.sensor_info.modes_supported =
-			s_ctrl->sensordata->sensor_info->modes_supported;
 		CDBG("%s:%d sensor name %s\n", __func__, __LINE__,
 			cdata->cfg.sensor_info.sensor_name);
 		CDBG("%s:%d session id %d\n", __func__, __LINE__,
@@ -1592,9 +1584,6 @@ int32_t hi351_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		for (i = 0; i < SUB_MODULE_MAX; i++)
 			CDBG("%s:%d subdev_id[%d] %d\n", __func__, __LINE__, i,
 				cdata->cfg.sensor_info.subdev_id[i]);
-		CDBG("%s:%d mount angle valid %d value %d\n", __func__,
-			__LINE__, cdata->cfg.sensor_info.is_mount_angle_valid,
-			cdata->cfg.sensor_info.sensor_mount_angle);
 
 		break;
 	case CFG_SET_INIT_SETTING: {
@@ -1783,7 +1772,7 @@ int32_t hi351_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		break;
 
 	case CFG_SET_START_STREAM:
-		pr_err("%s, CFG_SET_START_STREAM!! hi351_prev_res = %d, hi351_cur_res =%d\n", __func__, hi351_prev_res, hi351_cur_res);
+		pr_err("%s, CFG_SET_START_STREAM!!  hi351_prev_res = %d\n", __func__, hi351_prev_res);
 //                                                                                                                             
 // settings0 is with recommend setting right after. When INIT_DONE is 1, it means this is followed by right after Recommend Setting register set.
 		if(INIT_DONE == 1){
@@ -1808,18 +1797,8 @@ int32_t hi351_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		break;
 	case CFG_GET_SENSOR_INIT_PARAMS:
 		pr_err("%s, CFG_GET_SENSOR_INIT_PARAMS!!\n", __func__);
-#if 0
 		cdata->cfg.sensor_init_params =
 			*s_ctrl->sensordata->sensor_init_params;
-#else
-		cdata->cfg.sensor_init_params.modes_supported =
-			s_ctrl->sensordata->sensor_info->modes_supported;
-		cdata->cfg.sensor_init_params.position =
-			s_ctrl->sensordata->sensor_info->position;
-		cdata->cfg.sensor_init_params.sensor_mount_angle =
-			s_ctrl->sensordata->sensor_info->sensor_mount_angle;
-#endif
-
 		CDBG("%s:%d init params mode %d pos %d mount %d\n", __func__,
 			__LINE__,
 			cdata->cfg.sensor_init_params.modes_supported,
@@ -1987,7 +1966,7 @@ int32_t hi351_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			size = conf_array.size; 	//size for write(page_mode) and read
 			read_data_size = size - 1;	//size for read
 
-			CDBG("[WX] %s: size : %d rsize : %d\n", __func__, size, read_data_size);
+			pr_err("[WX] %s: size : %d rsize : %d\n", __func__, size, read_data_size);
 
 			if (!size || !read_data_size) {
 				pr_err("%s:%d failed\n", __func__, __LINE__);
@@ -2035,7 +2014,7 @@ int32_t hi351_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 				}
 				else{
 					rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(s_ctrl->sensor_i2c_client, conf_array.reg_setting->reg_addr, read_data, conf_array.data_type);
-					CDBG("[WX] %s read_data : %d\n", __func__, *read_data);
+					pr_err("[WX] %s read_data : %d\n", __func__, *read_data);
 					read_data++;
 				}
 				conf_array.reg_setting++;
@@ -2056,7 +2035,7 @@ int32_t hi351_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			read_data = NULL;
 			read_data_head = NULL;
 
-			CDBG("[WX] %s done\n", __func__);
+			pr_err("[WX] %s done\n", __func__);
 
 			break;
 		}

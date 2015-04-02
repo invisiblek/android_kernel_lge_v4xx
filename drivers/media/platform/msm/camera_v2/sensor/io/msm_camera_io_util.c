@@ -72,17 +72,6 @@ void msm_camera_io_memcpy_toio(void __iomem *dest_addr,
 		writel_relaxed(*s++, d++);
 }
 
-void msm_camera_io_memcpy_mb(void __iomem *dest_addr,
-	void __iomem *src_addr, u32 len)
-{
-	int i;
-	u32 *d = (u32 *) dest_addr;
-	u32 *s = (u32 *) src_addr;
-
-	for (i = 0; i < (len / 4); i++)
-		msm_camera_io_w_mb(*s++, d++);
-}
-
 void msm_camera_io_dump(void __iomem *addr, int size)
 {
 	char line_str[BUFF_SIZE_128], *p_str;

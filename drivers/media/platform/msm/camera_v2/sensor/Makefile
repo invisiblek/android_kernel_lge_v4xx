@@ -4,7 +4,11 @@ ccflags-y += -Idrivers/media/platform/msm/camera_v2/camera
 ccflags-y += -Idrivers/media/platform/msm/camera_v2/sensor/io
 ccflags-y += -Idrivers/media/platform/msm/camera_v2/sensor/cci
 obj-$(CONFIG_MSMB_CAMERA) += cci/ io/ csiphy/ csid/ actuator/ flash/ eeprom/
+ifdef CONFIG_MACH_LGE
+obj-$(CONFIG_MSM_CAMERA_SENSOR) += msm_sensor.o
+else
 obj-$(CONFIG_MSM_CAMERA_SENSOR) += msm_sensor_init.o msm_sensor_driver.o msm_sensor.o
+endif
 obj-$(CONFIG_IMX134) += imx134.o
 obj-$(CONFIG_OV8825) += ov8825.o
 obj-$(CONFIG_OV8865) += ov8865.o
