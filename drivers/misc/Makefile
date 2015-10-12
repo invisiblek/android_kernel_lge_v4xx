@@ -73,3 +73,4 @@ obj-$(CONFIG_TI_DRV2667) += ti_drv2667.o
 obj-$(CONFIG_QPNP_MISC) += qpnp-misc.o
 obj-$(CONFIG_BU52061NVX) += pm8xxx-cradle.o
 obj-$(CONFIG_TSPDRV) += tspdrv/
+obj-$(CONFIG_UID_CPUTIME) 	+= uid_cputime.o

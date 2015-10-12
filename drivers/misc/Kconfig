@@ -687,6 +687,12 @@ config BU52061NVX
 	  This option enable device driver support for the cradle
 	  on the PM8XXX chips. The cradle is controlled using the PM8XXX gpio
 
+config UID_CPUTIME
+	tristate "Per-UID cpu time statistics"
+	depends on PROFILING
+	help
+	  Per UID based cpu time statistics exported to /proc/uid_cputime
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
