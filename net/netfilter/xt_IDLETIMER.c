@@ -70,7 +70,6 @@ struct idletimer_tg {
 
 	int timeout;
 	unsigned int refcnt;
-	bool work_pending;
 	bool send_nl_msg;
 	bool active;
 };
@@ -87,7 +86,6 @@ static bool check_for_delayed_trigger(struct idletimer_tg *timer,
 	bool state;
 	struct timespec temp;
 	spin_lock_bh(&timestamp_lock);
-	timer->work_pending = false;
 	if ((ts->tv_sec - timer->last_modified_timer.tv_sec) > timer->timeout ||
 			timer->delayed_timer_trigger.tv_sec != 0) {
 		state = false;
@@ -98,7 +96,6 @@ static bool check_for_delayed_trigger(struct idletimer_tg *timer,
 			ts->tv_sec = temp.tv_sec;
 			ts->tv_nsec = temp.tv_nsec;
 			timer->delayed_timer_trigger.tv_sec = 0;
-			timer->work_pending = true;
 			schedule_work(&timer->work);
 		} else {
 			temp = timespec_add(timer->last_modified_timer, temp);
@@ -130,7 +127,7 @@ static void notify_netlink_uevent(const char *iface, struct idletimer_tg *timer)
 		return;
 	}
 
-	get_monotonic_boottime(&ts);
+	getnstimeofday(&ts);
 	state = check_for_delayed_trigger(timer, &ts);
 	res = snprintf(state_msg, NLMSG_MAX_SIZE, "STATE=%s",
 			state ? "active" : "inactive");
@@ -150,8 +147,6 @@ static void notify_netlink_uevent(const char *iface, struct idletimer_tg *timer)
 	pr_debug("putting nlmsg: <%s> <%s>\n", iface_msg, state_msg);
 	kobject_uevent_env(idletimer_tg_kobj, KOBJ_CHANGE, envp);
 	return;
-
-
 }
 
 static
@@ -211,11 +206,9 @@ static void idletimer_tg_expired(unsigned long data)
 	struct idletimer_tg *timer = (struct idletimer_tg *) data;
 
 	pr_debug("timer %s expired\n", timer->attr.attr.name);
-	spin_lock_bh(&timestamp_lock);
+
 	timer->active = false;
-	timer->work_pending = true;
 	schedule_work(&timer->work);
-	spin_unlock_bh(&timestamp_lock);
 }
 
 static int idletimer_resume(struct notifier_block *notifier,
@@ -225,22 +218,18 @@ static int idletimer_resume(struct notifier_block *notifier,
 	unsigned long time_diff, now = jiffies;
 	struct idletimer_tg *timer = container_of(notifier,
 			struct idletimer_tg, pm_nb);
-	if (!timer)
-		return NOTIFY_DONE;
+
 	switch (pm_event) {
 	case PM_SUSPEND_PREPARE:
-		get_monotonic_boottime(&timer->last_suspend_time);
+		getnstimeofday(&timer->last_suspend_time);
 		break;
 	case PM_POST_SUSPEND:
-		spin_lock_bh(&timestamp_lock);
-		if (!timer->active) {
-			spin_unlock_bh(&timestamp_lock);
+		if (!timer || !timer->active)
 			break;
-		}
 		/* since jiffies are not updated when suspended now represents
 		 * the time it would have suspended */
 		if (time_after(timer->timer.expires, now)) {
-			get_monotonic_boottime(&ts);
+			getnstimeofday(&ts);
 			ts = timespec_sub(ts, timer->last_suspend_time);
 			time_diff = timespec_to_jiffies(&ts);
 			if (timer->timer.expires > (time_diff + now)) {
@@ -250,11 +239,9 @@ static int idletimer_resume(struct notifier_block *notifier,
 				del_timer(&timer->timer);
 				timer->timer.expires = 0;
 				timer->active = false;
-				timer->work_pending = true;
 				schedule_work(&timer->work);
 			}
 		}
-		spin_unlock_bh(&timestamp_lock);
 		break;
 	default:
 		break;
@@ -295,10 +282,11 @@ static int idletimer_tg_create(struct idletimer_tg_info *info)
 	info->timer->active = true;
 	info->timer->timeout = info->timeout;
 
+	spin_lock_bh(&timestamp_lock);
 	info->timer->delayed_timer_trigger.tv_sec = 0;
 	info->timer->delayed_timer_trigger.tv_nsec = 0;
-	info->timer->work_pending = false;
-	get_monotonic_boottime(&info->timer->last_modified_timer);
+	getnstimeofday(&info->timer->last_modified_timer);
+	spin_unlock_bh(&timestamp_lock);
 
 	info->timer->pm_nb.notifier_call = idletimer_resume;
 	ret = register_pm_notifier(&info->timer->pm_nb);
@@ -335,15 +323,14 @@ static void reset_timer(const struct idletimer_tg_info *info)
 		pr_debug("Starting Checkentry timer (Expired, Jiffies): %lu, %lu\n",
 				timer->timer.expires, now);
 		/* checks if there is a pending inactive notification*/
-		if (timer->work_pending)
+		if (cancel_work_sync(&timer->work))
 			timer->delayed_timer_trigger = timer->last_modified_timer;
-		else {
-			timer->work_pending = true;
-			schedule_work(&timer->work);
-		}
+
+		getnstimeofday(&timer->last_modified_timer);
+		schedule_work(&timer->work);
 	}
 
-	get_monotonic_boottime(&timer->last_modified_timer);
+	getnstimeofday(&timer->last_modified_timer);
 	mod_timer(&timer->timer,
 			msecs_to_jiffies(info->timeout * 1000) + now);
 	spin_unlock_bh(&timestamp_lock);
@@ -353,23 +340,13 @@ static void reset_timer(const struct idletimer_tg_info *info)
  * The actual xt_tables plugin.
  */
 static unsigned int idletimer_tg_target(struct sk_buff *skb,
-					 const struct xt_action_param *par)
+		const struct xt_action_param *par)
 {
 	const struct idletimer_tg_info *info = par->targinfo;
-	unsigned long now = jiffies;
-
 	pr_debug("resetting timer %s, timeout period %u\n",
 		 info->label, info->timeout);
 
 	BUG_ON(!info->timer);
-
-	info->timer->active = true;
-
-	if (time_before(info->timer->timer.expires, now)) {
-		schedule_work(&info->timer->work);
-		pr_debug("Starting timer %s (Expired, Jiffies): %lu, %lu\n",
-			 info->label, info->timer->timer.expires, now);
-	}
 
 	/* TODO: Avoid modifying timers on each packet */
 	reset_timer(info);
@@ -380,7 +357,6 @@ static int idletimer_tg_checkentry(const struct xt_tgchk_param *par)
 {
 	struct idletimer_tg_info *info = par->targinfo;
 	int ret;
-
 	pr_debug("checkentry targinfo %s\n", info->label);
 
 	if (info->timeout == 0) {
@@ -411,9 +387,7 @@ static int idletimer_tg_checkentry(const struct xt_tgchk_param *par)
 			return ret;
 		}
 	}
-
 	mutex_unlock(&list_mutex);
-
 	return 0;
 }
 
@@ -431,7 +405,6 @@ static void idletimer_tg_destroy(const struct xt_tgdtor_param *par)
 		list_del(&info->timer->entry);
 		del_timer_sync(&info->timer->timer);
 		sysfs_remove_file(idletimer_tg_kobj, &info->timer->attr.attr);
-		unregister_pm_notifier(&info->timer->pm_nb);
 		kfree(info->timer->attr.attr.name);
 		kfree(info->timer);
 	} else {
