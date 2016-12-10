@@ -1655,7 +1655,7 @@ static void msm_otg_notify_charger(struct msm_otg *motg, unsigned mA)
 	cable = lge_pm_get_cable_type();
 
 	if (mA > 2 && cable != NO_INIT_CABLE) {
-#ifdef CONFIG_MACH_MSM8226_E7WIFI
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI)
 #define INPUT_CURRENT_910K 500
 		if (motg->chg_type == USB_SDP_CHARGER){
 			if (((cable == CABLE_910K) && qpnp_get_batt_present()) ||\

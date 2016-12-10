@@ -2810,6 +2810,12 @@ done:
 	return soc;
 }
 
+#ifdef CONFIG_MACH_MSM8226_E8WIFI
+extern void check_touch_bat_therm(int type);
+int touch_thermal_mode = 0;
+int thermal_threshold = 20;
+#endif
+
 static int recalculate_soc(struct qpnp_bms_chip *chip)
 {
 	int batt_temp, rc, soc;
@@ -2857,6 +2863,17 @@ static int recalculate_soc(struct qpnp_bms_chip *chip)
 		is_enter_first = false;
 
 		qpnp_goto_suspend_for_chg_logo();
+	}
+#endif
+#ifdef CONFIG_MACH_MSM8226_E8WIFI
+	rc = qpnp_vadc_read(chip->vadc_dev, P_MUX5_1_1, &result);
+
+	if (touch_thermal_mode == 0 && result.physical >= 550) {
+		touch_thermal_mode = 1;
+		check_touch_bat_therm(1);
+	} else if (touch_thermal_mode == 1 && result.physical < (550-thermal_threshold)) {
+		touch_thermal_mode = 0;
+		check_touch_bat_therm(0);
 	}
 #endif
 	bms_relax(&chip->soc_wake_source);
@@ -3935,6 +3952,10 @@ static int set_battery_data(struct qpnp_bms_chip *chip)
 		batt_data = &LGE_BL_T12_4000mAh_TOCAD_data;
 		pr_err("[BATTERY PROFILE] Using default profile - TOCAD_4000mAh\n");
 	}
+#endif
+#ifdef CONFIG_LGE_PM_BATTERY_CAPACITY_4200mAh
+	batt_data = &LGE_LGC_4200mAh_data;
+	pr_err("[BATTERY PROFILE] Using default profile - LGC_4200mAh\n");
 #endif
 	goto assign_data;
 #else	/* Not PM battery profile */

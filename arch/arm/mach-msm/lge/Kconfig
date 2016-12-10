@@ -17,6 +17,13 @@ config MACH_MSM8926_E7LTE_ATT_US
         help
           Support for the Qualcomm MSM8926 E7 LTE device.
 
+config MACH_MSM8226_E8WIFI
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "APQ8026 E8WIFI OPEN"
+        help
+          Support for the Qualcomm APQ8026 E8 WiFi-Only device.
+
 endmenu
 
 menu "LGE Specific Patches"
@@ -56,6 +63,12 @@ config LGE_PM_BATTERY_CAPACITY_4000mAh
         depends on LGE_PM_BATTERY_PROFILE_DATA
         help
           LGE battery capacity for 4000mAh
+
+config LGE_PM_BATTERY_CAPACITY_4200mAh
+        bool "Support Battery Capacity : 4200mAh"
+        depends on LGE_PM_BATTERY_PROFILE_DATA
+        help
+          LGE battery capacity for 4200mAh
 
 endmenu
 

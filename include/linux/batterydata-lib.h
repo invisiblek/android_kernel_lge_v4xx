@@ -141,7 +141,11 @@ struct bms_battery_data {
 extern struct bms_battery_data LGE_BL_T12_4000mAh_TOCAD_data;
 extern struct bms_battery_data LGE_BL_T12_4000mAh_LG_Chem_data;
 #else
+#ifdef CONFIG_LGE_PM_BATTERY_CAPACITY_4200mAh
+extern struct bms_battery_data LGE_LGC_4200mAh_data;
+#else
 extern struct bms_battery_data LGE_BL_54SH_2540mAh_LG_Chem_data;
+#endif
 #endif
 
 #else

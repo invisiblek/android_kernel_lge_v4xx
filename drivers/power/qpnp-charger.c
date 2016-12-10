@@ -515,12 +515,12 @@ static bool is_factory_cable(void)
 extern void lge_pm_set_usb_id_handle(struct qpnp_vadc_chip *);
 #endif
 
-#ifdef CONFIG_MACH_MSM8226_E7WIFI
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI)
 #define FACTORY_IUSB_MAX_FOR_EMBEDDED_BATTERY 500
 #endif
 #define FACTORY_IBAT_MAX_FOR_EMBEDDED_BATTERY 100
 
-#ifdef CONFIG_MACH_MSM8226_E7WIFI
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI)
 static bool is_56k_910k_factory_cable(void)
 {
 	unsigned int cable_info;
@@ -2901,7 +2901,7 @@ int get_batt_present_touch(void){
 }
 EXPORT_SYMBOL(get_batt_present_touch);
 
-#ifdef CONFIG_MACH_MSM8226_E7WIFI
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI)
 int
 qpnp_get_batt_present(void)
 {
@@ -3278,7 +3278,7 @@ qpnp_batt_external_power_changed(struct power_supply *psy)
 
 #ifdef CONFIG_LGE_PM
 	if (is_factory_cable()) {
-#ifdef CONFIG_MACH_MSM8226_E7WIFI
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI)
 		if (get_prop_batt_present(chip) && is_56k_910k_factory_cable()) {
 			 pr_info("Factory cable is connected (56K, 910K)\n");
 			 qpnp_chg_iusbmax_set(chip, FACTORY_IUSB_MAX_FOR_EMBEDDED_BATTERY);
@@ -4445,8 +4445,10 @@ qpnp_eoc_work(struct work_struct *work)
 				ibat_ma, vbat_mv, chip->term_current);
 
 		vbat_lower_than_vbatdet = !(chg_sts & VBAT_DET_LOW_IRQ);
-#ifdef CONFIG_MACH_MSM8226_E7WIFI
+#if defined (CONFIG_MACH_MSM8226_E7WIFI)
 		if (vbat_lower_than_vbatdet && vbat_mv < 4330) {
+#elif defined (CONFIG_MACH_MSM8226_E8WIFI)
+		if (vbat_lower_than_vbatdet && vbat_mv < 4120) {
 #else
 		if (vbat_lower_than_vbatdet && vbat_mv <
 				(chip->max_voltage_mv - chip->resume_delta_mv
@@ -6455,7 +6457,7 @@ qpnp_charger_probe(struct spmi_device *spmi)
 
 #ifdef CONFIG_LGE_PM
 	if (is_factory_cable()) {
-#ifdef CONFIG_MACH_MSM8226_E7WIFI
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI)
 		if (get_prop_batt_present(chip) && is_56k_910k_factory_cable()) {
 			 pr_info("Factory cable is connected (56K, 910K)\n");
 			 qpnp_chg_iusbmax_set(chip, FACTORY_IUSB_MAX_FOR_EMBEDDED_BATTERY);
@@ -6640,7 +6642,7 @@ qpnp_charger_probe(struct spmi_device *spmi)
 		power_supply_set_online(chip->usb_psy, 1);
 #endif
 
-#ifdef CONFIG_MACH_MSM8226_E7WIFI
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI)
 	if(is_56k_910k_factory_cable()){
 		pr_info("DEBUG : 56K, 910K factory cable is inserted, not check input current\n");
 	} else {

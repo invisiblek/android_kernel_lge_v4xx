@@ -734,6 +734,15 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	if (mipi->init_delay)
 		usleep(mipi->init_delay);
 
+#ifdef CONFIG_MACH_MSM8226_E8WIFI
+	if (mipi->force_clk_lane_hs) {
+		u32 tmp;
+		tmp = MIPI_INP((ctrl_pdata->ctrl_base) + 0x2c);
+		tmp |= (1<<28);
+		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0x2c, tmp);  /* To HS Clock gating for clock source (non-continuous mode) */
+		wmb();
+	}
+#else
 	if (mipi->force_clk_lane_hs) {
 		u32 tmp;
 
@@ -742,6 +751,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac, tmp);
 		wmb();
 	}
+#endif
 
 	if (pdata->panel_info.type == MIPI_CMD_PANEL)
 		mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 0);
