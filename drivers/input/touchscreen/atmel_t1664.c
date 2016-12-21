@@ -2421,6 +2421,9 @@ static void mxt_proc_t93_messages(struct mxt_data *data, u8 *message)
 	} else if ( msg & 0x02 ) {
 		TOUCH_INFO_MSG("T93 Knock ON!!\n");
 		send_uevent(knockon_event);
+		input_report_key(data->input_dev, KEY_POWER, BUTTON_PRESSED);
+		input_report_key(data->input_dev, KEY_POWER, BUTTON_RELEASED);
+		input_sync(data->input_dev);
 	}
 }
 #endif
@@ -5696,6 +5699,28 @@ static ssize_t store_lpwg_notify(struct mxt_data *data, const char *buf, size_t 
 		}
 	return count;
 }
+
+/* Sysfs - tap_to_wake (Low Power Wake-up Gesture Compatibility device)
+ *
+ * write
+ * 0 : DISABLE
+ * 1 : ENABLE
+ */
+static ssize_t store_tap_to_wake(struct mxt_data *data, const char *buf, size_t count)
+{
+	int value;
+
+	if (mutex_is_locked(&i2c_suspend_lock)) {
+		TOUCH_INFO_MSG("%s mutex_is_locked \n", __func__);
+	}
+
+	sscanf(buf, "%d", &value);
+	TOUCH_INFO_MSG("%s : %d\n", __func__, value);
+
+	atmel_ts_lpwg(data->client, LPWG_ENABLE, value, NULL);
+
+	return count;
+}
 #endif
 
 static ssize_t store_incoming_call(struct mxt_data *data, const char *buf, size_t count)
@@ -5780,6 +5805,7 @@ static LGE_TOUCH_ATTR(knock_on_type, S_IRUGO, mxt_get_knockon_type, NULL);
 #if defined(CONFIG_TOUCHSCREEN_LGE_LPWG)
 static LGE_TOUCH_ATTR(lpwg_data, S_IRUGO | S_IWUSR, show_lpwg_data, store_lpwg_data);
 static LGE_TOUCH_ATTR(lpwg_notify, S_IRUGO | S_IWUSR, NULL, store_lpwg_notify);
+static LGE_TOUCH_ATTR(tap_to_wake, S_IRUGO | S_IWUSR, NULL, store_tap_to_wake);
 #else
 static LGE_TOUCH_ATTR(touch_gesture,S_IRUGO | S_IWUSR, NULL, mxt_knock_on_store);
 #endif
@@ -5817,6 +5843,7 @@ static struct attribute *lge_touch_attribute_list[] = {
 #if defined(CONFIG_TOUCHSCREEN_LGE_LPWG)
 	&lge_touch_attr_lpwg_data.attr,
 	&lge_touch_attr_lpwg_notify.attr,
+	&lge_touch_attr_tap_to_wake.attr,
 #else
 	&lge_touch_attr_touch_gesture.attr,
 #endif
@@ -6432,6 +6459,9 @@ int mxt_initialize_t100_input_device(struct mxt_data *data)
 //	__set_bit(EV_SYN, input_dev->evbit);
 	__set_bit(EV_ABS, input_dev->evbit);
 	__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
+
+	__set_bit(EV_KEY, input_dev->evbit);
+	__set_bit(KEY_POWER, input_dev->keybit);
 
 	/* For single touch */
 /*

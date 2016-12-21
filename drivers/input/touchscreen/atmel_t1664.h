@@ -334,6 +334,12 @@ struct t9_range {
 } __packed;
 
 enum {
+	BUTTON_RELEASED = 0,
+	BUTTON_PRESSED  = 1,
+	BUTTON_CANCLED  = 0xff,
+};
+
+enum {
 	POWER_OFF = 0,
 	POWER_ON,
 	POWER_SLEEP,
