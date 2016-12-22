@@ -734,7 +734,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	if (mipi->init_delay)
 		usleep(mipi->init_delay);
 
-#ifdef CONFIG_MACH_MSM8226_E8WIFI
+#if defined(CONFIG_MACH_MSM8226_E8WIFI) || defined(CONFIG_MACH_MSM8926_E8LTE)
 	if (mipi->force_clk_lane_hs) {
 		u32 tmp;
 		tmp = MIPI_INP((ctrl_pdata->ctrl_base) + 0x2c);
