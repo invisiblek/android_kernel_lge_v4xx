@@ -14,7 +14,7 @@
 #ifdef CONFIG_LGE_PM
 extern int32_t qpnp_charger_is_ready(void);
 extern int32_t external_qpnp_enable_charging(bool enable);
-#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI)
+#if defined (CONFIG_MACH_MSM8226_E7WIFI) || defined (CONFIG_MACH_MSM8226_E8WIFI) || defined (CONFIG_MACH_MSM8926_E8LTE)
 extern int qpnp_get_batt_present(void);
 #endif /* CONFIG_MACH_MSM8226_E7WIFI */
 #endif /* CONFIG_LGE_PM */

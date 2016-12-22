@@ -4,6 +4,7 @@ obj-$(CONFIG_MACH_MSM8226_E7WIFI) += board-e7.o board-8226-e7wifi-gpiomux.o
 obj-$(CONFIG_MACH_MSM8926_E7LTE_ATT_US) += board-e7.o board-8926-e7lte-att-us-gpiomux.o
 
 obj-$(CONFIG_MACH_MSM8226_E8WIFI) += board-8226-e8wifi.o board-8226-e8wifi-gpiomux.o
+obj-$(CONFIG_MACH_MSM8926_E8LTE) += board-8926-e8lte.o board-8926-e8lte-gpiomux.o
 
 obj-$(CONFIG_LGE_BOOTLOADER_LOG) += lge_bootloader_log.o
 obj-$(CONFIG_LGE_BOOTLOADER_TIME_CHECKER) += lge_bootloader_time_checker.o

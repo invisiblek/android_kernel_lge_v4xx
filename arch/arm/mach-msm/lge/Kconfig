@@ -24,6 +24,13 @@ config MACH_MSM8226_E8WIFI
         help
           Support for the Qualcomm APQ8026 E8 WiFi-Only device.
 
+config MACH_MSM8926_E8LTE
+        depends on ARCH_MSM8226
+        select MACH_LGE
+        bool "MSM8926 E8LTE OPEN"
+        help
+          Support for the Qualcomm MSM8926 E8 LTE device.
+
 endmenu
 
 menu "LGE Specific Patches"
